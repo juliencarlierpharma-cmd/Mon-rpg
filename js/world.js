@@ -265,6 +265,8 @@ G.World = {
     S.pos = { x: P.x, y: P.y, dir: P.dir };
     if (S.stats.steps % 2 === 0) G.Audio.sfx('step');
     const zone = this.zoneAt(P.x, P.y), Z = G.ZONES[zone];
+    S.flags.visited = S.flags.visited || {};
+    if (!S.flags.visited[zone]) { S.flags.visited[zone] = true; if (!Z.town) G.UI.toast(`Nouveau lieu : ${Z.n} (voyage rapide débloqué)`); }
     if (zone === 'havre' && !S.flags.bran) { this.branEvent(); return; }
     this.sinceBattle++;
     const ch = this.tile(P.x, P.y);
@@ -278,6 +280,25 @@ G.World = {
     let grp = U.pick(Z.groups).slice();
     if (G.maxLevel() > G.ENEMIES[grp[0]].lvl + 4 && grp.length < 3 && Math.random() < 0.6) grp.push(U.pick(U.pick(Z.groups)));
     G.Battle.start(grp, { bg: Z.bg, zone });
+  },
+  TRAVEL: [
+    ['bourg', 'Bourg-Aube', 27, 29], ['havre', 'Le Havre', 46, 34], ['foret', 'Orée de Sylve', 16, 27],
+    ['montagne', 'Pied des Monts Grisés', 27, 10], ['marais', 'Entrée du marais', 40, 27], ['volcan', 'Volcan Cendreux', 46, 11],
+  ],
+  canTravel(id) {
+    const S = G.S, v = S.flags.visited || {};
+    if (id === 'bourg') return true;
+    if (id === 'havre') return S.town.founded;
+    return !!v[id];
+  },
+  travel(id) {
+    const T = this.TRAVEL.find(t => t[0] === id);
+    G.scene = 'trans';
+    G.R.transition('fadeout', 0.35, () => {
+      this.placePlayer(T[2], T[3], 'down'); this.sinceBattle = 0; G.R.parts = [];
+      G.Audio.music(this.musicFor());
+      G.R.transition('fadein', 0.4, () => { G.scene = 'world'; });
+    });
   },
   musicFor() { const z = this.zoneAt(this.P.x, this.P.y); return G.ZONES[z].town ? 'town' : 'field'; },
   // ---------------- Interactions ----------------

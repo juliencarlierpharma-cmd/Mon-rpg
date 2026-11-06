@@ -32,7 +32,7 @@ G.Battle = {
   },
   mkParty(cid, i) {
     const calc = G.calc(cid);
-    return { side: 'p', cid, name: G.CHARS[cid].n, i, calc, hp: G.curHP(cid), mp: G.curMP(cid), st: {}, ct: 0, alive: G.curHP(cid) > 0, ox: 0, oy: 0, flash: 0, alpha: 1, combo: 0, energy: 0, guard: false, elem: null };
+    return { side: 'p', cid, name: G.CHARS[cid].n, i, calc, hp: G.curHP(cid), mp: G.curMP(cid), st: {}, ct: 0, alive: G.curHP(cid) > 0, ox: 0, oy: 0, flash: 0, alpha: 1, combo: 0, energy: G.S.flags.demo && calc.link >= 2 ? 100 : 0, guard: false, elem: null };
   },
   layout() {
     const R = G.R, W = R.W, BH = this.BH = Math.floor(R.H * (R.H > R.W ? 0.6 : 0.64));
@@ -500,7 +500,7 @@ G.Battle = {
     u.energy = 0;
     G.S.stats.tech++;
     G.addAffinity(fam.id, u.cid, 4);
-    const mul = (1 + lv * 0.08) * (u.calc.link >= 3 ? 1.5 : 1) * (u.calc.reson ? 1.25 : 1);
+    const mul = (1 + lv * 0.08) * (u.calc.link >= 3 ? 1.3 : 1) * (u.calc.reson ? 1.15 : 1);
     G.UI.battleBanner(`${S.n} — ${u.name} & ${F.n}`, 'p', true);
     this.log(`Technique liée : ${S.n} !`);
     G.R.flash(F.e ? G.ELEM[F.e].c : '#c86aff', 0.5);

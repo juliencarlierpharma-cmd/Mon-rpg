@@ -62,13 +62,36 @@ G.showTitle = () => {
   G.titleCam = 0;
   const T = document.getElementById('title');
   T.innerHTML = `<div class="logo"><div class="l1">Les Échos</div><div class="l2">ÉLÉMENTAIRES</div><div class="l3">Un RPG HD-2D au tour par tour</div></div>
-    <div class="tmenu">${G.hasSave() ? '<button class="btn gold" id="tContinue">Continuer</button>' : ''}<button class="btn" id="tNew">Nouvelle partie</button></div>
+    <div class="tmenu">${G.hasSave() ? '<button class="btn gold" id="tContinue">Continuer</button>' : ''}<button class="btn" id="tNew">Nouvelle partie</button><button class="btn demo" id="tDemo">✦ Démo rapide <small>niveau 15, tout débloqué</small></button></div>
     <div class="tfoot">Flèches / ZQSD · Entrée = action · Échap = menu · Tactile supporté</div>`;
   T.classList.add('show');
   G.Audio.music('title');
   const go = fn => () => { G.Audio.init(); G.Audio.sfx('ok'); T.classList.remove('show'); fn(); };
   const c = document.getElementById('tContinue');
   if (c) c.onclick = go(() => { G.load(); G.World.refresh(); G.World.placePlayer(G.S.pos.x, G.S.pos.y, G.S.pos.dir); G.UI.lastReady = G.achReadyCount(); G.scene = 'world'; G.view = 'world'; G.Audio.music(G.World.musicFor()); G.R.transition('fadein', 0.6); });
+  document.getElementById('tDemo').onclick = go(async () => {
+    if (G.hasSave()) {
+      const r = await G.UI.ask('Lancer la démo ? La sauvegarde existante sera remplacée.', ['Oui', 'Non']);
+      if (r !== 0) { T.classList.add('show'); return; }
+    }
+    G.S = G.demoState();
+    G.World.refresh();
+    G.World.placePlayer(46, 34, 'up');
+    G.UI.lastReady = 0;
+    G.scene = 'world'; G.view = 'world';
+    G.Audio.music('town');
+    G.R.transition('fadein', 0.8);
+    await G.UI.say([
+      { who: 'Démo', t: 'Bienvenue au Havre ! L’équipe est au niveau 15. Sylvaros est déjà purifié et la ville est en construction.' },
+      { who: 'Démo', t: 'Menu (☰ / Échap) › Armes : 4 armes par héros. Forgez celles qui manquent, améliorez-les, et comparez les styles de jeu.' },
+      { who: 'Démo', t: 'Menu › Accomplissements : deux récompenses attendent d’être réclamées. Menu › Havre : construisez et améliorez les bâtiments.' },
+      { who: 'Démo', t: 'Les familiers sont liés et leur énergie est pleine dès le début de chaque combat : essayez la commande « Familier » !' },
+      { who: 'Démo', t: 'Menu › Carte › Voyage rapide pour rejoindre le Marais (Hydre, à l’est) ou les Monts Grisés (Wyverne, au nord).' },
+      { who: 'Démo', t: 'Et devant la pierre de fondation, faites face à un arbre ou un rocher et appuyez sur A pour récolter. Bonne aventure !' },
+    ]);
+    G.UI.checkAch();
+    G.save();
+  });
   document.getElementById('tNew').onclick = go(async () => {
     if (G.hasSave()) {
       const r = await G.UI.ask('Commencer une nouvelle partie ? La sauvegarde existante sera écrasée.', ['Oui', 'Non']);
@@ -89,6 +112,38 @@ G.showTitle = () => {
     G.UI.toast('Parlez à l’Ancien Théo (maison violette). Bouton A / Entrée pour interagir.');
     G.save();
   });
+};
+
+// Partie de démonstration : milieu d'aventure, tous les systèmes accessibles
+G.demoState = () => {
+  const S = G.newState();
+  S.flags = { demo: true, elder: true, bran: true, visited: { plaines: true, bourg: true, havre: true, foret: true, montagne: true, marais: true } };
+  S.party = ['kael', 'lyra', 'bran'];
+  const W = { kael: { feu: 3, eau: 3, vent: 2, terre: 2 }, lyra: { feu: 3, eau: 3, vent: 2 }, bran: { feu: 2, vent: 3, terre: 3 } };
+  const slot = { kael: 'feu', lyra: 'eau', bran: 'terre' };
+  for (const c in W) { const ch = S.chars[c]; ch.lvl = 15; ch.exp = 400; ch.weapons = { feu: null, eau: null, vent: null, terre: null }; for (const e in W[c]) ch.weapons[e] = { tier: W[c][e] }; ch.wslot = slot[c]; }
+  S.armors = { tunique: 1, robe_lin: 1, cotte: 2, robe_sorcier: 1, ecorce: 1, amulette_croc: 1, bottes_ailees: 1 };
+  Object.assign(S.chars.kael, { armor: 'cotte', acc: 'amulette_croc' });
+  Object.assign(S.chars.lyra, { armor: 'robe_sorcier', acc: 'bottes_ailees' });
+  Object.assign(S.chars.bran, { armor: 'ecorce' });
+  S.fams = {
+    pyron: { lvl: 6, exp: 0, owner: 'kael', aff: { kael: 100, lyra: 10, bran: 0 } },
+    bulle: { lvl: 6, exp: 0, owner: 'lyra', aff: { kael: 20, lyra: 70, bran: 5 } },
+    mousse: { lvl: 4, exp: 0, owner: 'bran', aff: { kael: 0, lyra: 0, bran: 62 } },
+  };
+  S.gold = 6000;
+  S.items = { potion: 12, hipotion: 5, ether: 6, phenix: 3, remede: 4, bombe: 3, appat: 3, friandise: 6, festin: 2, elixir: 1 };
+  S.mats = { bois: 40, pierre: 40, minerai: 14, lingot: 30, cristal: 8, mithril: 3, herbe: 20, fibre: 25, fil: 12, gelee: 12, cuir: 14, croc: 12, plume: 10, spore: 8, seve: 6, braise: 12, aile: 4, os: 4, ecaille: 8, ectoplasme: 2, essence_feu: 6, essence_eau: 6, essence_vent: 6, essence_terre: 6, echo: 3, boisancien: 10, coeur_sylve: 1 };
+  S.tools = { pick: 2, axe: 2 };
+  S.bosses = { sylvaros: true };
+  S.stats = Object.assign(S.stats, { wins: 48, kills: 121, tags: { loup: 9 }, gathered: 64, crafted: 9, wcraft: 7, weak: 31, tech: 5, goldEarned: 7400, steps: 900 });
+  S.town = { founded: true, b: { forge: 2, atelier: 1, marche: 1, menagerie: 2, herboristerie: 1 }, store: { potion: 2, herbe: 4, _gold: 0 }, prog: 6 };
+  S.npcs = { dorn: true, mira: true, pell: true, yuna: true, fen: true };
+  S.quests = { q_havre: 'done', r_dorn: 'done', r_mira: 'done', r_pell: 'done', r_yuna: 'done', r_fen: 'done', r_grom: 'active', r_lise: 'active' };
+  ['a_first', 'a_hunter', 'a_gather', 'a_forge1', 'a_sylve', 'a_weak', 'a_town1', 'a_craft', 'a_lvl10'].forEach(a => S.ach[a] = true);
+  S.time = 10 * 60;
+  S.pos = { x: 46, y: 34, dir: 'up' }; S.rest = { x: 46, y: 34 };
+  return S;
 };
 
 G.onResize = () => {

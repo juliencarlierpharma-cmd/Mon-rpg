@@ -14,6 +14,8 @@ Vous pouvez aussi le servir en local (`python3 -m http.server`) ou l’héberger
 | Action (parler, ouvrir, **récolter**) | Entrée / Espace / E | Bouton A |
 | Menu / retour | Échap / M | Bouton B ou ☰ |
 
+**Démo rapide** : le bouton de l’écran titre lance une partie de milieu d’aventure (niveau 15, Havre en construction, familiers liés, armes forgées et matériaux en stock) pour essayer tous les systèmes tout de suite. Le voyage rapide se trouve dans Menu › Carte.
+
 La partie est sauvegardée dans le navigateur : automatiquement, à l’auberge et depuis le menu Système.
 
 ## Systèmes de jeu

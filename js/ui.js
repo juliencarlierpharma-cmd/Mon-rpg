@@ -327,7 +327,10 @@ G.UI = {
     return `<h2>Journal de quêtes</h2><h3>Histoire principale</h3><div class="grid one">${main}</div><h3>Recrutements</h3><div class="grid one">${rec || '<p class="dim">Parlez aux habitants marqués d’un « ! » pour obtenir des quêtes de recrutement.</p>'}</div>`;
   },
   // ----- Carte -----
-  tab_carte() { return `<h2>Carte du monde</h2><div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ★ Gardien · ! PNJ à recruter · ▣ Coffre · ◆ Havre</p>`; },
+  tab_carte() {
+    const tr = G.World.TRAVEL.map(([id, n]) => `<button class="btn sm" data-a="travel" data-i="${id}" ${G.World.canTravel(id) ? '' : 'disabled'}>${G.World.canTravel(id) ? '🧭' : '🔒'} ${esc(n)}</button>`).join('');
+    return `<h2>Carte du monde</h2><div class="card"><h3>Voyage rapide</h3><div class="actions">${tr}</div><div class="dim small">Les lieux se débloquent en les visitant.</div></div><div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ★ Gardien · ! PNJ à recruter · ▣ Coffre · ◆ Havre</p>`;
+  },
   drawMap(cv) {
     const W = G.World, s = 6;
     cv.width = W.W * s; cv.height = W.H * s;
@@ -399,6 +402,7 @@ G.UI = {
         if (I.fam.aff && f.owner) G.addAffinity(d.f, f.owner, I.fam.aff);
         G.Audio.sfx(up ? 'level' : 'get'); if (up) this.toast(`${G.FAMS[d.f].n} passe au niveau ${f.lvl} !`); this.checkAch(); R();
       },
+      travel: d => { this.closeMenu(); G.World.travel(d.i); },
       achSel: d => { this.achSel = d.i; R(); },
       claim: d => { if (G.claimAch(d.i)) { G.Audio.sfx('achieve'); const a = G.ACH.find(x => x.id === d.i); this.toast(`✦ ${a.n} : ${G.rewardText(a.rw).join(', ')}`); this.lastReady = G.achReadyCount(); G.World.refresh(); R(); } },
       build: d => {
