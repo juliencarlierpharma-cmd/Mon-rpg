@@ -266,3 +266,18 @@ body:has(.menu-wrap) #touch { display: none; }
 #zbanner.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
 #zbanner .zb-n { font-family: var(--title); font-weight: 900; font-size: clamp(24px, 6vw, 40px); letter-spacing: 3px; color: #fff6d8; text-shadow: 0 2px 10px #000, 0 0 20px rgba(255, 200, 100, 0.5); white-space: nowrap; }
 #zbanner .zb-l { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); text-shadow: 0 1px 4px #000; border-top: 1px solid rgba(255, 216, 106, 0.6); margin-top: 4px; padding-top: 4px; }
+
+/* ---------- Itinéraire (niveaux conseillés) ---------- */
+.hud-col { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.route { pointer-events: auto; background: rgba(8, 12, 48, 0.72); border: 1px solid rgba(201, 211, 255, 0.35); border-radius: 8px; padding: 4px 8px 5px; font-size: 11.5px; min-width: 190px; backdrop-filter: blur(2px); }
+.route.closed { min-width: 0; }
+.route-h { background: none; border: none; padding: 1px 0; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); cursor: pointer; }
+.route ol { list-style: none; margin: 3px 0 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.route li { display: grid; grid-template-columns: 14px 1fr auto; gap: 6px; align-items: center; padding: 1px 4px; border-radius: 4px; color: #dfe4ff; font-variant-numeric: tabular-nums; }
+.route .rn { color: var(--dim); font-weight: 800; }
+.route .rl { font-weight: 800; }
+.route li.cur { background: rgba(255, 216, 106, 0.18); outline: 1px solid rgba(255, 216, 106, 0.6); }
+.route li.done { opacity: 0.55; }
+.route li.done .rl { color: var(--ok); }
+.route li.low .rl { color: var(--no); }
+@media (max-width: 640px) { .route { font-size: 10.5px; min-width: 165px; } .hud-l .zone { font-size: 14px; } }

@@ -438,14 +438,16 @@ G.ENEMIES = {
 
 // ---------------- Zones ----------------
 G.ZONES = {
-  plaines: { n: 'Plaines d’Aube', lv: 'Niv. 1 à 4', rate: 0.055, bg: 'plains', mus: 'field', groups: [['gelee'], ['gelee', 'gelee'], ['lapin', 'gelee'], ['loup'], ['corbeau', 'corbeau'], ['loup', 'lapin'], ['gelee', 'corbeau', 'gelee'], ['lapin', 'lapin']] },
-  foret: { n: 'Forêt de Sylve', lv: 'Niv. 4 à 8', rate: 0.07, bg: 'forest', mus: 'field', groups: [['champi', 'champi'], ['liane'], ['loupb', 'champi'], ['follet', 'follet'], ['liane', 'follet'], ['loupb', 'loupb'], ['champi', 'liane', 'follet']] },
-  montagne: { n: 'Monts Grisés', lv: 'Niv. 7 à 11', rate: 0.07, bg: 'mountain', mus: 'field', groups: [['chauve', 'chauve'], ['golem'], ['squelette', 'chauve'], ['salamandre'], ['squelette', 'squelette'], ['golem', 'salamandre'], ['chauve', 'salamandre', 'chauve']] },
-  marais: { n: 'Marais Brumeux', lv: 'Niv. 10 à 14', rate: 0.075, bg: 'swamp', mus: 'field', groups: [['geleet', 'geleet'], ['crapaud'], ['spectre', 'geleet'], ['serpent', 'crapaud'], ['spectre', 'spectre'], ['serpent', 'geleet', 'spectre']] },
-  volcan: { n: 'Volcan Cendreux', lv: 'Niv. 14 à 18', rate: 0.08, bg: 'volcano', mus: 'field', groups: [['diablotin', 'diablotin'], ['drake'], ['golemm'], ['chevalier', 'diablotin'], ['drake', 'diablotin'], ['chevalier', 'golemm']] },
+  plaines: { n: 'Plaines d’Aube', lv: 'Niv. 1 à 4', lmin: 1, lmax: 4, boss: null, rate: 0.055, bg: 'plains', mus: 'field', groups: [['gelee'], ['gelee', 'gelee'], ['lapin', 'gelee'], ['loup'], ['corbeau', 'corbeau'], ['loup', 'lapin'], ['gelee', 'corbeau', 'gelee'], ['lapin', 'lapin']] },
+  foret: { n: 'Forêt de Sylve', lv: 'Niv. 4 à 8', lmin: 4, lmax: 8, boss: 'sylvaros', rate: 0.07, bg: 'forest', mus: 'field', groups: [['champi', 'champi'], ['liane'], ['loupb', 'champi'], ['follet', 'follet'], ['liane', 'follet'], ['loupb', 'loupb'], ['champi', 'liane', 'follet']] },
+  montagne: { n: 'Monts Grisés', lv: 'Niv. 7 à 11', lmin: 7, lmax: 11, boss: 'wyverne', rate: 0.07, bg: 'mountain', mus: 'field', groups: [['chauve', 'chauve'], ['golem'], ['squelette', 'chauve'], ['salamandre'], ['squelette', 'squelette'], ['golem', 'salamandre'], ['chauve', 'salamandre', 'chauve']] },
+  marais: { n: 'Marais Brumeux', lv: 'Niv. 10 à 14', lmin: 10, lmax: 14, boss: 'hydre', rate: 0.075, bg: 'swamp', mus: 'field', groups: [['geleet', 'geleet'], ['crapaud'], ['spectre', 'geleet'], ['serpent', 'crapaud'], ['spectre', 'spectre'], ['serpent', 'geleet', 'spectre']] },
+  volcan: { n: 'Volcan Cendreux', lv: 'Niv. 14 à 18', lmin: 14, lmax: 18, boss: 'ignar', rate: 0.08, bg: 'volcano', mus: 'field', groups: [['diablotin', 'diablotin'], ['drake'], ['golemm'], ['chevalier', 'diablotin'], ['drake', 'diablotin'], ['chevalier', 'golemm']] },
   bourg: { n: 'Bourg-Aube', lv: 'Village', rate: 0, town: true },
   havre: { n: 'Havre', lv: 'Votre ville', rate: 0, town: true },
 };
+
+G.ZONE_ORDER = ['plaines', 'foret', 'montagne', 'marais', 'volcan'];
 
 // ---------------- Bâtiments du Havre ----------------
 G.BUILDINGS = {

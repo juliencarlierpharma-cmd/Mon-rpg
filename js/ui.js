@@ -69,9 +69,19 @@ G.UI = {
     const W = G.World, z = G.ZONES[W.zoneAt(W.P.x, W.P.y)], h = Math.floor(G.S.time / 60), m = Math.floor(G.S.time % 60);
     const ready = G.achReadyCount();
     const night = W.dayLight().night;
-    this.hud.innerHTML = `<div class="hud-l"><div class="zone">${esc(z.n)}</div><div class="sub">${night ? '🌙' : '☀️'} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} · 💰 ${U.fmt(G.S.gold)}</div></div>
+    const zid = W.zoneAt(W.P.x, W.P.y), plv = Math.round(G.S.party.reduce((a, c) => a + G.S.chars[c].lvl, 0) / G.S.party.length);
+    if (this.routeOpen == null) { try { this.routeOpen = localStorage.getItem('ee-route') !== '0'; } catch (e) { this.routeOpen = true; } }
+    const route = G.ZONE_ORDER.map((id, i) => {
+      const Z = G.ZONES[id], done = Z.boss && G.S.bosses[Z.boss], cur = id === zid;
+      const warn = !done && plv < Z.lmin ? 'low' : '';
+      return `<li class="${cur ? 'cur' : ''} ${done ? 'done' : ''} ${warn}"><span class="rn">${i + 1}</span><span class="rz">${esc(Z.n)}</span><span class="rl">${done ? '✔' : `${Z.lmin}–${Z.lmax}`}</span></li>`;
+    }).join('');
+    const zl = z.town ? z.lv : `Niv. conseillé ${z.lmin}–${z.lmax}`;
+    this.hud.innerHTML = `<div class="hud-col"><div class="hud-l"><div class="zone">${esc(z.n)}</div><div class="sub">${esc(zl)} · Équipe niv. ${plv}</div><div class="sub">${night ? '🌙' : '☀️'} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} · 💰 ${U.fmt(G.S.gold)}</div></div>
+      <div class="route ${this.routeOpen ? '' : 'closed'}"><button class="route-h" id="routeBtn">🧭 Itinéraire ${this.routeOpen ? '▾' : '▸'}</button>${this.routeOpen ? `<ol>${route}</ol>` : ''}</div></div>
       <button class="hud-menu" id="menuBtn">☰${ready ? `<b class="badge">${ready}</b>` : ''}</button>`;
     $('#menuBtn').onclick = () => { G.Audio.init(); if (!this.busy()) this.openMenu(ready ? 'succes' : undefined); };
+    $('#routeBtn').onclick = () => { this.routeOpen = !this.routeOpen; try { localStorage.setItem('ee-route', this.routeOpen ? '1' : '0'); } catch (e) { } this.updateHUD(); };
   },
   zoneBanner(Z, first) {
     let b = document.getElementById('zbanner');
@@ -404,9 +414,9 @@ G.UI = {
         G.pay(cost); w.tier++; G.Audio.sfx('craft'); this.toast(`⬆️ ${W.n} : rang ${w.tier} !`); this.checkAch(); R();
       },
       equipW: d => { const c = S.chars[d.c]; const r = G.curHP(d.c) / G.calc(d.c).hp; c.wslot = d.s; c.hp = Math.max(1, Math.round(r * G.calc(d.c).hp)); G.Audio.sfx('ok'); R(); },
-      craftA: d => { const A = G.ARMORS[d.i]; if (!G.canPay(A.r) || A.tier > G.maxArmorTier()) return; G.pay(A.r); S.armors[d.i] = (S.armors[d.i] || 0) + 1; S.stats.crafted++; G.Audio.sfx('craft'); this.toast(`🛡️ ${A.n} fabriqué(e) !`); this.checkAch(); R(); },
+      craftA: d => { const A = G.ARMORS[d.i]; if (!G.canPay(A.r) || A.tier > G.maxArmorTier()) return; G.pay(A.r); S.armors[d.i] = (S.armors[d.i] || 0) + 1; S.stats.crafted++; G.Audio.sfx('craft'); this.toast(`🛡️ ${A.n} fabriqué(e) ! (${G.S.armors[d.i]} possédé(s))`); this.checkAch(); R(); },
       craftT: d => { const T = G.TOOLS[d.i]; if (!G.canPay(T.r)) return; G.pay(T.r); S.tools[T.type] = Math.max(S.tools[T.type], T.tier); S.stats.crafted++; G.Audio.sfx('craft'); this.toast(`${T.i} ${T.n} fabriquée !`); this.checkAch(); R(); },
-      refine: d => { const Rc = G.REFINE[d.i], n = +(d.n || 1); for (let i = 0; i < n; i++) { if (!G.canPay({ m: Rc.m })) break; G.pay({ m: Rc.m }); G.give(Rc.out, Rc.q); } G.Audio.sfx('craft'); R(); },
+      refine: d => { const Rc = G.REFINE[d.i], n = +(d.n || 1); let made = 0; for (let i = 0; i < n; i++) { if (!G.canPay({ m: Rc.m })) break; G.pay({ m: Rc.m }); G.give(Rc.out, Rc.q); made += Rc.q; } if (made) { G.Audio.sfx('craft'); this.toast('Fabriqué : ' + G.gotText(Rc.out, made)); } R(); },
       useItem: d => this.useItemField(d.i, R),
       famOwner: d => { const f = S.fams[d.f]; if (d.c) Object.keys(S.fams).forEach(k => { if (S.fams[k].owner === d.c) S.fams[k].owner = null; }); f.owner = d.c || null; G.Audio.sfx('ok'); R(); },
       feed: d => {
@@ -420,7 +430,7 @@ G.UI = {
       },
       travel: d => { this.closeMenu(); G.World.travel(d.i); },
       achSel: d => { this.achSel = d.i; R(); },
-      claim: d => { if (G.claimAch(d.i)) { G.Audio.sfx('achieve'); const a = G.ACH.find(x => x.id === d.i); this.toast(`✦ ${a.n} : ${G.rewardText(a.rw).join(', ')}`); this.lastReady = G.achReadyCount(); G.World.refresh(); R(); } },
+      claim: d => { if (G.claimAch(d.i)) { G.Audio.sfx('achieve'); const a = G.ACH.find(x => x.id === d.i); this.toast(`✦ ${a.n} : ${G.rewardGotText(a.rw).join(', ')}`); this.lastReady = G.achReadyCount(); G.World.refresh(); R(); } },
       build: d => {
         const r = G.buildReq(d.b); if (!r.ok) return;
         G.pay(r.cost); S.town.b[d.b] = (S.town.b[d.b] || 0) + 1;
@@ -482,7 +492,7 @@ G.UI = {
       this.bind(el, {
         close: () => { this.pop(entry); G.save(); },
         mode: d => { mode = d.m; render(); },
-        buy: d => { const n = +d.n, p = price(d.i) * n; if (S.gold < p) return; S.gold -= p; G.give(d.i, n); G.Audio.sfx('get'); render(); },
+        buy: d => { const n = +d.n, p = price(d.i) * n; if (S.gold < p) return; S.gold -= p; G.give(d.i, n); G.Audio.sfx('get'); this.toast('Acheté : ' + G.gotText(d.i, n)); render(); },
         sell: d => { const n = d.n === 'all' ? G.countOf(d.i) : 1, p = Math.floor((G.MATS[d.i] || G.ITEMS[d.i]).p / 2) * n; G.give(d.i, -n); S.gold += p; S.stats.goldEarned += p; G.Audio.sfx('get'); this.checkAch(); render(); },
       });
     };
@@ -596,11 +606,11 @@ G.UI = {
   },
   battleResults(r) {
     return new Promise(res => {
-      const drops = Object.keys(r.drops).map(k => `${G.iconOf(k)} ${G.nameOf(k)} ×${r.drops[k]}`).join(' · ');
+      const drops = Object.keys(r.drops).map(k => G.gotText(k, r.drops[k])).join('<br>');
       const lv = r.lv.map(l => `<div class="lvup">⬆ <b>${G.CHARS[l.cid].n}</b> passe niveau <b>${l.lvl}</b> ! <span class="small ok">PV et PM restaurés</span>${l.learned.length ? `<div class="small">Nouveau : ${l.learned.map(esc).join(', ')}</div>` : ''}</div>`).join('');
       const fam = r.famRes.map(f => `${f.up ? `<div class="small">🐾 ${G.FAMS[f.fid].n} monte de niveau !</div>` : ''}${f.linkUp ? `<div class="lvup small">💞 ${G.FAMS[f.fid].n} & ${G.CHARS[f.cid].n} : Lien ${['', 'I', 'II', 'III'][f.linkUp]} atteint !${f.linkUp === 2 ? ' Technique liée débloquée !' : ''}</div>` : ''}`).join('');
       const el = U.el(`<div class="modal dialog-wrap results"><div class="dialog win"><h2>Victoire !</h2>
-        <div class="res"><span>EXP</span><b>+${r.exp}</b></div><div class="res"><span>Or</span><b>+${r.gold}</b></div>
+        <div class="res"><span>EXP</span><b>+${r.exp}</b></div><div class="res"><span>Or</span><b>+${r.gold} <small class="dim">(${U.fmt(G.S.gold)} or)</small></b></div>
         <div class="res"><span>Butin</span><b>${drops || '—'}</b></div>${lv}${fam}
         ${r.tamed ? `<div class="lvup">🐾 ${G.FAMS[r.tamed].n} (${G.FAMS[r.tamed].sp}) a été apprivoisé grâce à l’appât !</div>` : ''}
         <button class="btn gold" data-a="ok" data-focus>Continuer</button></div></div>`);

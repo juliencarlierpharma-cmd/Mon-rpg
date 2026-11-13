@@ -113,6 +113,16 @@ G.give = (id, q = 1) => {
   bag[id] = (bag[id] || 0) + q;
   if (bag[id] <= 0) delete bag[id];
 };
+// texte d'obtention avec le stock actuel (à appeler après G.give)
+G.gotText = (id, q) => `${G.iconOf(id)} ${G.nameOf(id)} +${q} (${G.countOf(id)} en stock)`;
+G.goldText = q => `💰 +${U.fmt(q)} (${U.fmt(G.S.gold)} or)`;
+G.rewardGotText = rw => {
+  const p = [];
+  if (rw.g) p.push(G.goldText(rw.g));
+  for (const k in (rw.items || {})) p.push(G.gotText(k, rw.items[k]));
+  for (const k in (rw.mats || {})) p.push(G.gotText(k, rw.mats[k]));
+  return p.concat(G.rewardText({ armor: rw.armor, fam: rw.fam, tool: rw.tool }));
+};
 G.nameOf = id => (G.MATS[id] || G.ITEMS[id] || G.ARMORS[id] || G.TOOLS[id] || { n: id }).n;
 G.iconOf = id => (G.MATS[id] || G.ITEMS[id] || { i: '•' }).i || '•';
 G.canPay = cost => {
@@ -240,8 +250,8 @@ G.townTick = () => {
 G.collectTown = () => {
   const T = G.S.town, got = [];
   for (const k in T.store) {
-    if (k === '_gold') { G.S.gold += T.store[k]; got.push(`💰 ${T.store[k]}`); }
-    else { G.give(k, T.store[k]); got.push(`${G.iconOf(k)} ${G.nameOf(k)} x${T.store[k]}`); }
+    if (k === '_gold') { if (T.store[k] > 0) { G.S.gold += T.store[k]; got.push(G.goldText(T.store[k])); } }
+    else { G.give(k, T.store[k]); got.push(G.gotText(k, T.store[k])); }
   }
   T.store = {};
   return got;

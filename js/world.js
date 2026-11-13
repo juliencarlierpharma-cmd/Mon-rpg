@@ -370,7 +370,7 @@ G.World = {
         { who, t: 'Recrutez des habitants, construisez forge et ateliers. Ici, nulle boutique ne vend d’armes : tout doit se forger !' },
         { who, t: 'Prenez ceci, et que les Échos vous guident.' },
       ]);
-      G.give('potion', 2); G.give('bois', 3); G.UI.toast('Obtenu : 🧪 Potion x2, 🪵 Bois x3');
+      G.give('potion', 2); G.give('bois', 3); G.UI.toast('Obtenu : ' + G.gotText('potion', 2) + ', ' + G.gotText('bois', 3));
       return;
     }
     const left = ['sylvaros', 'wyverne', 'hydre'].filter(b => !S.bosses[b]);
@@ -442,9 +442,9 @@ G.World = {
     if (S.chests[id]) { G.UI.toast('Le coffre est vide.'); return; }
     S.chests[id] = true;
     const L = e.loot, got = [];
-    if (L.g) { S.gold += L.g; S.stats.goldEarned += L.g; got.push(`💰 ${L.g}`); }
-    for (const k in (L.items || {})) { G.give(k, L.items[k]); got.push(`${G.iconOf(k)} ${G.nameOf(k)} x${L.items[k]}`); }
-    for (const k in (L.mats || {})) if (L.mats[k] > 0) { G.give(k, L.mats[k]); got.push(`${G.iconOf(k)} ${G.nameOf(k)} x${L.mats[k]}`); }
+    if (L.g) { S.gold += L.g; S.stats.goldEarned += L.g; got.push(G.goldText(L.g)); }
+    for (const k in (L.items || {})) { G.give(k, L.items[k]); got.push(G.gotText(k, L.items[k])); }
+    for (const k in (L.mats || {})) if (L.mats[k] > 0) { G.give(k, L.mats[k]); got.push(G.gotText(k, L.mats[k])); }
     G.Audio.sfx('get');
     G.R.burst(e.x * 16 + 8 - this.cam.x, e.y * 16 + 6 - this.cam.y, { n: 20, c: ['#ffe080', '#ffffff'], spd: 30, vy: -20, life: 0.8, layer: 1 });
     await G.UI.say([{ who: '', t: 'Coffre ouvert ! ' + got.join(', ') }]);
@@ -491,11 +491,11 @@ G.World = {
       G.R.burst(sx, sy, { n: 6, c: col, spd: 40, vy: -30, grav: 160, life: 0.5, size: 1, type: 'rock', glow: false, layer: 1 });
       if (M.hits >= M.need) {
         const got = [];
-        M.N.loot.forEach(([id, a, b]) => { const q = U.randi(a, b); if (q > 0) { G.give(id, q); got.push(`${G.iconOf(id)} ${G.nameOf(id)} x${q}`); G.S.stats.gathered += q; } });
+        M.N.loot.forEach(([id, a, b]) => { const q = U.randi(a, b); if (q > 0) { G.give(id, q); got.push(G.gotText(id, q)); G.S.stats.gathered += q; } });
         G.S.nodes[M.e.id] = G.S.stats.steps;
         G.Audio.sfx('get');
         G.R.burst(sx, sy - 6, { n: 12, c: ['#ffffff', '#ffe080'], spd: 25, vy: -25, life: 0.6, layer: 1 });
-        G.UI.toast('+ ' + got.join(', '));
+        G.UI.toast(got.join(', '));
         this.mining = null;
         G.UI.checkAch();
       }
