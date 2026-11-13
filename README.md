@@ -40,6 +40,8 @@ La partie est sauvegardée dans le navigateur : automatiquement, à l’auberge 
   - 8 bâtiments améliorables : forge, atelier, marché, ménagerie, herboristerie, mine, taverne, remparts.
   - Chaque bâtiment exige de recruter un habitant (7 PNJ, chacun avec sa quête).
   - La ville produit des ressources après chaque victoire.
+- **Monde ouvert de 90 × 67 cases** en 5 régions bien délimitées (lisières de forêt, falaises, haies du marais, murailles du volcan), avec des portiques aux entrées et une bannière à chaque changement de région.
+- **Montée de niveau** : les PV et PM sont entièrement restaurés.
 - **Histoire** : 4 Gardiens corrompus à purifier, une barrière à briser, puis le dragon Ignar.
 
 ## Structure

@@ -15,7 +15,7 @@ G.newChar = id => {
 };
 
 G.newState = () => ({
-  v: 1,
+  v: 2,
   party: ['kael', 'lyra'],
   chars: { kael: G.newChar('kael'), lyra: G.newChar('lyra'), bran: G.newChar('bran') },
   gold: 120,
@@ -31,8 +31,8 @@ G.newState = () => ({
   town: { founded: false, b: {}, store: {}, prog: 0 },
   npcs: {},
   quests: {},
-  pos: { x: 27, y: 28, dir: 'down' },
-  rest: { x: 27, y: 29 },
+  pos: { x: 41, y: 43, dir: 'down' },
+  rest: { x: 41, y: 43 },
   time: 9 * 60,
   nodes: {},
   chests: {},
@@ -155,6 +155,7 @@ G.gainExp = (cid, amt) => {
     c.mp = (c.mp ?? m0.mp) + (m1.mp - m0.mp);
     ups.push(c.lvl);
   }
+  if (ups.length) { const m = G.calc(cid); c.hp = m.hp; c.mp = m.mp; }
   const learned = snap().filter(n => !before.has(n));
   return { ups, learned };
 };
@@ -259,6 +260,7 @@ G.load = () => {
     G.S = Object.assign(base, s);
     G.S.stats = Object.assign(G.newState().stats, s.stats || {});
     G.S.town = Object.assign(G.newState().town, s.town || {});
+    if ((s.v || 1) < 2) { const n = G.newState(); G.S.pos = n.pos; G.S.rest = n.rest; G.S.nodes = {}; G.S.flags.visited = { bourg: true, plaines: true }; G.S.v = 2; }
     return true;
   } catch (e) { console.error(e); return false; }
 };

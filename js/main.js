@@ -58,7 +58,7 @@ G.showTitle = () => {
   G.scene = 'title'; G.view = 'title';
   G.UI.battleClose && G.UI.battleClose();
   if (!G.S) G.S = G.newState();
-  G.World.placePlayer(27, 28, 'down');
+  G.World.placePlayer(G.World.start[0], G.World.start[1] - 2, 'down');
   G.titleCam = 0;
   const T = document.getElementById('title');
   T.innerHTML = `<div class="logo"><div class="l1">Les Échos</div><div class="l2">ÉLÉMENTAIRES</div><div class="l3">Un RPG HD-2D au tour par tour</div></div>
@@ -68,7 +68,7 @@ G.showTitle = () => {
   G.Audio.music('title');
   const go = fn => () => { G.Audio.init(); G.Audio.sfx('ok'); T.classList.remove('show'); fn(); };
   const c = document.getElementById('tContinue');
-  if (c) c.onclick = go(() => { G.load(); G.World.refresh(); G.World.placePlayer(G.S.pos.x, G.S.pos.y, G.S.pos.dir); G.UI.lastReady = G.achReadyCount(); G.scene = 'world'; G.view = 'world'; G.Audio.music(G.World.musicFor()); G.R.transition('fadein', 0.6); });
+  if (c) c.onclick = go(() => { G.load(); G.World.refresh(); if (!G.World.canWalk(G.S.pos.x, G.S.pos.y)) { G.S.pos = { x: G.World.start[0], y: G.World.start[1], dir: 'down' }; G.S.rest = { x: G.World.start[0], y: G.World.start[1] }; } G.World.placePlayer(G.S.pos.x, G.S.pos.y, G.S.pos.dir); G.UI.lastReady = G.achReadyCount(); G.scene = 'world'; G.view = 'world'; G.Audio.music(G.World.musicFor()); G.R.transition('fadein', 0.6); });
   document.getElementById('tDemo').onclick = go(async () => {
     if (G.hasSave()) {
       const r = await G.UI.ask('Lancer la démo ? La sauvegarde existante sera remplacée.', ['Oui', 'Non']);
@@ -76,7 +76,7 @@ G.showTitle = () => {
     }
     G.S = G.demoState();
     G.World.refresh();
-    G.World.placePlayer(46, 34, 'up');
+    G.World.placePlayer(G.World.HAVRE[0] + 5, G.World.HAVRE[1] + 4, 'up');
     G.UI.lastReady = 0;
     G.scene = 'world'; G.view = 'world';
     G.Audio.music('town');
@@ -142,7 +142,7 @@ G.demoState = () => {
   S.quests = { q_havre: 'done', r_dorn: 'done', r_mira: 'done', r_pell: 'done', r_yuna: 'done', r_fen: 'done', r_grom: 'active', r_lise: 'active' };
   ['a_first', 'a_hunter', 'a_gather', 'a_forge1', 'a_sylve', 'a_weak', 'a_town1', 'a_craft', 'a_lvl10'].forEach(a => S.ach[a] = true);
   S.time = 10 * 60;
-  S.pos = { x: 46, y: 34, dir: 'up' }; S.rest = { x: 46, y: 34 };
+  S.pos = { x: 71, y: 52, dir: 'up' }; S.rest = { x: 71, y: 52 };
   return S;
 };
 
@@ -166,7 +166,7 @@ G.onResize = () => {
       if (G.view === 'title') {
         G.titleCam += dt * 14;
         const W = G.World;
-        W.P.px = 27 * 16 + Math.sin(G.titleCam / 120) * 260; W.P.py = 22 * 16 + Math.cos(G.titleCam / 160) * 120;
+        W.P.px = 45 * 16 + Math.sin(G.titleCam / 120) * 420; W.P.py = 38 * 16 + Math.cos(G.titleCam / 160) * 200;
         W.cam.x = U.clamp(W.P.px - G.R.W / 2, 0, W.W * 16 - G.R.W); W.cam.y = U.clamp(W.P.py - G.R.H / 2, 0, W.H * 16 - G.R.H);
         W.hidePlayer = true; W.ambient(dt); W.render(); W.hidePlayer = false;
       } else if (G.view === 'battle') {

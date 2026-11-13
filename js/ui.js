@@ -73,6 +73,13 @@ G.UI = {
       <button class="hud-menu" id="menuBtn">☰${ready ? `<b class="badge">${ready}</b>` : ''}</button>`;
     $('#menuBtn').onclick = () => { G.Audio.init(); if (!this.busy()) this.openMenu(ready ? 'succes' : undefined); };
   },
+  zoneBanner(Z, first) {
+    let b = document.getElementById('zbanner');
+    if (!b) { b = U.el('<div id="zbanner"><div class="zb-n"></div><div class="zb-l"></div></div>'); document.body.appendChild(b); }
+    b.querySelector('.zb-n').textContent = Z.n; b.querySelector('.zb-l').textContent = (Z.lv || '') + (first ? ' · voyage rapide débloqué' : '');
+    b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+    clearTimeout(this._zb); this._zb = setTimeout(() => b.classList.remove('show'), 2600);
+  },
   toast(msg) {
     const t = U.el(`<div class="toast">${esc(msg)}</div>`);
     this.toasts.appendChild(t);
@@ -332,11 +339,20 @@ G.UI = {
     return `<h2>Carte du monde</h2><div class="card"><h3>Voyage rapide</h3><div class="actions">${tr}</div><div class="dim small">Les lieux se débloquent en les visitant.</div></div><div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ★ Gardien · ! PNJ à recruter · ▣ Coffre · ◆ Havre</p>`;
   },
   drawMap(cv) {
-    const W = G.World, s = 6;
+    const W = G.World, s = 5;
     cv.width = W.W * s; cv.height = W.H * s;
     const x = cv.getContext('2d');
+    const zc = { plaines: '#9ad070', foret: '#2e7a3a', montagne: '#9aa0b0', marais: '#7a5aa8', volcan: '#e8501a', bourg: '#ffd86a', havre: '#7affd8' };
     const col = { '.': '#5aa03c', ',': '#62a844', '_': '#c8a86a', 'f': '#3d7a32', 'T': '#2a5a26', 'r': '#8f877a', '^': '#5e584e', 'm': '#4f5a38', 'w': '#3a5e54', 'v': '#3d2c2a', 'l': '#e8501a', '~': '#2f6fc0', '=': '#8a5a32', 's': '#e6d39a', 'p': '#a39b8e', 'g': '#7cc256' };
     for (let y = 0; y < W.H; y++) for (let xx = 0; xx < W.W; xx++) { x.fillStyle = col[W.t[y][xx]] || '#000'; x.fillRect(xx * s, y * s, s, s); }
+    // teinte et frontières des régions
+    for (let y = 0; y < W.H; y++) for (let xx = 0; xx < W.W; xx++) {
+      const z = W.z[y][xx];
+      x.fillStyle = U.rgba(zc[z], 0.22); x.fillRect(xx * s, y * s, s, s);
+      x.fillStyle = 'rgba(255,255,255,0.85)';
+      if (xx + 1 < W.W && W.z[y][xx + 1] !== z) x.fillRect((xx + 1) * s - 1, y * s, 2, s);
+      if (y + 1 < W.H && W.z[y + 1][xx] !== z) x.fillRect(xx * s, (y + 1) * s - 1, s, 2);
+    }
     x.font = `bold ${s * 1.6}px sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
     W.E.forEach(e => {
       if (!W.visible(e)) return;
@@ -351,7 +367,7 @@ G.UI = {
     x.fillStyle = '#fff'; x.beginPath(); x.arc(W.P.x * s + s / 2, W.P.y * s + s / 2, s * 0.8, 0, 7); x.fill();
     x.strokeStyle = '#000'; x.lineWidth = 1.5; x.stroke();
     x.fillStyle = 'rgba(255,255,255,0.9)'; x.font = `bold ${s * 1.4}px sans-serif`;
-    [['Forêt de Sylve', 9, 22], ['Monts Grisés', 20, 6], ['Marais', 47, 18], ['Volcan', 48, 8], ['Bourg-Aube', 27, 22], ['Havre', 47, 29]].forEach(([n, a, b]) => { x.strokeStyle = 'rgba(0,0,0,0.7)'; x.lineWidth = 3; x.strokeText(n, a * s, b * s); x.fillText(n, a * s, b * s); });
+    [['Forêt de Sylve', 13, 38], ['Monts Grisés', 30, 10], ['Plaines d’Aube', 46, 28], ['Marais Brumeux', 76, 30], ['Volcan', 77, 13], ['Bourg-Aube', 41, 36], ['Havre', 72, 47]].forEach(([n, a, b]) => { x.strokeStyle = 'rgba(0,0,0,0.7)'; x.lineWidth = 3; x.strokeText(n, a * s, b * s); x.fillText(n, a * s, b * s); });
   },
   // ----- Système -----
   tab_systeme() {
@@ -581,7 +597,7 @@ G.UI = {
   battleResults(r) {
     return new Promise(res => {
       const drops = Object.keys(r.drops).map(k => `${G.iconOf(k)} ${G.nameOf(k)} ×${r.drops[k]}`).join(' · ');
-      const lv = r.lv.map(l => `<div class="lvup">⬆ <b>${G.CHARS[l.cid].n}</b> passe niveau <b>${l.lvl}</b> !${l.learned.length ? `<div class="small">Nouveau : ${l.learned.map(esc).join(', ')}</div>` : ''}</div>`).join('');
+      const lv = r.lv.map(l => `<div class="lvup">⬆ <b>${G.CHARS[l.cid].n}</b> passe niveau <b>${l.lvl}</b> ! <span class="small ok">PV et PM restaurés</span>${l.learned.length ? `<div class="small">Nouveau : ${l.learned.map(esc).join(', ')}</div>` : ''}</div>`).join('');
       const fam = r.famRes.map(f => `${f.up ? `<div class="small">🐾 ${G.FAMS[f.fid].n} monte de niveau !</div>` : ''}${f.linkUp ? `<div class="lvup small">💞 ${G.FAMS[f.fid].n} & ${G.CHARS[f.cid].n} : Lien ${['', 'I', 'II', 'III'][f.linkUp]} atteint !${f.linkUp === 2 ? ' Technique liée débloquée !' : ''}</div>` : ''}`).join('');
       const el = U.el(`<div class="modal dialog-wrap results"><div class="dialog win"><h2>Victoire !</h2>
         <div class="res"><span>EXP</span><b>+${r.exp}</b></div><div class="res"><span>Or</span><b>+${r.gold}</b></div>

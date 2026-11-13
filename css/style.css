@@ -260,3 +260,9 @@ body:has(#battle-ui.show) #touch, body:has(#title.show) #touch, body:has(.modal)
   #touch .abtns { transform: scale(0.85); transform-origin: bottom right; }
 }
 body:has(.menu-wrap) #touch { display: none; }
+
+/* ---------- Bannière d'entrée de zone ---------- */
+#zbanner { position: fixed; top: 26%; left: 50%; transform: translateX(-50%); z-index: 6; text-align: center; pointer-events: none; opacity: 0; transition: opacity .6s, transform .6s; padding: 10px 60px; background: radial-gradient(ellipse at center, rgba(5, 8, 30, 0.75), rgba(5, 8, 30, 0) 70%); }
+#zbanner.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+#zbanner .zb-n { font-family: var(--title); font-weight: 900; font-size: clamp(24px, 6vw, 40px); letter-spacing: 3px; color: #fff6d8; text-shadow: 0 2px 10px #000, 0 0 20px rgba(255, 200, 100, 0.5); white-space: nowrap; }
+#zbanner .zb-l { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); text-shadow: 0 1px 4px #000; border-top: 1px solid rgba(255, 216, 106, 0.6); margin-top: 4px; padding-top: 4px; }
