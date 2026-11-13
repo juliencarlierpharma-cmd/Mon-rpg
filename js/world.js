@@ -541,17 +541,25 @@ G.World = {
   },
   // ---------------- Rendu ----------------
   render() {
-    const R = G.R, x = R.lx, cam = this.cam, frame = Math.floor(performance.now() / 220) % 8;
-    const cx = Math.round(cam.x), cy = Math.round(cam.y);
+    const R = G.R, x = R.begin(), cam = this.cam, frame = Math.floor(performance.now() / 220) % 8;
+    const cx = Math.round(cam.x * 2) / 2, cy = Math.round(cam.y * 2) / 2;
     const x0 = Math.max(0, Math.floor(cx / 16)), x1 = Math.min(this.W - 1, Math.ceil((cx + R.W) / 16));
     const y0 = Math.max(0, Math.floor(cy / 16)), y1 = Math.min(this.H - 1, Math.ceil((cy + R.H) / 16) + 2);
     x.fillStyle = '#000'; x.fillRect(0, 0, R.W, R.H);
     const lights = [], objs = [], day = this.dayLight();
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
       const ch = this.t[ty][tx], v = Math.floor(U.hash(tx, ty, 5) * 8), sx = tx * 16 - cx, sy = ty * 16 - cy, zone = this.z[ty][tx];
-      if (ch === '~' || ch === 'l' || ch === 'w') x.drawImage(G.SPR.animTile(ch, v, frame), sx, sy);
-      else if (ch === '=') { x.drawImage(G.SPR.animTile('~', v, frame), sx, sy); x.drawImage(G.SPR.bridge(), sx, sy); }
-      else x.drawImage(G.SPR.tile(ch === 'T' || ch === '^' ? this.groundOf(zone) : ch, v), sx, sy);
+      if (ch === '~' || ch === 'l' || ch === 'w') x.drawImage(G.SPR.animTile(ch, v, frame), sx, sy, 16, 16);
+      else if (ch === '=') { x.drawImage(G.SPR.animTile('~', v, frame), sx, sy, 16, 16); x.drawImage(G.SPR.bridge(), sx, sy, 16, 16); }
+      else x.drawImage(G.SPR.tile(ch === 'T' || ch === '^' ? this.groundOf(zone) : ch, v), sx, sy, 16, 16);
+      // transitions douces : le sol « dominant » déborde sur son voisin
+      if (ch !== '=') {
+        const base = this.baseCh(tx, ty), pb = G.SPR.prio(base);
+        [[0, -1, 0], [1, 0, 1], [0, 1, 2], [-1, 0, 3]].forEach(([dx, dy, side]) => {
+          const nb = this.baseCh(tx + dx, ty + dy);
+          if (nb && nb !== base && G.SPR.prio(nb) > pb && !(G.SPR.prio(nb) === 7 && pb === 7)) x.drawImage(G.SPR.fringe(nb, side, (tx * 3 + ty) % 4), sx, sy, 16, 16);
+        });
+      }
       if (ch === '~' && ty > 0 && this.t[ty - 1][tx] !== '~' && this.t[ty - 1][tx] !== '=') {
         x.fillStyle = '#1f4f8a'; x.fillRect(sx, sy, 16, 2);
         x.fillStyle = (frame % 4 < 2) ? '#cfe8ff' : '#9fd0ff'; x.fillRect(sx + ((frame * 2) % 6), sy + 2, 4, 1); x.fillRect(sx + 9 - (frame % 3), sy + 3, 3, 1);
@@ -559,7 +567,7 @@ G.World = {
       if (ch === 'l' && (tx + ty) % 2 === 0) lights.push({ x: sx + 8, y: sy + 8, r: 30, c: '#ff6a2a', a: 0.7 });
       if (ch === 'T') {
         const kind = zone === 'foret' ? 'forest' : zone === 'marais' ? 'swamp' : zone === 'volcan' ? 'volcano' : (U.hash(tx, ty, 9) < 0.2 ? 'fruit' : 'plain');
-        objs.push({ y: ty * 16 + 16, d: () => { this.shadow(sx + 8, sy + 14, 7); x.drawImage(G.SPR.tree(kind), sx - 2, sy - 14); } });
+        objs.push({ y: ty * 16 + 16, d: () => { this.shadow(sx + 8, sy + 14, 7); G.SPR.draw(x, G.SPR.tree(kind), sx - 2, sy - 14); } });
       } else if (ch === '^') objs.push({ y: ty * 16 + 15, d: () => this.drawCliff(tx, ty, sx, sy, zone) });
     }
     // entités
@@ -576,14 +584,14 @@ G.World = {
     this.followers.forEach((f, i) => {
       const cid = party[i + 1]; if (!cid) return;
       const moving = P.moving && (f.fx !== f.x || f.fy !== f.y);
-      objs.push({ y: f.py + 16 - 0.1, d: () => { this.shadow(f.px - cx + 8, f.py - cy + 15, 5); x.drawImage(G.SPR.hero(cid, G.CHARS[cid].pal, f.dir, moving ? walkF : 0, G.SPR.CHAR_EXTRA[cid]), Math.round(f.px - cx), Math.round(f.py - cy)); } });
+      objs.push({ y: f.py + 16 - 0.1, d: () => { this.shadow(f.px - cx + 8, f.py - cy + 15, 5); G.SPR.draw(x, G.SPR.hero(cid, G.CHARS[cid].pal, f.dir, moving ? walkF : 0, G.SPR.CHAR_EXTRA[cid]), Math.round(f.px - cx), Math.round(f.py - cy)); } });
     });
     const lead = party[0];
     if (lead) objs.push({ y: P.py + 16, d: () => {
       this.shadow(P.px - cx + 8, P.py - cy + 15, 5);
       let ox = 0, oy = 0;
       if (this.mining) { const s = Math.sin(this.mining.t / 0.28 * Math.PI); const [dx, dy] = DIRS[P.dir]; ox = dx * s * 3; oy = dy * s * 3; }
-      x.drawImage(G.SPR.hero(lead, G.CHARS[lead].pal, P.dir, walkF, G.SPR.CHAR_EXTRA[lead]), Math.round(P.px - cx + ox), Math.round(P.py - cy + oy));
+      G.SPR.draw(x, G.SPR.hero(lead, G.CHARS[lead].pal, P.dir, walkF, G.SPR.CHAR_EXTRA[lead]), Math.round(P.px - cx + ox), Math.round(P.py - cy + oy));
     } });
     objs.sort((a, b) => a.y - b.y).forEach(o => o.d());
     // indicateur d'interaction
@@ -599,21 +607,22 @@ G.World = {
     const grade = day.grade || { foret: 'rgba(60,140,60,0.18)', marais: 'rgba(110,80,140,0.22)', volcan: 'rgba(255,90,40,0.2)', montagne: 'rgba(120,150,200,0.14)' }[zone] || 'rgba(255,220,160,0.1)';
     R.present({ dof: 0.85, focusTop: 0.3, focusBot: 0.75, bloom: 0.2, dark: Math.max(day.dark, zone === 'marais' ? 0.12 : 0, zone === 'volcan' ? 0.2 : 0), darkCol: zone === 'volcan' ? '#300808' : day.col, lights, grade, vignette: 0.5, rays: zone === 'foret' && !day.night ? 1 : zone === 'plaines' && !day.night ? 0.35 : 0 });
   },
+  baseCh(x, y) { if (x < 0 || y < 0 || x >= this.W || y >= this.H) return null; const c = this.t[y][x]; return c === 'T' || c === '^' ? this.groundOf(this.z[y][x]) : c === '=' ? null : c; },
   shadow(x, y, r) { const c = G.R.lx; c.fillStyle = 'rgba(10,10,30,0.28)'; c.beginPath(); c.ellipse(Math.round(x), Math.round(y), r, r * 0.45, 0, 0, Math.PI * 2); c.fill(); },
   drawCliff(tx, ty, sx, sy, zone) {
-    const x = G.R.lx, volc = zone === 'volcan';
-    const top = volc ? '#4a3a38' : '#9a9488', topL = volc ? '#5e4a46' : '#b4ada0', front = volc ? '#2e2220' : '#6a645a', frontD = volc ? '#1e1614' : '#4a453e';
-    const below = this.tile(tx, ty + 1) === '^';
-    x.fillStyle = top; x.fillRect(sx, sy - 8, 16, 16);
-    for (let i = 0; i < 6; i++) { const h = U.hash(tx * 7 + i, ty, 3); x.fillStyle = h < 0.5 ? topL : frontD; x.fillRect(sx + Math.floor(h * 14), sy - 7 + Math.floor(U.hash(i, tx + ty, 4) * 14), 2, 1); }
-    if (!volc && ty < 5 && U.hash(tx, ty, 8) < 0.6) { x.fillStyle = '#f4f8ff'; x.fillRect(sx + 2, sy - 8, 12, 3); x.fillRect(sx + 4, sy - 5, 6, 2); }
-    if (this.tile(tx - 1, ty) !== '^') { x.fillStyle = topL; x.fillRect(sx, sy - 8, 1, 16); }
-    if (this.tile(tx, ty - 1) !== '^') { x.fillStyle = topL; x.fillRect(sx, sy - 8, 16, 1); }
+    const x = G.R.lx, volc = zone === 'volcan', v = Math.floor(U.hash(tx, ty, 6) * 4);
+    const below = this.tile(tx, ty + 1) === '^', snow = !volc && ty < 7 && U.hash(tx, ty, 8) < 0.7;
+    x.drawImage(G.SPR.cliffTop(volc, v, snow), sx, sy - 8, 16, 16);
+    const bev = (x0, y0, w, h, c0, horiz, rev) => { const g = horiz ? x.createLinearGradient(x0, 0, x0 + w, 0) : x.createLinearGradient(0, y0, 0, y0 + h); g.addColorStop(rev ? 1 : 0, c0); g.addColorStop(rev ? 0 : 1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(x0, y0, w, h); };
+    const L = this.tile(tx - 1, ty) !== '^', Rr = this.tile(tx + 1, ty) !== '^', T = this.tile(tx, ty - 1) !== '^';
+    if (L) { bev(sx, sy - 8, 2.5, 16, volc ? 'rgba(150,110,100,0.45)' : 'rgba(255,255,250,0.45)', true); x.fillStyle = 'rgba(20,16,20,0.6)'; x.fillRect(sx, sy - 8, 0.5, 16); }
+    if (Rr) { bev(sx + 13, sy - 8, 3, 16, 'rgba(0,0,0,0.35)', true, true); x.fillStyle = 'rgba(20,16,20,0.6)'; x.fillRect(sx + 15.5, sy - 8, 0.5, 16); }
+    if (T) { bev(sx, sy - 8, 16, 2.5, volc ? 'rgba(150,110,100,0.5)' : 'rgba(255,255,250,0.55)', false); x.fillStyle = 'rgba(20,16,20,0.6)'; x.fillRect(sx, sy - 8, 16, 0.5); }
+    if (!below) bev(sx, sy + 5, 16, 3, 'rgba(0,0,0,0.3)', false, true);
     if (!below) {
-      x.fillStyle = front; x.fillRect(sx, sy + 8, 16, 8);
-      x.fillStyle = frontD; for (let i = 0; i < 16; i += 4) x.fillRect(sx + i + (ty % 2), sy + 9, 1, 7);
-      x.fillStyle = 'rgba(0,0,0,0.25)'; x.fillRect(sx, sy + 15, 16, 1);
-      if (volc && U.hash(tx, ty, 2) < 0.4) { x.fillStyle = '#ff6a2a'; x.fillRect(sx + 5, sy + 10, 1, 4); }
+      x.drawImage(G.SPR.cliffFront(volc, v), sx, sy + 8, 16, 8);
+      const g = x.createLinearGradient(0, sy + 16, 0, sy + 19); g.addColorStop(0, 'rgba(0,0,0,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.fillRect(sx, sy + 16, 16, 3);
     }
   },
   drawEnt(e, sx, sy, frame, lights, day) {
@@ -621,16 +630,16 @@ G.World = {
     switch (e.k) {
       case 'house': {
         const img = G.SPR.house(e.w, e.h, e.roof, e.wall, e.opts || {});
-        x.drawImage(img, sx, sy - 12);
+        G.SPR.draw(x, img, sx, sy - 12);
         if (day.night) lights.push({ x: sx + e.w * 8, y: sy + 14, r: 34, c: '#ffcf70', a: 0.6 });
         break;
       }
       case 'plot': {
         const lvl = G.S.town.b[e.id] || 0;
-        if (!lvl) { x.drawImage(G.SPR.plot(), sx, sy); }
+        if (!lvl) { G.SPR.draw(x, G.SPR.plot(), sx, sy); }
         else {
           const img = G.SPR.building(e.id, lvl);
-          x.drawImage(img, sx, sy - 12);
+          G.SPR.draw(x, img, sx, sy - 12);
           for (let i = 0; i < lvl; i++) { x.fillStyle = '#ffd86a'; x.fillRect(sx + 2 + i * 4, sy + 28, 3, 3); }
           if (e.id === 'forge') { lights.push({ x: sx + 24, y: sy + 26, r: 40, c: '#ff8a2a', a: 0.8 }); if (Math.random() < 0.08) G.R.parts.push({ x: sx + 36, y: sy - 12, vx: U.rand(-3, 3), vy: -12, life: 2.5, max: 2.5, size: 5, c: '#c8c8c8', glow: false, grav: -2, drag: 1, type: 'fog', rot: 0, layer: 1 }); }
           if (day.night) lights.push({ x: sx + 24, y: sy + 14, r: 34, c: '#ffcf70', a: 0.6 });
@@ -675,7 +684,7 @@ G.World = {
         const eid = e.hunt === 'inf' ? 'primordial' : G.HUNTS.find(h => h.id === e.hunt).t;
         if (!G.ENEMIES[eid]) G.makeInfinite(G.S.hunter.inf);
         const E = G.ENEMIES[eid], img = G.SPR.enemy(E.spr, E.pal, E.e), bob = Math.sin(t * 2.5 + e.x) * 2;
-        const sc = img.width <= 24 ? 1.5 : 1, w = img.width * sc, h = img.height * sc;
+        const sc = G.SPR.lw(img) <= 24 ? 1.5 : 1, w = G.SPR.lw(img) * sc, h = G.SPR.lh(img) * sc;
         this.shadow(sx + 8, sy + 15, Math.min(14, w * 0.35));
         x.drawImage(img, Math.round(sx + 8 - w / 2), Math.round(sy + 16 - h + bob), w, h);
         x.fillStyle = '#ff3a4a'; x.font = 'bold 9px monospace'; x.fillText('☠', sx + 4, sy - h + 12 + bob + Math.sin(t * 5) * 1.5);
@@ -683,8 +692,8 @@ G.World = {
         if (Math.random() < 0.25) G.R.parts.push({ x: sx + 8 + U.rand(-10, 10), y: sy + 12, vx: 0, vy: -14, life: 1.2, max: 1.2, size: 1, c: '#ff5a6a', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
         break;
       }
-      case 'lamp': x.drawImage(G.SPR.lamp(), sx + 3, sy - 10); if (day.night || this.zoneAt(e.x, e.y) === 'havre') lights.push({ x: sx + 8, y: sy - 5, r: day.night ? 55 : 20, c: '#ffd070', a: 1 }); break;
-      case 'sign': x.drawImage(G.SPR.sign(), sx, sy); break;
+      case 'lamp': G.SPR.draw(x, G.SPR.lamp(), sx + 3, sy - 10); if (day.night || this.zoneAt(e.x, e.y) === 'havre') lights.push({ x: sx + 8, y: sy - 5, r: day.night ? 55 : 20, c: '#ffd070', a: 1 }); break;
+      case 'sign': G.SPR.draw(x, G.SPR.sign(), sx, sy); break;
       case 'fountain': {
         x.fillStyle = '#8a8a96'; x.fillRect(sx - 2, sy + 4, 20, 12); x.fillStyle = '#a8a8b4'; x.fillRect(sx - 2, sy + 4, 20, 2);
         x.fillStyle = '#3a8ad8'; x.fillRect(sx, sy + 6, 16, 8);
@@ -697,13 +706,13 @@ G.World = {
       case 'npc': {
         const bob = Math.floor(t * 2 + e.x) % 2;
         this.shadow(sx + 8, sy + 15, 5);
-        x.drawImage(G.SPR.hero('npc_' + e.id, e.pal, e.dir || 'down', 0, e.id === 'r_grom' || e.id === 'h_grom' || e.id === 'r_dorn' || e.id === 'h_dorn' ? 'beard' : (e.id.includes('mira') || e.id.includes('yuna') || e.id.includes('lise') || e.id === 'v_girl') ? 'long' : null), sx, sy - bob);
+        G.SPR.draw(x, G.SPR.hero('npc_' + e.id, e.pal, e.dir || 'down', 0, e.id === 'r_grom' || e.id === 'h_grom' || e.id === 'r_dorn' || e.id === 'h_dorn' ? 'beard' : (e.id.includes('mira') || e.id.includes('yuna') || e.id.includes('lise') || e.id === 'v_girl') ? 'long' : null), sx, sy - bob);
         if (e.npc && !G.S.npcs[e.npc]) { const q = G.S.quests['r_' + e.npc]; x.fillStyle = q ? '#7affd8' : '#ffd86a'; x.font = 'bold 8px monospace'; x.fillText(q ? '…' : '!', sx + 6, sy - 3 + Math.sin(t * 4) * 1.5); }
         break;
       }
       case 'node': {
         const dep = this.nodeDepleted(e);
-        x.drawImage(G.SPR.node(e.type, dep), sx - 2, sy - 8);
+        G.SPR.draw(x, G.SPR.node(e.type, dep), sx - 2, sy - 8);
         if (this.mining && this.mining.e === e) {
           const p = this.mining.hits / this.mining.need;
           x.fillStyle = 'rgba(20,10,20,0.85)';
@@ -715,9 +724,9 @@ G.World = {
         if (!dep && Math.random() < 0.006) G.R.parts.push({ x: sx + U.rand(2, 14), y: sy + U.rand(-4, 8), vx: 0, vy: -4, life: 0.8, max: 0.8, size: 0.8, c: '#ffffff', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
         break;
       }
-      case 'chest': x.drawImage(G.SPR.chest(G.S.chests[e.id]), sx, sy); if (!G.S.chests[e.id] && Math.random() < 0.02) G.R.parts.push({ x: sx + U.rand(2, 14), y: sy + 4, vx: 0, vy: -6, life: 1, max: 1, size: 0.8, c: '#ffe080', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 }); break;
+      case 'chest': G.SPR.draw(x, G.SPR.chest(G.S.chests[e.id]), sx, sy); if (!G.S.chests[e.id] && Math.random() < 0.02) G.R.parts.push({ x: sx + U.rand(2, 14), y: sy + 4, vx: 0, vy: -6, life: 1, max: 1, size: 0.8, c: '#ffe080', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 }); break;
       case 'stone': {
-        x.drawImage(G.SPR.stone(), sx, sy - 14);
+        G.SPR.draw(x, G.SPR.stone(), sx, sy - 14);
         lights.push({ x: sx + 8, y: sy - 2, r: 50 + Math.sin(t * 2) * 6, c: '#7affd8', a: 0.9 });
         if (Math.random() < 0.15) G.R.parts.push({ x: sx + 8 + U.rand(-4, 4), y: sy, vx: 0, vy: -10, life: 1.5, max: 1.5, size: 0.8, c: '#7affd8', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
         break;
@@ -725,7 +734,7 @@ G.World = {
       case 'boss': {
         const E = G.ENEMIES[e.id], img = G.SPR.enemy(E.spr, E.pal, E.e), bob = Math.sin(t * 2) * 2;
         this.shadow(sx + 8, sy + 15, 14);
-        x.drawImage(img, Math.round(sx + 8 - img.width / 2), Math.round(sy + 16 - img.height + bob));
+        G.SPR.draw(x, img, Math.round(sx + 8 - G.SPR.lw(img) / 2), Math.round(sy + 16 - G.SPR.lh(img) + bob));
         lights.push({ x: sx + 8, y: sy, r: 60, c: G.ELEM[E.e].c, a: 0.8 });
         if (Math.random() < 0.25) G.R.parts.push({ x: sx + 8 + U.rand(-16, 16), y: sy + 12, vx: 0, vy: -14, life: 1.4, max: 1.4, size: 1, c: '#c86aff', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
         break;

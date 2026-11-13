@@ -19,19 +19,27 @@ G.R = {
   resize() {
     const cw = window.innerWidth, ch = window.innerHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
     const short = Math.min(cw, ch);
-    this.scale = Math.max(1, Math.round(short / 224));
-    this.W = Math.ceil(cw / this.scale); this.H = Math.ceil(ch / this.scale);
+    // D : densité de pixels (chaque unité logique = D pixels réels du tampon)
+    this.D = 2;
+    // m pixels écran par pixel du tampon (entier => pixels nets), vue d'environ 224 unités sur le petit côté
+    const me = Math.max(1, short * dpr / (224 * this.D)), mr = Math.round(me);
+    const m = Math.abs(mr - me) / me < 0.12 ? mr : me;
+    const s = m * this.D / dpr;
+    this.scale = s;
+    this.W = Math.ceil(cw / s); this.H = Math.ceil(ch / s);
     this.dpr = dpr;
     this.cv.width = Math.floor(cw * dpr); this.cv.height = Math.floor(ch * dpr);
     this.cv.style.width = cw + 'px'; this.cv.style.height = ch + 'px';
-    this.k = this.scale * dpr;
-    this.low.width = this.W; this.low.height = this.H;
+    this.k = s * dpr;
+    this.low.width = this.W * this.D; this.low.height = this.H * this.D;
     this.tiny.width = Math.max(4, Math.ceil(this.W / 4)); this.tiny.height = Math.max(4, Math.ceil(this.H / 4));
     this.dofC.width = Math.ceil(this.W / 2); this.dofC.height = Math.ceil(this.H / 2);
     this.litC.width = Math.ceil(this.W / 2); this.litC.height = Math.ceil(this.H / 2);
-    this.lx.imageSmoothingEnabled = false;
+    this.begin();
     if (G.onResize) G.onResize();
   },
+  // prépare le tampon pour un dessin en coordonnées logiques
+  begin() { const x = this.lx; x.setTransform(this.D, 0, 0, this.D, 0, 0); x.imageSmoothingEnabled = false; x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.filter = 'none'; return x; },
   shake(a, t) { this.shakeA = Math.max(this.shakeA, a); this.shakeT = Math.max(this.shakeT, t); },
   flash(c = '#fff', a = 0.8) { this.flashC = c; this.flashA = a; },
   light(x, y, r, c, a, life) { this.flashes.push({ x, y, r, c, a, life, max: life }); },

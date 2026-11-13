@@ -575,6 +575,7 @@ G.UI = {
   // ---------------- Interface de combat ----------------
   battleOpen(B) {
     this.B = B;
+    const zb = document.getElementById('zbanner'); if (zb) zb.classList.remove('show');
     this.bui.innerHTML = `<div class="b-top"><div class="timeline"></div></div><div class="b-banner"></div><div class="b-log"></div><div class="b-bottom"><div class="b-party win"></div><div class="b-cmd win"></div></div>`;
     this.bui.classList.add('show');
     this.battleRefresh();

@@ -633,8 +633,8 @@ G.Battle = {
   },
   // ---------------- Rendu ----------------
   render() {
-    const R = G.R, x = R.lx, W = R.W, H = R.H, BH = this.BH;
-    x.drawImage(this.background(W, H, BH), 0, 0);
+    const R = G.R, x = R.begin(), W = R.W, H = R.H, BH = this.BH;
+    x.drawImage(this.background(W, H, BH), 0, 0, W, H);
     const t = this.time;
     // éléments animés du décor
     if (this.bg === 'plains' || this.bg === 'mountain') {
@@ -652,7 +652,7 @@ G.Battle = {
       let img, sc;
       if (u.side === 'p') { img = G.SPR.battler(u.cid, u.calc.wid, u.pose === 'atk' ? 'atk' : 'idle'); sc = 2; }
       else { img = G.SPR.enemy(u.E.spr, u.E.pal, u.E.e); sc = this.escale(u); }
-      const w = img.width * sc, h = img.height * sc;
+      const w = G.SPR.lw(img) * sc, h = G.SPR.lh(img) * sc;
       const px = Math.round(u.hx + u.ox - w / 2), py = Math.round(u.hy + u.oy - h + (u.side === 'p' ? 2 : 0) + bob);
       // ombre
       const air = Math.min(1, -u.oy / 120);
@@ -692,12 +692,12 @@ G.Battle = {
   },
   whiteOf(img) {
     const key = 'white_' + (img._id || (img._id = Math.random().toString(36).slice(2)));
-    return G.SPR.get(key, () => { const c = U.canvas(img.width, img.height), x = c.getContext('2d'); x.drawImage(img, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height); return c; });
+    return G.SPR.get(key, () => { const c = U.canvas(img.width, img.height), x = c.getContext('2d'); x.drawImage(img, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height); c._d = img._d; return c; });
   },
   // Décor de fond (mis en cache)
   background(W, H, BH) {
     return G.SPR.get(`bg_${this.bg}_${W}_${H}_${BH}`, () => {
-      const c = U.canvas(W, H), x = c.getContext('2d'), b = this.bg;
+      const c = U.canvas(W * 2, H * 2), x = c.getContext('2d'), b = this.bg; x.scale(2, 2); c._d = 2;
       const pal = {
         plains: { sky: ['#6ab0f0', '#cfe8ff'], far: '#7aa0c8', mid: '#4f8f3e', ground: ['#5aa03c', '#3f7a2e'] },
         forest: { sky: ['#2a5a3a', '#7ab070'], far: '#24482a', mid: '#1f3f22', ground: ['#3d7a32', '#244a1e'] },
@@ -728,6 +728,13 @@ G.Battle = {
       if (b === 'forest') { for (let i = 0; i < 6; i++) { const tx = U.hash(i, 9, 1) * W; x.fillStyle = '#1a2e16'; x.fillRect(tx, 0, 6 + i % 3 * 3, hz + 6); } }
       if (b === 'swamp') { x.fillStyle = 'rgba(60,100,90,0.5)'; for (let i = 0; i < 5; i++) { x.beginPath(); x.ellipse(U.hash(i, 4, 2) * W, hz + 10 + U.hash(i, 5, 2) * (BH - hz), 30, 5, 0, 0, Math.PI * 2); x.fill(); } }
       if (b === 'volcano') { x.fillStyle = '#ff5a1a'; for (let i = 0; i < 6; i++) { const y = hz + 6 + U.hash(i, 3, 3) * (BH - hz); x.fillRect(U.hash(i, 2, 3) * W, y, 14 + i * 3, 1); } }
+      // touffes et cailloux en perspective (plus grands au premier plan)
+      const tuft = { plains: ['#3f7d2c', '#72ba48', '#9ad860'], forest: ['#25502a', '#4a8440', '#6aa858'], mountain: ['#5e584e', '#8f877a', '#b5ae9f'], swamp: ['#323a24', '#56623c', '#7a8a5a'], volcano: ['#1e1514', '#5a4440', '#ff7a2a'] }[b];
+      for (let i = 0; i < 160; i++) {
+        const py = hz + 4 + Math.pow(U.hash(i, 7, 9), 0.8) * (H - hz), d = (py - hz) / (H - hz), px = U.hash(i, 8, 9) * W, sz = 0.6 + d * 2.4;
+        if (U.hash(i, 9, 9) < 0.7) { for (let k = 0; k < 4; k++) { x.fillStyle = tuft[k % 2 ? 1 : 0]; x.fillRect(px + k * sz * 0.6, py - sz * (1.5 + (k % 2)), sz * 0.35, sz * (1.5 + (k % 2))); } x.fillStyle = tuft[2]; x.fillRect(px + sz * 0.6, py - sz * 2.5, sz * 0.3, sz * 0.5); }
+        else { x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(px, py + sz * 0.3, sz * 1.4, sz * 0.5, 0, 0, Math.PI * 2); x.fill(); x.fillStyle = tuft[1]; x.beginPath(); x.ellipse(px, py, sz * 1.2, sz * 0.8, 0, 0, Math.PI * 2); x.fill(); x.fillStyle = tuft[2]; x.fillRect(px - sz * 0.6, py - sz * 0.5, sz * 0.6, sz * 0.3); }
+      }
       // zone d'interface (bas de l'écran)
       g = x.createLinearGradient(0, BH - 10, 0, H);
       g.addColorStop(0, 'rgba(5,5,20,0)'); g.addColorStop(0.35, 'rgba(5,5,20,0.65)'); g.addColorStop(1, 'rgba(5,5,20,0.9)');

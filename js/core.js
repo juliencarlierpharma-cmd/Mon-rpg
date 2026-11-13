@@ -64,71 +64,77 @@ G.elemMult = (a, d) => {
 G.weakTo = e => e ? Object.keys(G.BEATS).find(k => G.BEATS[k] === e) : null;
 
 // ---------------- Grille de pixels ----------------
+// Les coordonnées passées aux méthodes sont « logiques » ; la grille réelle
+// fait w*k × h*k pixels, ce qui permet de dessiner les mêmes formes avec plus
+// de détails (courbes plus douces, ombrages plus fins).
 G.Pix = class Pix {
-  constructor(w, h) { this.w = w; this.h = h; this.d = new Array(w * h).fill(null); }
-  set(x, y, c) {
-    x = Math.floor(x); y = Math.floor(y);
-    if (x < 0 || y < 0 || x >= this.w || y >= this.h || !c) return;
-    this.d[y * this.w + x] = c;
-  }
-  get(x, y) { if (x < 0 || y < 0 || x >= this.w || y >= this.h) return null; return this.d[y * this.w + x]; }
+  constructor(w, h, k = 1) { this.k = k; this.w = Math.round(w * k); this.h = Math.round(h * k); this.d = new Array(this.w * this.h).fill(null); }
+  _s(X, Y, c) { if (X < 0 || Y < 0 || X >= this.w || Y >= this.h || !c) return; this.d[Y * this.w + X] = c; }
+  // pixel « logique » (bloc k×k)
+  set(x, y, c) { const k = this.k, X = Math.floor(x * k), Y = Math.floor(y * k); for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) this._s(X + i, Y + j, c); }
+  // pixel réel unique (détails fins)
+  dot(x, y, c) { this._s(Math.floor(x * this.k), Math.floor(y * this.k), c); }
+  get(X, Y) { if (X < 0 || Y < 0 || X >= this.w || Y >= this.h) return null; return this.d[Y * this.w + X]; }
   rect(x, y, w, h, c) {
-    const sh = Array.isArray(c);
-    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const k = this.k, X0 = Math.round(x * k), Y0 = Math.round(y * k), W = Math.max(1, Math.round(w * k)), H = Math.max(1, Math.round(h * k));
+    const sh = Array.isArray(c), P = sh ? Pix.tones(c) : null;
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
       let col = c;
-      if (sh) col = (j === 0 || i === 0) ? c[2] : (j >= h - 1 || i >= w - 1) ? c[0] : c[1];
-      this.set(x + i, y + j, col);
+      if (sh) { const t = (j / Math.max(1, H - 1)) * 0.75 + (i / Math.max(1, W - 1)) * 0.25; col = j < k || i < k ? P[4] : (j >= H - k || i >= W - k) ? P[0] : P[t < 0.35 ? 3 : t < 0.7 ? 2 : 1]; }
+      this._s(X0 + i, Y0 + j, col);
     }
   }
+  // 3 tons [sombre, moyen, clair] -> 5 tons
+  static tones(c) { if (c.length >= 5) return c; return c._t || (c._t = [c[0], U.mix(c[0], c[1], 0.5), c[1], U.mix(c[1], c[2], 0.5), c[2]]); }
   _shade(c, nx, ny, r) {
-    const l = -(nx * 0.55 + ny * 0.83);
-    if (r > 0.78 && l < 0.1) return c[0];
-    return l > 0.42 ? c[2] : l < -0.3 ? c[0] : c[1];
+    const P = Pix.tones(c), l = -(nx * 0.55 + ny * 0.83);
+    if (r > 0.82 && l < 0.15) return P[0];
+    return l > 0.55 ? P[4] : l > 0.25 ? P[3] : l > -0.15 ? P[2] : l > -0.45 ? P[1] : P[0];
   }
   ell(cx, cy, rx, ry, c) {
-    for (let y = Math.floor(cy - ry - 1); y <= Math.ceil(cy + ry + 1); y++)
-      for (let x = Math.floor(cx - rx - 1); x <= Math.ceil(cx + rx + 1); x++) {
-        const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - cy) / ry, r = nx * nx + ny * ny;
+    const k = this.k;
+    for (let Y = Math.floor((cy - ry - 1) * k); Y <= Math.ceil((cy + ry + 1) * k); Y++)
+      for (let X = Math.floor((cx - rx - 1) * k); X <= Math.ceil((cx + rx + 1) * k); X++) {
+        const nx = ((X + 0.5) / k - cx) / rx, ny = ((Y + 0.5) / k - cy) / ry, r = nx * nx + ny * ny;
         if (r > 1) continue;
-        this.set(x, y, Array.isArray(c) ? this._shade(c, nx, ny, r) : c);
+        this._s(X, Y, Array.isArray(c) ? this._shade(c, nx, ny, r) : c);
       }
   }
   poly(pts, c) {
+    const k = this.k;
     let minY = Infinity, maxY = -Infinity;
     pts.forEach(p => { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); });
-    for (let y = Math.floor(minY); y <= Math.ceil(maxY); y++) {
-      const yy = y + 0.5, xs = [];
+    const P = Array.isArray(c) ? Pix.tones(c) : null;
+    for (let Y = Math.floor(minY * k); Y <= Math.ceil(maxY * k); Y++) {
+      const yy = (Y + 0.5) / k, xs = [];
       for (let i = 0; i < pts.length; i++) {
         const a = pts[i], b = pts[(i + 1) % pts.length];
         if ((a[1] <= yy && b[1] > yy) || (b[1] <= yy && a[1] > yy)) xs.push(a[0] + (yy - a[1]) / (b[1] - a[1]) * (b[0] - a[0]));
       }
       xs.sort((p, q) => p - q);
-      for (let k = 0; k + 1 < xs.length; k += 2)
-        for (let x = Math.round(xs[k]); x < Math.round(xs[k + 1]); x++) {
+      for (let n = 0; n + 1 < xs.length; n += 2)
+        for (let X = Math.round(xs[n] * k); X < Math.round(xs[n + 1] * k); X++) {
           let col = c;
-          if (Array.isArray(c)) { const t = (y - minY) / Math.max(1, maxY - minY); col = t < 0.3 ? c[2] : t > 0.72 ? c[0] : c[1]; }
-          this.set(x, y, col);
+          if (P) { const t = (yy - minY) / Math.max(0.01, maxY - minY); col = t < 0.15 ? P[4] : t < 0.35 ? P[3] : t < 0.65 ? P[2] : t < 0.85 ? P[1] : P[0]; }
+          this._s(X, Y, col);
         }
     }
   }
-  line(x0, y0, x1, y1, c) {
-    x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
-    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
-    let err = dx + dy;
-    for (;;) {
-      this.set(x0, y0, c);
-      if (x0 === x1 && y0 === y1) break;
-      const e2 = 2 * err;
-      if (e2 >= dy) { err += dy; x0 += sx; }
-      if (e2 <= dx) { err += dx; y0 += sy; }
+  // ligne : épaisseur w en unités logiques (par défaut 1 = un pixel logique)
+  line(x0, y0, x1, y1, c, w = 1) {
+    const k = this.k, n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) * k * 1.5)), r = Math.max(1, Math.round(w * k));
+    for (let i = 0; i <= n; i++) {
+      const X = Math.floor((x0 + (x1 - x0) * i / n) * k + 0.5 / k), Y = Math.floor((y0 + (y1 - y0) * i / n) * k + 0.5 / k);
+      for (let j = 0; j < r; j++) for (let q = 0; q < r; q++) this._s(X + q, Y + j, c);
     }
   }
-  // trace épais le long d'une suite de points (cous, queues…)
+  // ligne fine (un pixel réel)
+  hline(x0, y0, x1, y1, c) { this.line(x0, y0, x1, y1, c, 1 / this.k); }
   thick(pts, r0, r1, c) {
     const steps = [];
     for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1], n = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])));
-      for (let k = 0; k < n; k++) steps.push([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]);
+      const a = pts[i], b = pts[i + 1], n = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) * 1.5));
+      for (let q = 0; q < n; q++) steps.push([a[0] + (b[0] - a[0]) * q / n, a[1] + (b[1] - a[1]) * q / n]);
     }
     steps.push(pts[pts.length - 1]);
     steps.forEach((p, i) => { const r = r0 + (r1 - r0) * i / Math.max(1, steps.length - 1); this.ell(p[0], p[1], r, r, c); });
@@ -136,23 +142,54 @@ G.Pix = class Pix {
   ascii(lines, pal, ox = 0, oy = 0) {
     lines.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const ch = row[x]; if (ch !== '.' && pal[ch]) this.set(ox + x, oy + y, pal[ch]); } });
   }
-  outline(col = '#140c1c') {
+  // contour « sélectif » : teinte sombre de la couleur voisine plutôt qu'un noir uniforme
+  outline(col = '#140c1c', sel = true) {
     const o = this.d.slice();
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
       if (this.d[y * this.w + x]) continue;
-      if (this.get(x - 1, y) || this.get(x + 1, y) || this.get(x, y - 1) || this.get(x, y + 1)) o[y * this.w + x] = col;
+      const n = this.get(x, y + 1) || this.get(x, y - 1) || this.get(x + 1, y) || this.get(x - 1, y);
+      if (!n) continue;
+      o[y * this.w + x] = sel && n.length === 7 ? U.mix(n, col, 0.72) : col;
+    }
+    this.d = o;
+    return this;
+  }
+  // reflet de bord (lumière venant du haut à gauche) + léger grain
+  polish(grain = 0.05, seed = 1) {
+    const o = this.d.slice();
+    for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
+      const c = this.d[y * this.w + x];
+      if (!c || c.length !== 7) continue;
+      const up = this.get(x, y - 1), lf = this.get(x - 1, y);
+      let v = c;
+      if (!up || !lf) v = U.mix(v, '#fff8e8', 0.18);
+      const h = U.hash(x, y, seed);
+      if (h < grain) v = U.mix(v, '#000000', 0.12); else if (h > 1 - grain) v = U.mix(v, '#ffffff', 0.1);
+      o[y * this.w + x] = v;
     }
     this.d = o;
     return this;
   }
   mirror() {
-    const p = new Pix(this.w, this.h);
+    const p = new Pix(1, 1); p.k = this.k; p.w = this.w; p.h = this.h; p.d = new Array(this.w * this.h);
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) p.d[y * this.w + x] = this.d[y * this.w + (this.w - 1 - x)];
     return p;
   }
   toCanvas() {
     const c = U.canvas(this.w, this.h), x = c.getContext('2d');
-    for (let i = 0; i < this.d.length; i++) if (this.d[i]) { x.fillStyle = this.d[i]; x.fillRect(i % this.w, Math.floor(i / this.w), 1, 1); }
+    const img = x.createImageData(this.w, this.h), D = img.data, cache = {};
+    for (let i = 0; i < this.d.length; i++) {
+      const col = this.d[i]; if (!col) continue;
+      let rgba = cache[col];
+      if (!rgba) {
+        if (col[0] === '#') { const h = col.slice(1); const r = U.hex2rgb(h.slice(0, 6)); rgba = [r[0], r[1], r[2], h.length === 8 ? parseInt(h.slice(6, 8), 16) : 255]; }
+        else { x.fillStyle = col; x.fillRect(0, 0, 1, 1); const d = x.getImageData(0, 0, 1, 1).data; rgba = [d[0], d[1], d[2], d[3]]; x.clearRect(0, 0, 1, 1); }
+        cache[col] = rgba;
+      }
+      D[i * 4] = rgba[0]; D[i * 4 + 1] = rgba[1]; D[i * 4 + 2] = rgba[2]; D[i * 4 + 3] = rgba[3];
+    }
+    x.putImageData(img, 0, 0);
+    c._d = this.k;
     return c;
   }
 };
