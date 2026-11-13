@@ -150,6 +150,13 @@ G.World = {
     const rem = () => (S().town.b.remparts || 0) > 0;
     for (let x = hx - 1; x <= hx + 12; x++) add({ k: 'wall', x, y: hy - 1, show: rem });
     for (let y = hy; y <= hy + 7; y++) { if (y < hy + 3 || y > hy + 5) add({ k: 'wall', x: hx - 1, y, show: rem }); add({ k: 'wall', x: hx + 12, y, show: rem }); }
+    // --- Tableau de chasse ---
+    add({ k: 'board', x: bx + 7, y: by + 5, act: () => G.UI.hunts() });
+    add({ k: 'board', x: hx + 11, y: hy + 3, show: () => S().town.founded, act: () => G.UI.hunts() });
+    G.HUNTS.concat([G.HUNT_INF]).forEach(h => {
+      this.clearAround(h.at[0], h.at[1], 1);
+      add({ k: 'hunt', id: 'hunt_' + h.id, hunt: h.id, x: h.at[0], y: h.at[1], show: () => S().hunts[h.id] === 'active', act: () => this.huntTalk(h.id) });
+    });
     // --- Coffres ---
     const chests = [
       ['c1', 22, 51, { items: { potion: 3 }, mats: { lingot: 2 } }], ['c2', 5, 48, { g: 200, items: { appat: 1 } }],
@@ -433,6 +440,14 @@ G.World = {
     if (r !== 0) return;
     G.Battle.start([id], { bg: { sylvaros: 'forest', wyverne: 'mountain', hydre: 'swamp', ignar: 'volcano' }[id], boss: true, zone: this.zoneAt(this.P.x, this.P.y) });
   },
+  async huntTalk(id) {
+    const S = G.S, h = id === 'inf' ? G.HUNT_INF : G.HUNTS.find(x => x.id === id);
+    const eid = id === 'inf' ? G.makeInfinite(S.hunter.inf) : h.t, E = G.ENEMIES[eid];
+    await G.UI.say([{ who: 'Chasse', t: `${h.n} — la cible est là : ${E.n} (niv. ${E.lvl}).` }]);
+    const r = await G.UI.ask(`Engager le combat contre ${E.n} ? Impossible de fuir.`, ['Chasser !', 'Plus tard']);
+    if (r !== 0) return;
+    G.Battle.start([eid], { bg: G.ZONES[this.zoneAt(this.P.x, this.P.y)].bg || 'plains', boss: true, hunt: id, zone: this.zoneAt(this.P.x, this.P.y) });
+  },
   async barrierTalk() {
     const n = ['sylvaros', 'wyverne', 'hydre'].filter(b => G.S.bosses[b]).length;
     await G.UI.say([{ who: '', t: `Une muraille de flammes éternelles bloque le passage. ${n}/3 Échos purifiés résonnent en vous.` }]);
@@ -642,6 +657,30 @@ G.World = {
         x.fillStyle = '#fff2b0'; x.fillRect(bxp + 2, sy - 7, 2, 2);
         x.fillStyle = '#ffd86a'; x.fillRect(sx + 6, sy - 21, 4, 4);
         lights.push({ x: sx + 8, y: sy - 19, r: day.night ? 48 : 22, c: '#ffd070', a: 0.9 });
+        break;
+      }
+      case 'board': {
+        this.shadow(sx + 8, sy + 15, 7);
+        x.fillStyle = '#5a3a1e'; x.fillRect(sx + 2, sy - 2, 2, 17); x.fillRect(sx + 12, sy - 2, 2, 17);
+        x.fillStyle = '#8a5a32'; x.fillRect(sx, sy - 10, 16, 14); x.fillStyle = '#a8744a'; x.fillRect(sx, sy - 10, 16, 2);
+        x.fillStyle = '#3a2412'; x.fillRect(sx, sy + 3, 16, 1);
+        [[2, -7, '#f4ead0'], [7, -8, '#fff6e0'], [11, -6, '#f0e0c0'], [4, -3, '#e8d8b8']].forEach(([px, py, c]) => { x.fillStyle = c; x.fillRect(sx + px, sy + py, 4, 5); x.fillStyle = '#c83a3a'; x.fillRect(sx + px + 1, sy + py + 1, 2, 1); });
+        x.fillStyle = '#ffd86a'; x.fillRect(sx + 7, sy - 13, 2, 3);
+        const ready = G.HUNTS.some(h => G.S.hunts[h.id] === 'done') || G.S.hunts.inf === 'done';
+        if (ready) { x.fillStyle = '#7affb0'; x.font = 'bold 8px monospace'; x.fillText('✦', sx + 5, sy - 15 + Math.sin(t * 4) * 1.5); }
+        lights.push({ x: sx + 8, y: sy - 4, r: day.night ? 36 : 16, c: '#ffd070', a: 0.6 });
+        break;
+      }
+      case 'hunt': {
+        const eid = e.hunt === 'inf' ? 'primordial' : G.HUNTS.find(h => h.id === e.hunt).t;
+        if (!G.ENEMIES[eid]) G.makeInfinite(G.S.hunter.inf);
+        const E = G.ENEMIES[eid], img = G.SPR.enemy(E.spr, E.pal, E.e), bob = Math.sin(t * 2.5 + e.x) * 2;
+        const sc = img.width <= 24 ? 1.5 : 1, w = img.width * sc, h = img.height * sc;
+        this.shadow(sx + 8, sy + 15, Math.min(14, w * 0.35));
+        x.drawImage(img, Math.round(sx + 8 - w / 2), Math.round(sy + 16 - h + bob), w, h);
+        x.fillStyle = '#ff3a4a'; x.font = 'bold 9px monospace'; x.fillText('☠', sx + 4, sy - h + 12 + bob + Math.sin(t * 5) * 1.5);
+        lights.push({ x: sx + 8, y: sy + 4, r: 55, c: '#ff3a4a', a: 0.7 });
+        if (Math.random() < 0.25) G.R.parts.push({ x: sx + 8 + U.rand(-10, 10), y: sy + 12, vx: 0, vy: -14, life: 1.2, max: 1.2, size: 1, c: '#ff5a6a', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
         break;
       }
       case 'lamp': x.drawImage(G.SPR.lamp(), sx + 3, sy - 10); if (day.night || this.zoneAt(e.x, e.y) === 'havre') lights.push({ x: sx + 8, y: sy - 5, r: day.night ? 55 : 20, c: '#ffd070', a: 1 }); break;

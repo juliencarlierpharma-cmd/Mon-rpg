@@ -136,7 +136,7 @@ G.UI = {
     });
   },
   // ---------------- Menu principal ----------------
-  TABS: [['equipe', '👥', 'Équipe'], ['armes', '⚔️', 'Armes'], ['competences', '📜', 'Compétences'], ['inventaire', '🎒', 'Sac'], ['artisanat', '🔨', 'Artisanat'], ['familiers', '🐾', 'Familiers'], ['succes', '🏆', 'Accompl.'], ['havre', '🏘️', 'Havre'], ['quetes', '📖', 'Quêtes'], ['carte', '🗺️', 'Carte'], ['systeme', '⚙️', 'Système']],
+  TABS: [['equipe', '👥', 'Équipe'], ['armes', '⚔️', 'Armes'], ['competences', '📜', 'Compétences'], ['inventaire', '🎒', 'Sac'], ['artisanat', '🔨', 'Artisanat'], ['familiers', '🐾', 'Familiers'], ['succes', '🏆', 'Accompl.'], ['chasses', '🎯', 'Chasses'], ['havre', '🏘️', 'Havre'], ['quetes', '📖', 'Quêtes'], ['carte', '🗺️', 'Carte'], ['systeme', '⚙️', 'Système']],
   openMenu(tab) {
     if (this.menu) return;
     this.menuTab = tab || this.menuTab || 'equipe';
@@ -208,7 +208,7 @@ G.UI = {
       if (!eq) actions += `<button class="btn" data-a="equipW" data-c="${cid}" data-s="${slot}">Équiper</button>`;
       if (tier < G.MAX_TIER) {
         const cost = G.upgradeCost(W, tier), capped = tier >= G.maxWeaponTier();
-        actions += `<div class="cost-line">→ Rang ${tier + 1} : ${G.costHTML(cost)}</div><button class="btn gold" data-a="upgrade" data-c="${cid}" data-s="${slot}" ${!capped && G.canPay(cost) ? '' : 'disabled'}>${capped ? `Forge niv. ${tier} requise` : '⬆️ Améliorer'}</button>`;
+        actions += `<div class="cost-line">→ Rang ${tier + 1} : ${G.costHTML(cost)}</div><button class="btn gold" data-a="upgrade" data-c="${cid}" data-s="${slot}" ${!capped && G.canPay(cost) ? '' : 'disabled'}>${capped ? (tier >= 5 ? 'Forge niv. 4 requise' : `Forge niv. ${tier} requise`) : tier === 5 ? '🌟 Éveiller (rang 6)' : '⬆️ Améliorer'}</button>`;
       } else actions += '<div class="dim">Rang maximal atteint ✦</div>';
     }
     return `<div class="card wcard ${eq ? 'eq' : ''} ${own ? '' : 'unowned'}" style="--c:${G.ELEM[slot].c}">
@@ -301,6 +301,51 @@ G.UI = {
       <div class="atree-wrap"><div class="atree" style="width:${cols * CW + 20}px;height:${rows * RH + 10}px"><svg width="${cols * CW + 20}" height="${rows * RH + 10}">${lines}</svg>${nodes}</div></div>
       <div class="card adetail">${detail}</div>`;
   },
+  // ----- Tableau de chasse -----
+  tab_chasses() { return this.huntsHTML(); },
+  huntsHTML() {
+    const S = G.S, ri = G.hunterRankIdx(), R = G.HUNT_RANKS[ri], next = G.HUNT_RANKS[ri + 1];
+    const plv = Math.round(S.party.reduce((a, c) => a + S.chars[c].lvl, 0) / S.party.length);
+    const card = (h, eid, rw, pts, unlocked) => {
+      const E = G.ENEMIES[eid], st = S.hunts[h.id];
+      const rewards = G.rewardText(rw).map(t => `<span class="pill ${/🛡️|🐾/.test(t) ? 'excl' : ''}">${esc(t)}</span>`).join(' ');
+      let act;
+      if (!unlocked) act = `<div class="small no">🔒 Rang ${h.rank} requis</div>`;
+      else if (st === 'done') act = `<button class="btn gold" data-a="claimHunt" data-i="${h.id}">✦ Toucher la prime</button>`;
+      else if (st === 'active') act = `<div class="small ok">☠ Cible marquée sur la carte — ${esc(G.ZONES[h.zone].n)}</div>`;
+      else if (st === 'claimed') act = '<div class="small ok">✔ Chasse accomplie</div>';
+      else act = `<button class="btn" data-a="acceptHunt" data-i="${h.id}">Accepter le contrat</button>`;
+      const low = unlocked && st !== 'claimed' && plv < E.lvl - 2;
+      return `<div class="card hcard ${unlocked ? '' : 'locked'} ${st || ''}" data-rank="${h.rank}">
+        <div class="pc-head"><img class="portrait" src="${G.SPR.enemyURL(eid)}"><div><div class="hrank">Rang ${h.rank}</div><h3>${esc(h.n)}</h3>
+        <div class="small">${esc(E.n)} · <b class="${low ? 'no' : ''}">niv. ${E.lvl}</b> · ${esc(G.ZONES[h.zone].n)}</div></div></div>
+        <div class="small dim">${esc(h.d)}</div>
+        <div class="small">Prime : ${rewards} <span class="pill">🎯 +${pts} pts</span></div>
+        <div class="actions">${act}</div></div>`;
+    };
+    const ranks = G.HUNT_RANKS.map((X, i) => `<div class="hr ${i <= ri ? 'on' : ''}"><b>${X.r}</b><span>${X.pts} pts</span><small>${esc(X.b)}</small></div>`).join('');
+    const groups = ['D', 'C', 'B', 'A', 'S'].map(r => {
+      const list = G.HUNTS.filter(h => h.rank === r).map(h => card(h, h.t, h.rw, h.pts, G.huntUnlocked(h))).join('');
+      return `<h3>Contrats de rang ${r}</h3><div class="cards">${list}</div>`;
+    }).join('');
+    const n = S.hunter.inf, infId = G.makeInfinite(n);
+    const inf = card(G.HUNT_INF, infId, G.infReward(n), 3, ri >= 4);
+    return `<h2>Tableau de chasse</h2>
+      <div class="card hunter"><div class="hbig">${R.r}</div><div style="flex:1;min-width:0"><b>Rang de chasseur ${R.r}</b> · ${S.hunter.pts} points de chasse${next ? ` — prochain rang ${next.r} à ${next.pts} pts` : ' — rang maximal'}
+        ${next ? bar(S.hunter.pts - R.pts, next.pts - R.pts, 'exp') : ''}<div class="dim small">Les primes contiennent des équipements, un familier et des matériaux introuvables ailleurs. L’Âme primordiale (rangs A et S) éveille une arme au rang 6.</div></div></div>
+      <div class="hranks">${ranks}</div>${groups}
+      <h3>Traque infinie <small class="dim">(répétable, +3 niveaux à chaque victoire — ${n} vague(s) vaincue(s))</small></h3><div class="cards">${inf}</div>`;
+  },
+  hunts() {
+    const el = U.el(`<div class="modal menu-wrap"><div class="menu win single"><div class="mbody"></div><button class="btn close" data-a="close">✕</button></div></div>`);
+    const entry = this.push(el);
+    const render = () => {
+      const b = el.querySelector('.mbody'), st = b.scrollTop;
+      b.innerHTML = this.huntsHTML(); b.scrollTop = st;
+      this.bind(el, Object.assign(this.menuHandlers(render), { close: () => { this.pop(entry); G.save(); } }));
+    };
+    render();
+  },
   // ----- Havre -----
   tab_havre() { return this.havreHTML(); },
   havreHTML(focus) {
@@ -346,7 +391,7 @@ G.UI = {
   // ----- Carte -----
   tab_carte() {
     const tr = G.World.TRAVEL.map(([id, n]) => `<button class="btn sm" data-a="travel" data-i="${id}" ${G.World.canTravel(id) ? '' : 'disabled'}>${G.World.canTravel(id) ? '🧭' : '🔒'} ${esc(n)}</button>`).join('');
-    return `<h2>Carte du monde</h2><div class="card"><h3>Voyage rapide</h3><div class="actions">${tr}</div><div class="dim small">Les lieux se débloquent en les visitant.</div></div><div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ★ Gardien · ! PNJ à recruter · ▣ Coffre · ◆ Havre</p>`;
+    return `<h2>Carte du monde</h2><div class="card"><h3>Voyage rapide</h3><div class="actions">${tr}</div><div class="dim small">Les lieux se débloquent en les visitant.</div></div><div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ★ Gardien · ☠ Cible de chasse · 🎯 Tableau de chasse · ! PNJ à recruter · ▣ Coffre · ◆ Havre</p>`;
   },
   drawMap(cv) {
     const W = G.World, s = 5;
@@ -372,6 +417,8 @@ G.UI = {
       else if (e.k === 'chest' && !G.S.chests[e.id]) { x.fillStyle = '#ffd040'; x.fillRect(cx - 2, cy - 2, 4, 4); }
       else if (e.k === 'house') { x.fillStyle = '#c84a3a'; x.fillRect(e.x * s, e.y * s, e.w * s, e.h * s); }
       else if (e.k === 'stone') { x.fillStyle = '#7affd8'; x.fillText('◆', cx, cy); }
+      else if (e.k === 'hunt') { x.fillStyle = '#ff3a4a'; x.fillText('☠', cx, cy); }
+      else if (e.k === 'board') { x.fillStyle = '#ffd86a'; x.fillText('🎯', cx, cy); }
       else if (e.k === 'barrier') { x.fillStyle = '#ff8a2a'; x.fillText('▲', cx, cy); }
     });
     x.fillStyle = '#fff'; x.beginPath(); x.arc(W.P.x * s + s / 2, W.P.y * s + s / 2, s * 0.8, 0, 7); x.fill();
@@ -417,7 +464,21 @@ G.UI = {
       craftA: d => { const A = G.ARMORS[d.i]; if (!G.canPay(A.r) || A.tier > G.maxArmorTier()) return; G.pay(A.r); S.armors[d.i] = (S.armors[d.i] || 0) + 1; S.stats.crafted++; G.Audio.sfx('craft'); this.toast(`🛡️ ${A.n} fabriqué(e) ! (${G.S.armors[d.i]} possédé(s))`); this.checkAch(); R(); },
       craftT: d => { const T = G.TOOLS[d.i]; if (!G.canPay(T.r)) return; G.pay(T.r); S.tools[T.type] = Math.max(S.tools[T.type], T.tier); S.stats.crafted++; G.Audio.sfx('craft'); this.toast(`${T.i} ${T.n} fabriquée !`); this.checkAch(); R(); },
       refine: d => { const Rc = G.REFINE[d.i], n = +(d.n || 1); let made = 0; for (let i = 0; i < n; i++) { if (!G.canPay({ m: Rc.m })) break; G.pay({ m: Rc.m }); G.give(Rc.out, Rc.q); made += Rc.q; } if (made) { G.Audio.sfx('craft'); this.toast('Fabriqué : ' + G.gotText(Rc.out, made)); } R(); },
-      useItem: d => this.useItemField(d.i, R),
+      useItem: d => {
+        const I = G.ITEMS[d.i];
+        if (I.tgt !== 'allies') return this.useItemField(d.i, R);
+        if (!(S.items[d.i] > 0)) return;
+        G.healAll(); G.give(d.i, -1); G.Audio.sfx('heal'); this.toast(`${I.i} ${I.n} : équipe entièrement restaurée.`); R();
+      },
+      acceptHunt: d => { S.hunts[d.i] = 'active'; if (d.i === 'inf') G.makeInfinite(S.hunter.inf); G.World.refresh(); G.Audio.sfx('ok'); this.toast('Contrat accepté : la cible est marquée ☠ sur la carte.'); R(); },
+      claimHunt: d => {
+        const before = G.hunterRankIdx(), rw = G.claimHunt(d.i);
+        if (!rw) return;
+        G.Audio.sfx('achieve');
+        this.toast(`🎯 Prime : ${G.rewardGotText(rw).join(', ')}`);
+        if (G.hunterRankIdx() > before) setTimeout(() => this.toast(`🏅 Rang de chasseur ${G.hunterRank().r} atteint ! ${G.hunterRank().b}`), 600);
+        G.World.refresh(); this.checkAch(); R();
+      },
       famOwner: d => { const f = S.fams[d.f]; if (d.c) Object.keys(S.fams).forEach(k => { if (S.fams[k].owner === d.c) S.fams[k].owner = null; }); f.owner = d.c || null; G.Audio.sfx('ok'); R(); },
       feed: d => {
         const f = S.fams[d.f], I = G.ITEMS[d.i];
@@ -577,7 +638,7 @@ G.UI = {
         cmd.innerHTML = `<div class="cmd-h">Objets</div><div class="cmds list">${list.map(id => { const I = G.ITEMS[id]; return `<button class="btn row" data-a="it" data-i="${id}"><b>${I.i} ${I.n} ×${G.S.items[id]}</b><small>${I.d}</small></button>`; }).join('') || '<p class="dim">Aucun objet utilisable.</p>'}</div><button class="btn back" data-a="back">↩ Retour</button>`;
         this.bind(cmd, {
           back: main,
-          it: d => { const I = G.ITEMS[d.i]; const go = t => done({ type: 'item', id: d.i, target: t }); if (I.tgt === 'enemies') go(null); else pickTarget(I.tgt === 'dead' ? 'dead' : 'ally', go, items); },
+          it: d => { const I = G.ITEMS[d.i]; const go = t => done({ type: 'item', id: d.i, target: t }); if (I.tgt === 'enemies' || I.tgt === 'allies') go(null); else pickTarget(I.tgt === 'dead' ? 'dead' : 'ally', go, items); },
         });
         this.focusFirst(cmd);
       };

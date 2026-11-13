@@ -31,6 +31,8 @@ G.newState = () => ({
   town: { founded: false, b: {}, store: {}, prog: 0 },
   npcs: {},
   quests: {},
+  hunts: {},
+  hunter: { pts: 0, inf: 0 },
   pos: { x: 41, y: 43, dir: 'down' },
   rest: { x: 41, y: 43 },
   time: 9 * 60,
@@ -50,7 +52,7 @@ G.maxAffinity = () => { let m = 0; Object.values(G.S.fams).forEach(f => Object.v
 G.weaponsOf = cid => Object.values(G.S.chars[cid].weapons).filter(Boolean).length;
 G.maxWeaponsOneChar = () => Math.max(...G.CHAR_ORDER.map(G.weaponsOf));
 G.totalWeapons = () => G.CHAR_ORDER.reduce((a, c) => a + G.weaponsOf(c), 0);
-G.maxWeaponTier = () => 1 + (G.S.town.b.forge || 0);
+G.maxWeaponTier = () => (G.S.town.b.forge || 0) >= 4 ? 6 : 1 + (G.S.town.b.forge || 0);
 G.maxArmorTier = () => 1 + (G.S.town.b.atelier || 0);
 G.famOf = cid => { const id = Object.keys(G.S.fams).find(k => G.S.fams[k].owner === cid); return id ? { id, ...G.S.fams[id], ref: G.S.fams[id] } : null; };
 G.linkLevel = (famId, cid) => { const a = G.S.fams[famId].aff[cid] || 0; return a >= 100 ? 3 : a >= 60 ? 2 : a >= 30 ? 1 : 0; };
@@ -255,6 +257,32 @@ G.collectTown = () => {
   }
   T.store = {};
   return got;
+};
+
+// ---------------- Tableau de chasse ----------------
+G.hunterRankIdx = () => { const p = G.S.hunter.pts; let r = 0; G.HUNT_RANKS.forEach((R, i) => { if (p >= R.pts) r = i; }); return r; };
+G.hunterRank = () => G.HUNT_RANKS[G.hunterRankIdx()];
+G.huntUnlocked = h => G.HUNT_RANKS.findIndex(R => R.r === h.rank) <= G.hunterRankIdx();
+G.huntBonus = () => { const i = G.hunterRankIdx(); return { exp: (i >= 1 ? 0.05 : 0) + (i >= 4 ? 0.05 : 0), gold: (i >= 2 ? 0.1 : 0) + (i >= 4 ? 0.1 : 0), drop: i >= 3 ? 1.25 : 1 }; };
+G.giveReward = rw => {
+  if (rw.g) { G.S.gold += rw.g; G.S.stats.goldEarned += rw.g; }
+  for (const k in (rw.items || {})) G.give(k, rw.items[k]);
+  for (const k in (rw.mats || {})) G.give(k, rw.mats[k]);
+  if (rw.armor) G.S.armors[rw.armor] = (G.S.armors[rw.armor] || 0) + 1;
+  if (rw.fam) G.addFam(rw.fam);
+};
+G.claimHunt = id => {
+  const S = G.S;
+  if (id === 'inf') {
+    if (S.hunts.inf !== 'done') return null;
+    const n = S.hunter.inf, rw = G.infReward(n);
+    G.giveReward(rw); S.hunter.inf++; S.hunter.pts += 3; S.hunts.inf = null;
+    return rw;
+  }
+  const h = G.HUNTS.find(x => x.id === id);
+  if (!h || S.hunts[id] !== 'done') return null;
+  G.giveReward(h.rw); S.hunter.pts += h.pts; S.hunts[id] = 'claimed';
+  return h.rw;
 };
 
 // ---------------- Sauvegarde ----------------

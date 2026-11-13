@@ -44,6 +44,10 @@ La partie est sauvegardée dans le navigateur : automatiquement, à l’auberge 
 - **Itinéraire** (coin supérieur gauche) : ordre conseillé des régions, niveaux recommandés, région actuelle et Gardiens vaincus. Repliable.
 - **Butin lisible** : chaque objet obtenu indique le nouveau total en stock.
 - **Montée de niveau** : les PV et PM sont entièrement restaurés.
+- **Tableau de chasse** (Bourg-Aube, Havre ou Menu › Chasses) : 12 contrats contre des monstres d’élite marqués ☠ sur la carte (niveaux 5 à 28), répartis en rangs D, C, B, A et S.
+  - Chaque prime donne des points de chasse, qui font monter le rang de chasseur et ses bonus permanents (EXP, or, butin).
+  - Récompenses introuvables ailleurs : 12 équipements uniques, le familier Lumi, la Mégalixir et l’Âme primordiale, qui éveille une arme au rang 6.
+  - Au rang S, la Traque infinie est répétable et monte de 3 niveaux à chaque victoire.
 - **Histoire** : 4 Gardiens corrompus à purifier, une barrière à briser, puis le dragon Ignar.
 
 ## Structure

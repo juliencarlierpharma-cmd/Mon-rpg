@@ -211,7 +211,7 @@ G.Battle = {
     return 1;
   },
   h(u) { return u.side === 'p' ? 40 : (G.SPR.ENEMY_SIZE[u.E.spr] * this.escale(u)) * 0.8; },
-  escale(u) { const s = G.SPR.ENEMY_SIZE[u.E.spr]; return s >= 48 ? (G.R.W < 300 ? 1.5 : 2) : 2; },
+  escale(u) { const s = G.SPR.ENEMY_SIZE[u.E.spr]; if (u.E.big && s < 48) return G.R.W < 300 ? 2 : 3; return s >= 48 ? (G.R.W < 300 ? 1.5 : 2) : 2; },
   center(u) { return [u.hx + u.ox, u.hy + u.oy - this.h(u) * 0.55]; },
   async lunge(u, t) {
     const dir = u.side === 'p' ? -1 : 1;
@@ -419,6 +419,7 @@ G.Battle = {
       let c = ch;
       if (id === 'burn' && src.side === 'p' && src.calc.flags.has('pyro')) c += 0.2;
       if (tgt.boss && (id === 'stun')) c *= 0.4;
+      if (tgt.side === 'p' && (id === 'poison' || id === 'burn') && tgt.calc.flags.has('immunePoison')) c = 0;
       if (Math.random() >= c) return;
       let t = turns;
       if (G.STATUS[id].bad && src.side === 'p' && src.calc.flags.has('longDebuff')) t++;
@@ -461,6 +462,8 @@ G.Battle = {
     u.pose = 'atk';
     if (E.bomb) {
       for (const x of this.targetable('e')) await this.hit(u, x, { s: 'atk', p: 0, e: E.e, phys: false, flat: E.bomb }, null, true);
+    } else if (I.tgt === 'allies') {
+      this.alive('p').forEach(p => { if (E.heal) this.heal(p, E.heal); if (E.mp) p.mp = this.maxMP(p); });
     } else if (t) {
       if (E.revive && !t.alive) this.revive(t, E.revive);
       else if (t.alive) {
@@ -523,18 +526,20 @@ G.Battle = {
     if (this.result === 'win') {
       G.Audio.music('victory'); G.Audio.sfx('win');
       const es = this.units.filter(u => u.side === 'e');
-      const expBonus = 1 + (S.town.b.taverne || 0) * 0.05;
+      const HB = G.huntBonus();
+      const expBonus = 1 + (S.town.b.taverne || 0) * 0.05 + HB.exp;
       const exp = Math.round(es.reduce((a, u) => a + u.E.exp, 0) * expBonus);
-      const gold = es.reduce((a, u) => a + u.E.gold, 0) + (S.town.b.remparts ? 0 : 0);
+      const gold = Math.round(es.reduce((a, u) => a + u.E.gold, 0) * (1 + HB.gold));
       S.gold += gold; S.stats.goldEarned += gold;
       S.stats.wins++; S.stats.kills += es.length;
       const drops = {};
       es.forEach(u => {
         (u.E.tags || []).forEach(t => S.stats.tags[t] = (S.stats.tags[t] || 0) + 1);
-        u.E.drops.forEach(([id, ch, a, b]) => { if (Math.random() < ch) { const q = U.randi(a, b); drops[id] = (drops[id] || 0) + q; } });
-        if (u.boss) S.bosses[u.eid] = true;
+        u.E.drops.forEach(([id, ch, a, b]) => { if (Math.random() < Math.min(1, ch * HB.drop)) { const q = U.randi(a, b); drops[id] = (drops[id] || 0) + q; } });
+        if (u.boss && !u.E.elite) S.bosses[u.eid] = true;
       });
       for (const k in drops) G.give(k, drops[k]);
+      if (this.opts.hunt) S.hunts[this.opts.hunt] = 'done';
       syncParty();
       const lv = [];
       this.units.filter(u => u.side === 'p').forEach(u => {
@@ -558,7 +563,8 @@ G.Battle = {
       await G.UI.battleResults({ exp, gold, drops, lv, famRes, tamed });
       G.UI.battleClose();
       this.back(async () => {
-        if (this.opts.boss) await this.bossAftermath(es[0].eid);
+        if (this.opts.hunt) { G.Audio.sfx('achieve'); await G.UI.say([{ who: 'Chasse', t: `Cible abattue : ${es[0].E.n} ! Retournez au tableau de chasse (Bourg-Aube, Havre ou Menu › Chasses) pour toucher la prime.` }]); }
+        else if (this.opts.boss) await this.bossAftermath(es[0].eid);
         G.UI.checkAch(); G.save();
       });
     } else if (this.result === 'flee') {
