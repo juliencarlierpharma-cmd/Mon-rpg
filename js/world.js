@@ -547,27 +547,28 @@ G.World = {
     const y0 = Math.max(0, Math.floor(cy / 16)), y1 = Math.min(this.H - 1, Math.ceil((cy + R.H) / 16) + 2);
     x.fillStyle = '#000'; x.fillRect(0, 0, R.W, R.H);
     const lights = [], objs = [], day = this.dayLight();
+    // 1) surfaces animées (eau, lave, marais) et ponts
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
-      const ch = this.t[ty][tx], v = Math.floor(U.hash(tx, ty, 5) * 8), sx = tx * 16 - cx, sy = ty * 16 - cy, zone = this.z[ty][tx];
-      if (ch === '~' || ch === 'l' || ch === 'w') x.drawImage(G.SPR.animTile(ch, v, frame), sx, sy, 16, 16);
-      else if (ch === '=') { x.drawImage(G.SPR.animTile('~', v, frame), sx, sy, 16, 16); x.drawImage(G.SPR.bridge(), sx, sy, 16, 16); }
-      else x.drawImage(G.SPR.tile(ch === 'T' || ch === '^' ? this.groundOf(zone) : ch, v), sx, sy, 16, 16);
-      // transitions douces : le sol « dominant » déborde sur son voisin
-      if (ch !== '=') {
-        const base = this.baseCh(tx, ty), pb = G.SPR.prio(base);
-        [[0, -1, 0], [1, 0, 1], [0, 1, 2], [-1, 0, 3]].forEach(([dx, dy, side]) => {
-          const nb = this.baseCh(tx + dx, ty + dy);
-          if (nb && nb !== base && G.SPR.prio(nb) > pb && !(G.SPR.prio(nb) === 7 && pb === 7)) x.drawImage(G.SPR.fringe(nb, side, (tx * 3 + ty) % 4), sx, sy, 16, 16);
-        });
-      }
+      const ch = this.t[ty][tx], sx = tx * 16 - cx, sy = ty * 16 - cy;
+      if (ch !== '~' && ch !== 'l' && ch !== 'w' && ch !== '=') continue;
+      const v = Math.floor(U.hash(tx, ty, 5) * 8);
+      x.drawImage(G.SPR.animTile(ch === '=' ? '~' : ch, v, frame), sx, sy, 16, 16);
+      if (ch === '=') x.drawImage(G.SPR.bridge(), sx, sy, 16, 16);
       if (ch === '~' && ty > 0 && this.t[ty - 1][tx] !== '~' && this.t[ty - 1][tx] !== '=') {
-        x.fillStyle = '#1f4f8a'; x.fillRect(sx, sy, 16, 2);
-        x.fillStyle = (frame % 4 < 2) ? '#cfe8ff' : '#9fd0ff'; x.fillRect(sx + ((frame * 2) % 6), sy + 2, 4, 1); x.fillRect(sx + 9 - (frame % 3), sy + 3, 3, 1);
+        x.fillStyle = 'rgba(15,40,90,0.5)'; x.fillRect(sx, sy, 16, 3);
+        x.fillStyle = (frame % 4 < 2) ? '#cfe8ff' : '#9fd0ff'; x.fillRect(sx + ((frame * 2) % 6), sy + 3.5, 4, 0.5); x.fillRect(sx + 9 - (frame % 3), sy + 4.5, 3, 0.5);
       }
       if (ch === 'l' && (tx + ty) % 2 === 0) lights.push({ x: sx + 8, y: sy + 8, r: 30, c: '#ff6a2a', a: 0.7 });
+    }
+    // 2) sol pré-dessiné par blocs (textures, transitions, teintes, petits décors)
+    const CK = 16, c0x = Math.floor(x0 / CK), c1x = Math.floor(x1 / CK), c0y = Math.floor(y0 / CK), c1y = Math.floor(y1 / CK);
+    for (let gy = c0y; gy <= c1y; gy++) for (let gx = c0x; gx <= c1x; gx++) x.drawImage(this.chunk(gx, gy), gx * CK * 16 - cx, gy * CK * 16 - cy, CK * 16, CK * 16);
+    // 3) arbres et falaises (objets triés en profondeur)
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+      const ch = this.t[ty][tx], sx = tx * 16 - cx, sy = ty * 16 - cy, zone = this.z[ty][tx];
       if (ch === 'T') {
-        const kind = zone === 'foret' ? 'forest' : zone === 'marais' ? 'swamp' : zone === 'volcan' ? 'volcano' : (U.hash(tx, ty, 9) < 0.2 ? 'fruit' : 'plain');
-        objs.push({ y: ty * 16 + 16, d: () => { this.shadow(sx + 8, sy + 14, 7); G.SPR.draw(x, G.SPR.tree(kind), sx - 2, sy - 14); } });
+        const kind = this.treeKind(tx, ty, zone);
+        objs.push({ y: ty * 16 + 16, d: () => { this.shadow(sx + 8, sy + 14, 7); const img = G.SPR.tree(kind); G.SPR.draw(x, img, sx + 8 - G.SPR.lw(img) / 2, sy + 16 - G.SPR.lh(img) + 2); } });
       } else if (ch === '^') objs.push({ y: ty * 16 + 15, d: () => this.drawCliff(tx, ty, sx, sy, zone) });
     }
     // entités
@@ -606,6 +607,87 @@ G.World = {
     const zone = this.zoneAt(P.x, P.y);
     const grade = day.grade || { foret: 'rgba(60,140,60,0.18)', marais: 'rgba(110,80,140,0.22)', volcan: 'rgba(255,90,40,0.2)', montagne: 'rgba(120,150,200,0.14)' }[zone] || 'rgba(255,220,160,0.1)';
     R.present({ dof: 0.85, focusTop: 0.3, focusBot: 0.75, bloom: 0.2, dark: Math.max(day.dark, zone === 'marais' ? 0.12 : 0, zone === 'volcan' ? 0.2 : 0), darkCol: zone === 'volcan' ? '#300808' : day.col, lights, grade, vignette: 0.5, rays: zone === 'foret' && !day.night ? 1 : zone === 'plaines' && !day.night ? 0.35 : 0 });
+  },
+  // espèce d'arbre selon la région (variété du paysage)
+  treeKind(tx, ty, zone) {
+    const h = U.hash(tx, ty, 9), n = U.fbm(tx / 7, ty / 7, 41);
+    if (zone === 'foret') return h < 0.42 ? 'pine' : h < 0.86 ? 'forest' : h < 0.95 ? 'birch' : 'giant';
+    if (zone === 'marais') return h < 0.45 ? 'willow' : 'swamp';
+    if (zone === 'volcan') return 'volcano';
+    if (zone === 'montagne') return 'snowpine';
+    if (n > 0.62) return h < 0.5 ? 'birch' : 'plain';
+    if (n < 0.36) return h < 0.45 ? 'autumn' : h < 0.6 ? 'cherry' : 'plain';
+    return h < 0.15 ? 'fruit' : h < 0.28 ? 'pine' : 'plain';
+  },
+  // style d'herbe selon de grandes plaques de bruit
+  groundStyle(ch, tx, ty) {
+    if (ch === 'f') return U.fbm(tx / 6, ty / 6, 51) > 0.55 ? 'moss' : 'fern';
+    if (ch !== '.' && ch !== ',') return '';
+    const n = U.fbm(tx / 9, ty / 9, 52), m = U.fbm(tx / 4, ty / 4, 53);
+    if (n < 0.38) return 'dry';
+    if (m > 0.64) return 'clover';
+    return 'lush';
+  },
+  decalFor(tx, ty) {
+    const ch = this.t[ty][tx], zone = this.z[ty][tx], h = U.hash(tx, ty, 333);
+    if (ch === '_' || ch === 'p' || ch === '=' || ch === '~' || ch === 'l' || ch === 'w' || ch === 'T' || ch === '^') return null;
+    const L = {
+      plaines: [[0.07, 'flowers'], [0.13, 'tuft'], [0.16, 'pebbles'], [0.18, 'bush'], [0.19, 'stump']],
+      bourg: [[0.12, 'flowers'], [0.16, 'tuft']], havre: [[0.1, 'flowers'], [0.14, 'tuft']],
+      foret: [[0.08, 'fern'], [0.14, 'leaves'], [0.18, 'mushroom'], [0.2, 'log'], [0.22, 'stump']],
+      montagne: [[0.08, 'gravel'], [0.14, 'pebbles'], [0.17, 'crack'], [0.185, 'bones'], [0.2, 'tuft']],
+      marais: [[0.09, 'reeds'], [0.14, 'puddle'], [0.18, 'mushroom'], [0.2, 'log']],
+      volcan: [[0.07, 'shard'], [0.11, 'vent'], [0.14, 'bones'], [0.18, 'gravel']],
+    }[zone] || [];
+    const r = L.find(q => h < q[0]);
+    return r ? r[1] : null;
+  },
+  chunk(gx, gy) {
+    return G.SPR.get(`chunk_${gx}_${gy}`, () => {
+      const CK = 16, c = U.canvas(CK * 32, CK * 32), x = c.getContext('2d');
+      x.imageSmoothingEnabled = false; x.scale(2, 2);
+      const tiles = [];
+      for (let ty = gy * CK; ty < Math.min(this.H, gy * CK + CK); ty++) for (let tx = gx * CK; tx < Math.min(this.W, gx * CK + CK); tx++) tiles.push([tx, ty]);
+      // textures
+      tiles.forEach(([tx, ty]) => {
+        const ch = this.t[ty][tx], sx = (tx - gx * CK) * 16, sy = (ty - gy * CK) * 16;
+        if (ch === '~' || ch === 'l' || ch === 'w' || ch === '=') return;
+        const base = this.baseCh(tx, ty), v = Math.floor(U.hash(tx, ty, 5) * 8);
+        x.drawImage(G.SPR.tile(base, v, this.groundStyle(base, tx, ty)), sx, sy, 16, 16);
+      });
+      // teinte continue à grande échelle (sur l'herbe et la roche)
+      const img = x.getImageData(0, 0, c.width, c.height), D = img.data, W = c.width;
+      for (let Y = 0; Y < c.height; Y += 1) for (let X = 0; X < W; X += 1) {
+        const i = (Y * W + X) * 4; if (D[i + 3] === 0) continue;
+        const tx = gx * CK + (X >> 5), ty = gy * CK + (Y >> 5), ch = this.baseCh(tx, ty);
+        if (!ch || ch === '_' || ch === 'p' || ch === 's') continue;
+        const wx = (gx * CK * 32 + X) / 32, wy = (gy * CK * 32 + Y) / 32;
+        const n = U.noise(wx / 5, wy / 5, 61), b = (U.noise(wx / 2, wy / 2, 62) - 0.5) * 0.12;
+        let tr = 0, tg = 0, tb = 0, a = 0;
+        if (ch === '.' || ch === ',' || ch === 'g') { if (n < 0.42) { tr = 196; tg = 176; tb = 80; a = (0.42 - n) * 0.9; } else if (n > 0.6) { tr = 30; tg = 110; tb = 80; a = (n - 0.6) * 0.8; } }
+        else if (ch === 'f') { if (n > 0.55) { tr = 20; tg = 70; tb = 60; a = (n - 0.55) * 0.8; } else { tr = 90; tg = 110; tb = 40; a = (0.55 - n) * 0.4; } }
+        else if (ch === 'r') { if (n < 0.45) { tr = 120; tg = 96; tb = 70; a = (0.45 - n) * 0.8; } else { tr = 100; tg = 110; tb = 130; a = (n - 0.45) * 0.5; } }
+        a = Math.min(0.32, a);
+        D[i] = Math.min(255, (D[i] * (1 - a) + tr * a) * (1 + b)); D[i + 1] = Math.min(255, (D[i + 1] * (1 - a) + tg * a) * (1 + b)); D[i + 2] = Math.min(255, (D[i + 2] * (1 - a) + tb * a) * (1 + b));
+      }
+      x.putImageData(img, 0, 0);
+      // transitions douces : le sol « dominant » déborde sur son voisin
+      tiles.forEach(([tx, ty]) => {
+        const ch = this.t[ty][tx]; if (ch === '=') return;
+        const sx = (tx - gx * CK) * 16, sy = (ty - gy * CK) * 16, base = this.baseCh(tx, ty), pb = G.SPR.prio(base);
+        [[0, -1, 0], [1, 0, 1], [0, 1, 2], [-1, 0, 3]].forEach(([dx, dy, side]) => {
+          const nb = this.baseCh(tx + dx, ty + dy);
+          if (nb && nb !== base && G.SPR.prio(nb) > pb && !(G.SPR.prio(nb) === 7 && pb === 7)) x.drawImage(G.SPR.fringe(nb, side, (tx * 3 + ty) % 4), sx, sy, 16, 16);
+        });
+      });
+      // petits décors
+      tiles.forEach(([tx, ty]) => {
+        const d = this.decalFor(tx, ty); if (!d) return;
+        const sx = (tx - gx * CK) * 16 + (U.hash(tx, ty, 334) - 0.5) * 6, sy = (ty - gy * CK) * 16 + (U.hash(ty, tx, 334) - 0.5) * 4;
+        x.drawImage(G.SPR.decal(d, Math.floor(U.hash(tx, ty, 335) * 6)), sx, sy, 16, 16);
+      });
+      return c;
+    });
   },
   baseCh(x, y) { if (x < 0 || y < 0 || x >= this.W || y >= this.H) return null; const c = this.t[y][x]; return c === 'T' || c === '^' ? this.groundOf(this.z[y][x]) : c === '=' ? null : c; },
   shadow(x, y, r) { const c = G.R.lx; c.fillStyle = 'rgba(10,10,30,0.28)'; c.beginPath(); c.ellipse(Math.round(x), Math.round(y), r, r * 0.45, 0, 0, Math.PI * 2); c.fill(); },

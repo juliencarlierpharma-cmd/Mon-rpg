@@ -495,6 +495,9 @@ function Painter() {
 }
 const ramp = (cols, t) => { t = U.clamp(t, 0, 0.999); const n = cols.length - 1, i = Math.floor(t * n), f = t * n - i; return U.hex2rgb(U.mix(cols[i], cols[i + 1], f)); };
 const rampQ = (cols, t) => U.hex2rgb(cols[Math.min(cols.length - 1, Math.floor(U.clamp(t, 0, 0.999) * cols.length))]);
+// les styles partagent la couleur de base de leur sol : seuls les détails changent
+// (la couleur, elle, varie en continu à l'échelle de la carte)
+const GRASS_STYLE = {};
 const GRASS = {
   '.': ['#3f7d2c', '#4f9334', '#5ea63c', '#72ba48', '#8ccc58'],
   ',': ['#3f7d2c', '#4f9334', '#5ea63c', '#72ba48', '#8ccc58'],
@@ -510,10 +513,13 @@ function blades(P, v, pal, n, seed) {
   }
 }
 const TILE_PAINT = {
-  grass(P, v, ch) {
+  grass(P, v, ch, style) {
     const pal = GRASS[ch];
     P.fill((x, y) => { const n = tfbm(x, y, 11 + (ch === 'f' ? 5 : 0)) + (U.hash(x, y, v + 40) - 0.5) * 0.12; return rampQ(pal.slice(0, 4), n * 1.05); });
-    blades(P, v, pal, ch === 'f' ? 10 : 16, 20);
+    blades(P, v, pal, style === 'dry' ? 9 : style === 'moss' ? 4 : ch === 'f' ? 10 : 16, 20);
+    if (style === 'clover') for (let k = 0; k < 6; k++) { const cx = U.hash(k, v, 77) * TS, cy = U.hash(v, k, 77) * TS; [[0, -1], [-1, 0], [1, 0]].forEach(([dx, dy]) => { P.wset(cx + dx, cy + dy, pal[3]); P.wset(cx + dx * 2, cy + dy * 2, pal[2], 0.7); }); P.wset(cx, cy + 1, pal[0]); }
+    if (style === 'dry') for (let k = 0; k < 10; k++) P.wset(U.hash(k, v, 78) * TS, U.hash(v, k, 78) * TS, '#d8c870', 0.8);
+    if (style === 'moss') for (let k = 0; k < 9; k++) { const cx = U.hash(k, v, 79) * TS, cy = U.hash(v, k, 79) * TS; P.wset(cx, cy, '#7ab04a'); P.wset(cx + 1, cy, '#5a9038'); P.wset(cx, cy + 1, '#4a7a30'); }
     if (ch === ',') {
       const cols = [['#ffffff', '#fff2a0'], ['#ffe060', '#ff9a30'], ['#ff8ab0', '#ffe0ec'], ['#a0c8ff', '#ffffff'], ['#d08aff', '#fff0ff']];
       for (let k = 0; k < 3; k++) {
@@ -591,9 +597,9 @@ const TILE_PAINT = {
   },
 };
 const TILE_KIND = { '.': 'grass', ',': 'grass', 'g': 'grass', 'f': 'grass', '_': 'path', 'r': 'rock', 'm': 'mud', 'v': 'volc', 's': 'sand', 'p': 'paved' };
-SPR.tile = (ch, v) => SPR.get(`t_${ch}_${v}`, () => {
+SPR.tile = (ch, v, style) => SPR.get(`t_${ch}_${v}_${style || ''}`, () => {
   const P = Painter(), k = TILE_KIND[ch] || 'grass';
-  TILE_PAINT[k](P, v, ch);
+  TILE_PAINT[k](P, v, ch, style);
   return P.done();
 });
 // Tuiles animées : eau, lave, eau de marais (8 images)
@@ -626,6 +632,26 @@ SPR.bridge = () => SPR.get('bridge', () => {
   for (let x = 0; x < TS; x++) { P.set(x, 3, '#a8784a', 0.8); P.set(x, 29, '#1a1008', 0.6); }
   return P.done();
 });
+// ---------------- Petits décors de sol (dessinés dans le sol, sans collision) ----------------
+SPR.DECAL = {
+  flowers(g, v) { const cols = [['#ffffff', '#ffe060'], ['#ff8ab0', '#fff0a0'], ['#ffd040', '#ff8a20'], ['#a8c8ff', '#ffffff'], ['#d08aff', '#ffe0ff'], ['#ff5a5a', '#ffe080']]; for (let i = 0; i < 4 + v % 3; i++) { const x = 3 + U.hash(i, v, 1) * 10, y = 5 + U.hash(v, i, 1) * 8, [p, c] = cols[(i + v) % cols.length]; g.hline(x, y + 0.5, x, y + 2.5, '#3a6a2a'); [[-0.5, 0], [0.5, 0], [0, -0.5], [0, 0.5]].forEach(([dx, dy]) => g.dot(x + dx, y + dy, p)); g.dot(x, y, c); } },
+  tuft(g, v) { const C = ['#2e6a26', '#4a9a34', '#7ac852']; for (let i = 0; i < 7; i++) { const x = 5 + i * 0.9; g.line(x, 13, x + (i - 3) * 0.35, 8 + (i % 3), C[i % 3], 0.5); } },
+  pebbles(g, v) { for (let i = 0; i < 3 + v % 2; i++) { const x = 4 + U.hash(i, v, 2) * 8, y = 8 + U.hash(v, i, 2) * 5, r = 0.8 + U.hash(i, i, 2) * 0.8; g.ell(x, y, r * 1.3, r, U.shades('#8a8478')); } },
+  mushroom(g, v) { const cap = v % 2 ? '#d84a3a' : '#b88a5a'; [[6, 11, 1.6], [9.5, 12.5, 1.1], [8, 9.5, 0.9]].forEach(([x, y, r]) => { g.rect(x - 0.35, y, 0.7, 1.6, U.shades('#f0e0c0')); g.ell(x, y, r * 1.4, r, U.shades(cap)); if (v % 2) g.dot(x - 0.4, y - 0.3, '#ffffff'); }); },
+  fern(g, v) { const C = U.shades('#3a8a3a'); [[-1.2, -0.6], [-0.5, -1.1], [0.4, -1.1], [1.1, -0.5]].forEach(([dx, dy]) => { for (let i = 0; i < 6; i++) { const x = 8 + dx * i, y = 13 + dy * i; g.ell(x, y, 0.9 - i * 0.1, 0.45, C); } }); },
+  leaves(g, v) { const cols = ['#c8782a', '#a8582a', '#d8a83a', '#8a4a2a']; for (let i = 0; i < 6; i++) g.ell(3 + U.hash(i, v, 3) * 10, 6 + U.hash(v, i, 3) * 8, 0.9, 0.5, U.shades(cols[(i + v) % 4])); },
+  stump(g, v) { g.ell(8, 12, 3, 1.6, U.shades('#6a4626')); g.ell(8, 11, 2.6, 1.2, U.shades('#c8a070')); g.hline(7, 11, 9, 11, '#8a6a40'); g.ell(8, 11, 1, 0.5, U.shades('#a88050')); },
+  log(g, v) { g.ell(8, 11.5, 5.5, 1.5, U.shades('#6a4626')); g.ell(13, 11.5, 1, 1.4, U.shades('#c8a070')); g.hline(4, 11, 12, 11, '#4a2e16'); g.ell(5, 10.2, 1, 0.5, U.shades('#5aa03a')); },
+  bones(g, v) { const B = U.shades('#e8e0c8'); g.line(4, 12, 10, 10, B[1], 0.6); g.ell(4, 12, 0.8, 0.8, B); g.ell(10, 10, 0.8, 0.8, B); g.ell(12, 12.5, 1.5, 1.2, B); g.dot(11.6, 12.3, '#2a2020'); g.dot(12.4, 12.3, '#2a2020'); },
+  shard(g, v) { const C = U.shades('#3a2a4a'); g.poly([[6, 13], [7, 8], [8.5, 13]], C); g.poly([[8, 13], [10, 9.5], [11, 13]], C); g.hline(7, 8.5, 7.3, 12.5, '#9a7ab8'); },
+  vent(g, v) { g.ell(8, 11, 3.5, 1.8, U.shades('#1a1212')); g.ell(8, 11, 2, 1, U.shades('#ff6a1a')); g.dot(8, 10.6, '#ffe080'); },
+  reeds(g, v) { for (let i = 0; i < 5; i++) { const x = 5 + i * 1.5; g.line(x, 13, x + (i - 2) * 0.3, 5 + (i % 2) * 2, '#6a8a3a', 0.5); if (i % 2 === 0) g.ell(x + (i - 2) * 0.3, 6 + (i % 2) * 2, 0.5, 1.4, U.shades('#6a4022')); } },
+  puddle(g, v) { g.ell(8, 11, 5, 2, U.shades('#3a5a62')); g.hline(5, 10.2, 9, 10.2, '#9ac0c8'); },
+  bush(g, v) { const C = v % 2 ? '#4a9a34' : '#3a7a3a'; g.ell(8, 10.5, 4.5, 3, U.shades(U.mix(C, '#000', 0.2))); g.ell(6.5, 9.6, 2.5, 2.2, U.shades(C)); g.ell(9.8, 9.4, 2.4, 2.2, U.shades(C)); if (v % 3 === 0) [[6, 9], [9.5, 8.6], [8, 11]].forEach(([x, y]) => g.dot(x, y, '#ff5a6a')); },
+  gravel(g, v) { for (let i = 0; i < 10; i++) g.dot(2 + U.hash(i, v, 4) * 12, 6 + U.hash(v, i, 4) * 8, ['#a8a090', '#6a645a', '#c8c0b0'][i % 3]); },
+  crack(g, v) { let x = 4, y = 8; for (let i = 0; i < 8; i++) { g.hline(x, y, x + 1, y + 0.5, '#3a3530'); x += 1; y += U.hash(i, v, 5) < 0.5 ? 0.5 : -0.5; } },
+};
+SPR.decal = (type, v) => SPR.get(`dc_${type}_${v}`, () => { const g = new G.Pix(16, 16, 2); SPR.DECAL[type](g, v); g.outline('#10180c').polish(0.02, v + 31); return g.toCanvas(); });
 // bordure douce d'un sol sur son voisin (transition)
 const TILE_PRIO = { '~': 0, 'l': 0, 'w': 1, 's': 2, '_': 3, 'p': 4, 'm': 5, 'v': 5, 'r': 6, '.': 7, ',': 7, 'g': 7, 'f': 8 };
 SPR.prio = ch => TILE_PRIO[ch] ?? -1;
@@ -687,26 +713,71 @@ function foliage(g, cx, cy, rx, ry, base, seed, n) {
     g.ell(x, y, s, s * 0.85, up < -0.3 ? Ll : up > 0.4 ? Ld : L);
   }
 }
+SPR.TREE_SIZE = { pine: [20, 34], snowpine: [20, 34], giant: [28, 40], willow: [26, 30] };
 SPR.tree = kind => SPR.get('tree_' + kind, () => {
-  const g = new G.Pix(20, 30, 2);
-  const trunk = U.shades(kind === 'swamp' ? '#5a5048' : kind === 'volcano' ? '#2a1e1a' : '#6a4626');
-  if (kind === 'swamp' || kind === 'volcano') {
-    g.thick([[10.5, 28], [10.2, 18], [10.5, 12]], 1.8, 1.2, trunk);
-    g.thick([[10, 17], [6, 12], [3.5, 6]], 1.1, 0.5, trunk); g.thick([[11, 15], [15, 10], [17, 4]], 1.1, 0.5, trunk); g.thick([[10.5, 12], [10, 3.5]], 1, 0.5, trunk);
-    g.thick([[6, 12], [4, 13.5]], 0.6, 0.4, trunk); g.thick([[15, 10], [17.5, 11]], 0.6, 0.4, trunk);
-    for (let y = 14; y < 28; y += 2.5) g.hline(9.6, y, 10.4, y + 1.5, trunk[0]);
-    if (kind === 'swamp') { g.ell(5, 12.5, 1.4, 2.6, U.shades('#6a8a4a')); g.ell(15.5, 10.5, 1.2, 2.4, U.shades('#6a8a4a')); g.ell(11, 7, 1, 2, U.shades('#7a9a5a')); }
-    else { [[4, 6], [16.5, 4.5], [10, 4]].forEach(([x, y]) => { g.dot(x, y, '#ffb040'); g.dot(x + 0.5, y, '#ff6a20'); }); }
-    g.ell(10.5, 28.3, 3, 1, trunk[0]);
-  } else {
-    g.poly([[8.2, 29], [8.8, 17], [11.2, 17], [11.8, 29]], trunk);
-    g.poly([[7, 29.5], [8.6, 27], [9, 29.5]], trunk[0]); g.poly([[13, 29.5], [11.4, 27], [11, 29.5]], trunk[0]);
-    for (let y = 19; y < 28; y += 2) g.hline(9.6 + (y % 4 ? 0.5 : 0), y, 9.8 + (y % 4 ? 0.5 : 0), y + 1.2, trunk[0]);
-    if (kind === 'forest') {
-      foliage(g, 10, 18, 9, 5, '#2f6a2a', 1, 14); foliage(g, 10, 12, 7.6, 5, '#326e2c', 2, 12); foliage(g, 10, 6.5, 5.4, 4.6, '#367430', 3, 10); foliage(g, 10, 2.6, 2.6, 2.4, '#3a7a34', 4, 4);
-    } else {
-      foliage(g, 10, 13, 9.2, 8.2, '#4a9a34', kind === 'fruit' ? 5 : 6, 26); foliage(g, 5.5, 16, 3.6, 3, '#4a9a34', 7, 5); foliage(g, 14.5, 16, 3.6, 3, '#4a9a34', 8, 5);
-      if (kind === 'fruit') [[7, 13], [13, 9], [10, 16], [5, 10], [15, 14]].forEach(([x, y]) => { g.ell(x, y, 0.9, 0.9, U.shades('#e8303a')); g.dot(x - 0.3, y - 0.4, '#ffd0d0'); });
+  const [w, h] = SPR.TREE_SIZE[kind] || [20, 30], g = new G.Pix(w, h, 2), cx = w / 2;
+  const bark = c => U.shades(c);
+  const trunkPoly = (tw, top, col) => { const T = bark(col); g.poly([[cx - tw / 2 - 0.4, h - 1], [cx - tw / 2 + 0.3, top], [cx + tw / 2 - 0.3, top], [cx + tw / 2 + 0.4, h - 1]], T); g.poly([[cx - tw / 2 - 1.6, h - 0.5], [cx - tw / 2, h - 3], [cx - tw / 2 + 0.6, h - 0.5]], T[0]); g.poly([[cx + tw / 2 + 1.6, h - 0.5], [cx + tw / 2, h - 3], [cx + tw / 2 - 0.6, h - 0.5]], T[0]); for (let y = top + 2; y < h - 1; y += 2) g.hline(cx - 0.6 + (y % 4 ? 0.6 : 0), y, cx - 0.4 + (y % 4 ? 0.6 : 0), y + 1.2, T[0]); };
+  switch (kind) {
+    case 'swamp': case 'volcano': {
+      const trunk = bark(kind === 'swamp' ? '#5a5048' : '#2a1e1a');
+      g.thick([[10.5, 28], [10.2, 18], [10.5, 12]], 1.8, 1.2, trunk);
+      g.thick([[10, 17], [6, 12], [3.5, 6]], 1.1, 0.5, trunk); g.thick([[11, 15], [15, 10], [17, 4]], 1.1, 0.5, trunk); g.thick([[10.5, 12], [10, 3.5]], 1, 0.5, trunk);
+      g.thick([[6, 12], [4, 13.5]], 0.6, 0.4, trunk); g.thick([[15, 10], [17.5, 11]], 0.6, 0.4, trunk);
+      for (let y = 14; y < 28; y += 2.5) g.hline(9.6, y, 10.4, y + 1.5, trunk[0]);
+      if (kind === 'swamp') { g.ell(5, 12.5, 1.4, 2.6, U.shades('#6a8a4a')); g.ell(15.5, 10.5, 1.2, 2.4, U.shades('#6a8a4a')); g.ell(11, 7, 1, 2, U.shades('#7a9a5a')); }
+      else { [[4, 6], [16.5, 4.5], [10, 4]].forEach(([x, y]) => { g.dot(x, y, '#ffb040'); g.dot(x + 0.5, y, '#ff6a20'); }); }
+      g.ell(10.5, 28.3, 3, 1, trunk[0]);
+      break;
+    }
+    case 'pine': case 'snowpine': {
+      trunkPoly(2.2, h - 8, '#5a3a22');
+      const L = kind === 'snowpine' ? '#2e5a46' : '#2a6234';
+      for (let i = 0; i < 5; i++) {
+        const ty = 2 + i * 5.2, bw = 3 + i * 1.9, by = ty + 7;
+        g.poly([[cx, ty], [cx + bw, by], [cx - bw, by]], [U.mix(L, '#000', 0.3), L, U.mix(L, '#d8ff9a', 0.3)]);
+        g.poly([[cx, ty + 1], [cx + bw, by], [cx + 0.5, by]], U.mix(L, '#000', 0.25));
+        for (let k = -bw + 1; k < bw; k += 1.5) g.dot(cx + k, by - 0.5, U.mix(L, '#000', 0.4));
+        if (kind === 'snowpine') { g.poly([[cx, ty], [cx + bw * 0.55, ty + 4], [cx - bw * 0.55, ty + 4]], ['#c8d4e8', '#eef4ff', '#ffffff']); }
+      }
+      break;
+    }
+    case 'birch': {
+      const T = ['#a8a8a0', '#e8e8e0', '#ffffff'];
+      g.poly([[cx - 1, h - 1], [cx - 0.7, 14], [cx + 0.7, 14], [cx + 1, h - 1]], T);
+      [16, 19, 22.5, 25.5].forEach((y, i) => g.rect(cx - 1 + (i % 2) * 0.8, y, 1.2, 0.6, '#2a2a2a'));
+      g.thick([[cx, 16], [cx - 4, 11]], 0.4, 0.3, T); g.thick([[cx, 15], [cx + 4, 10]], 0.4, 0.3, T);
+      foliage(g, cx, 10, 7, 7.5, '#8ac040', 31, 22); foliage(g, cx - 4.5, 13, 3, 2.6, '#9ad04a', 32, 6); foliage(g, cx + 4.5, 12.5, 3, 2.6, '#9ad04a', 33, 6);
+      break;
+    }
+    case 'autumn': case 'cherry': {
+      trunkPoly(2.6, 17, '#5a3a24');
+      const base = kind === 'autumn' ? '#d8642a' : '#f0a0c0';
+      foliage(g, cx, 12, 9, 8, base, kind === 'autumn' ? 41 : 42, 26); foliage(g, cx - 4.5, 15.5, 3.6, 3, kind === 'autumn' ? '#e8a030' : '#f8c0d8', 43, 6); foliage(g, cx + 4.5, 15.5, 3.6, 3, kind === 'autumn' ? '#c8402a' : '#e890b0', 44, 6);
+      if (kind === 'cherry') for (let i = 0; i < 8; i++) g.dot(3 + U.hash(i, 2, 45) * 14, 5 + U.hash(i, 3, 45) * 13, '#ffffff');
+      break;
+    }
+    case 'willow': {
+      trunkPoly(3, 14, '#5a4a32');
+      foliage(g, cx, 9, 10, 6.5, '#6a9a3a', 51, 20);
+      for (let i = 0; i < 16; i++) { const x = 3 + i * 1.3, y0 = 10 + U.hash(i, 1, 52) * 3, len = 6 + U.hash(i, 2, 52) * 8; g.line(x, y0, x + (i % 2 ? 0.4 : -0.4), y0 + len, i % 3 ? '#6aa03e' : '#4a7a2e', 0.6); }
+      break;
+    }
+    case 'giant': {
+      trunkPoly(5, 22, '#4a3424');
+      g.thick([[cx - 2, h - 1], [cx - 7, h - 0.5]], 1, 0.6, bark('#4a3424')); g.thick([[cx + 2, h - 1], [cx + 7, h - 0.5]], 1, 0.6, bark('#4a3424'));
+      foliage(g, cx, 20, 13, 6, '#24582a', 61, 22); foliage(g, cx, 13, 11, 6.5, '#2a6430', 62, 20); foliage(g, cx, 6.5, 7.5, 5.5, '#307034', 63, 14);
+      [[8, 16], [18, 12], [12, 6], [20, 19]].forEach(([x, y]) => { g.dot(x, y, '#c8fff0'); g.dot(x + 0.5, y, '#7affd8'); });
+      break;
+    }
+    default: {
+      trunkPoly(3, 17, '#6a4626');
+      if (kind === 'forest') {
+        foliage(g, 10, 18, 9, 5, '#2f6a2a', 1, 14); foliage(g, 10, 12, 7.6, 5, '#326e2c', 2, 12); foliage(g, 10, 6.5, 5.4, 4.6, '#367430', 3, 10); foliage(g, 10, 2.6, 2.6, 2.4, '#3a7a34', 4, 4);
+      } else {
+        foliage(g, 10, 13, 9.2, 8.2, '#4a9a34', kind === 'fruit' ? 5 : 6, 26); foliage(g, 5.5, 16, 3.6, 3, '#4a9a34', 7, 5); foliage(g, 14.5, 16, 3.6, 3, '#4a9a34', 8, 5);
+        if (kind === 'fruit') [[7, 13], [13, 9], [10, 16], [5, 10], [15, 14]].forEach(([x, y]) => { g.ell(x, y, 0.9, 0.9, U.shades('#e8303a')); g.dot(x - 0.3, y - 0.4, '#ffd0d0'); });
+      }
     }
   }
   g.outline('#10180c').polish(0.03, 11);
