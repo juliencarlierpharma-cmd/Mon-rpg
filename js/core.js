@@ -72,6 +72,8 @@ G.Pix = class Pix {
   _s(X, Y, c) { if (X < 0 || Y < 0 || X >= this.w || Y >= this.h || !c) return; this.d[Y * this.w + X] = c; }
   // pixel « logique » (bloc k×k)
   set(x, y, c) { const k = this.k, X = Math.floor(x * k), Y = Math.floor(y * k); for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) this._s(X + i, Y + j, c); }
+  // efface un pixel réel
+  erase(x, y) { const X = Math.floor(x * this.k), Y = Math.floor(y * this.k); if (X >= 0 && Y >= 0 && X < this.w && Y < this.h) this.d[Y * this.w + X] = null; }
   // pixel réel unique (détails fins)
   dot(x, y, c) { this._s(Math.floor(x * this.k), Math.floor(y * this.k), c); }
   get(X, Y) { if (X < 0 || Y < 0 || X >= this.w || Y >= this.h) return null; return this.d[Y * this.w + X]; }

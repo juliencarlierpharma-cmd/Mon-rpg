@@ -5,6 +5,12 @@ Pixel art généré par le code, avec un rendu « HD-2D » : profondeur de champ
 
 Le rendu utilise une densité de 2 pixels par unité : personnages en 32×32 pixels (visage, cheveux, plis, ombrage en volume), monstres, familiers, arbres et bâtiments dessinés à résolution double avec des contours colorés, et textures extérieures 32×32 qui se raccordent d’une tuile à l’autre, avec des transitions douces entre types de sol.
 
+Le paysage varie :
+- teinte du sol qui évolue en continu sur la carte, styles de sol par plaques et 17 petits décors semés selon la région ;
+- 12 espèces d’arbres ;
+- 17 architectures : colombages, pierre, chaume, manoir à tourelle, grange, boutique, forge, marché, serre, mine, atelier, ménagerie, ainsi qu’une cabane de chasseur, des ruines, une hutte sur pilotis et un autel d’obsidienne dans les régions sauvages ;
+- un moulin animé, des accessoires de village et des tenues de personnages variées (robe, gilet, armure, tablier, chapeaux, capuche, écharpe).
+
 ## Lancer le jeu
 
 Ouvrez `index.html` dans un navigateur récent. Il n’y a ni dépendance ni étape de compilation.

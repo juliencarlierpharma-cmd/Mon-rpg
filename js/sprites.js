@@ -20,87 +20,144 @@ SPR.fullPal = p => {
   if (!P.B) P.B = '#4a3422';
   return P;
 };
-// style de coiffure : 'spiky' (Kael), 'long' (Lyra), 'band' (Bran), 'beard' (barbe blanche), null
+// st : { hair: 'spiky'|'long'|'band'|null, outfit: 'tunic'|'robe'|'vest'|'armor'|'apron', hat: 'straw'|'cap'|'helm'|'hood'|'miner', beard, scarf: couleur, ribbon: couleur }
 SPR.heroPix = (pal, dir, frame, extra) => {
+  const st = typeof extra === 'object' && extra ? extra : { hair: extra === 'beard' ? null : extra, beard: extra === 'beard' };
   const P = SPR.fullPal(pal), g = new G.Pix(16, 16, 2);
+  const sh = c => [U.mix(c, '#120a20', 0.42), c, U.mix(c, '#ffffff', 0.35)];
   const hair = [P.h, P.H, U.mix(P.H, '#fff4d8', 0.4)], skin = [U.mix(P.S, P.s, 0.7), P.S, U.mix(P.S, '#ffffff', 0.35)];
-  const cloth = [U.mix(P.C, '#120a20', 0.45), P.C, U.mix(P.C, '#ffffff', 0.35)], pants = [U.mix(P.D, '#000', 0.3), P.D, U.mix(P.D, '#fff', 0.25)];
+  const cloth = sh(P.C), pants = [U.mix(P.D, '#000', 0.3), P.D, U.mix(P.D, '#fff', 0.25)];
   const boot = [U.mix(P.B, '#000', 0.35), P.B, U.mix(P.B, '#fff', 0.3)], acc = [U.mix(P.L, '#000', 0.3), P.L, U.mix(P.L, '#fff', 0.4)];
+  const steel = ['#6a7080', '#a8b0c0', '#e8eef8'], apron = ['#b8b0a0', '#ece6d8', '#ffffff'];
   const side = dir === 'left' || dir === 'right', back = dir === 'up';
-  const sw = frame === 1 ? 1 : frame === 2 ? -1 : 0; // balancement de marche
-  const st = extra;
-  // --- cheveux longs derrière le corps ---
-  if (st === 'long' && !back) {
+  const sw = frame === 1 ? 1 : frame === 2 ? -1 : 0;
+  const O = st.outfit || 'tunic', robe = O === 'robe', armor = O === 'armor', vest = O === 'vest';
+  const body = armor ? steel : cloth, arm = vest ? skin : armor ? steel : cloth;
+  // --- éléments derrière le corps ---
+  if (st.hair === 'long' && !back && st.hat !== 'hood') {
     if (side) g.poly([[3.6, 4.5], [7, 4.5], [6.8, 11.6], [3.4, 11.2]], hair);
     else g.poly([[3, 5], [13, 5], [13.4, 11.4], [2.6, 11.4]], [hair[0], hair[0], hair[1]]);
   }
-  // --- jambes & bottes ---
-  if (side) {
+  if (st.scarf && side) { const S = sh(st.scarf); g.poly([[6, 8.4], [2.2 - sw * 0.4, 9.6], [1.6 - sw * 0.4, 11.2], [3.2, 10.6], [6.4, 9.6]], S); }
+  if (st.hat === 'hood' && !back) { const Hd = sh(P.D); if (side) g.poly([[3.4, 4], [7, 4], [6.6, 10], [3.6, 10.4]], Hd); else g.poly([[3, 5], [13, 5], [13.4, 10.5], [2.6, 10.5]], Hd); }
+  // --- jambes / jupe ---
+  if (robe) {
+    const R = [U.mix(P.C, '#120a20', 0.5), U.mix(P.C, '#000', 0.08), U.mix(P.C, '#fff', 0.3)];
+    if (side) { g.poly([[5.2, 11], [10.6, 11], [11.6 + sw * 0.3, 14.8], [4.4 - sw * 0.3, 14.8]], R); g.rect(6.4 + sw * 0.6, 14.6, 2.2, 0.9, boot); }
+    else {
+      g.poly([[4.2, 11], [11.8, 11], [12.8, 14.8], [3.2, 14.8]], R);
+      g.hline(6.4, 11.5, 5.8, 14.6, R[0]); g.hline(9.6, 11.5, 10.2, 14.6, R[0]); g.hline(8, 11.6, 8, 14.6, R[0]);
+      g.rect(3.2, 14.4, 9.6, 0.5, acc);
+      g.rect(5.6, 14.8 - (frame === 1 ? 0.3 : 0), 2, 0.8, boot); g.rect(8.4, 14.8 - (frame === 2 ? 0.3 : 0), 2, 0.8, boot);
+    }
+  } else if (side) {
     const a = sw * 0.9;
-    [[6.3 - a, pants[0]], [7.6 + a, null]].forEach(([lx, dark], i) => {
-      const lift = i === 0 ? Math.max(0, sw) * 0.4 : Math.max(0, -sw) * 0.4;
-      g.rect(lx, 11.6, 2, 2.6 - lift, i === 0 ? [pants[0], pants[0], pants[1]] : pants);
-      g.rect(lx - 0.1, 14 - lift, 2.6, 1.5, i === 0 ? [boot[0], boot[0], boot[1]] : boot);
+    [[6.3 - a], [7.6 + a]].forEach(([lx], i) => {
+      const lift = i === 0 ? Math.max(0, sw) * 0.4 : Math.max(0, -sw) * 0.4, dk = i === 0;
+      const L = armor ? steel : pants;
+      g.rect(lx, 11.6, 2, 2.6 - lift, dk ? [L[0], L[0], L[1]] : L);
+      g.rect(lx - 0.1, 14 - lift, 2.6, 1.5, dk ? [boot[0], boot[0], boot[1]] : boot); g.hline(lx + 0.2, 14.2 - lift, lx + 2.2, 14.2 - lift, boot[2]);
     });
   } else {
-    const l1 = frame === 1 ? 0.5 : 0, l2 = frame === 2 ? 0.5 : 0;
-    g.rect(5.5, 11.6, 2.2, 2.6 - l1, pants); g.rect(8.3, 11.6, 2.2, 2.6 - l2, pants);
+    const l1 = frame === 1 ? 0.5 : 0, l2 = frame === 2 ? 0.5 : 0, L = armor ? steel : pants;
+    g.rect(5.5, 11.6, 2.2, 2.6 - l1, L); g.rect(8.3, 11.6, 2.2, 2.6 - l2, L);
     g.rect(5.3, 14 - l1, 2.5, 1.5, boot); g.rect(8.2, 14 - l2, 2.5, 1.5, boot);
+    g.hline(5.5, 14.2 - l1, 7.6, 14.2 - l1, boot[2]); g.hline(8.4, 14.2 - l2, 10.5, 14.2 - l2, boot[2]);
   }
   // --- bras arrière (profil) ---
-  if (side) { g.ell(6.4 - sw * 0.6, 10.3, 1.05, 1.9, [cloth[0], cloth[0], cloth[1]]); g.ell(6.4 - sw * 0.9, 12.1, 0.8, 0.8, [skin[0], skin[0], skin[1]]); }
+  if (side) { g.ell(6.4 - sw * 0.6, 10.3, robe ? 1.3 : 1.05, 1.9, [arm[0], arm[0], arm[1]]); g.ell(6.4 - sw * 0.9, 12.1, 0.8, 0.8, [skin[0], skin[0], skin[1]]); }
   // --- torse ---
-  if (side) g.poly([[5.4, 8.5], [10.4, 8.5], [10.8, 12.1], [5.1, 12.1]], cloth);
-  else g.poly([[4.5, 8.5], [11.5, 8.5], [12, 12.1], [4, 12.1]], cloth);
+  if (side) g.poly([[5.4, 8.5], [10.4, 8.5], [10.8, 12.1], [5.1, 12.1]], body);
+  else g.poly([[4.5, 8.5], [11.5, 8.5], [12, 12.1], [4, 12.1]], body);
+  if (vest && !back) {
+    if (side) { g.poly([[8.6, 8.6], [10.4, 8.6], [10.7, 11.2], [9.2, 11.2]], skin); }
+    else { g.poly([[6.8, 8.6], [9.2, 8.6], [8.8, 11.1], [7.2, 11.1]], skin); g.hline(8, 9.2, 8, 10.6, skin[0]); }
+  }
+  if (armor) { if (!side) { g.ell(8, 9.8, 2.6, 1.6, steel); g.dot(7, 9.2, '#ffffff'); } g.ell(side ? 7.8 : 4.4, 8.9, 1.6, 1.1, steel); if (!side) g.ell(11.6, 8.9, 1.6, 1.1, steel); }
+  if (O === 'apron' && !back) { if (side) g.poly([[9.4, 9.2], [10.8, 9.2], [11.4, 13.6], [9.6, 13.6]], apron); else { g.poly([[5.8, 9.4], [10.2, 9.4], [10.8, 13.8], [5.2, 13.8]], apron); g.hline(5.8, 9.4, 4.8, 8.6, apron[0]); g.hline(10.2, 9.4, 11.2, 8.6, apron[0]); g.rect(7, 11.2, 2, 1, apron[0]); } }
   // plis et ceinture
-  if (!side) { g.hline(6.2, 9.4, 6.6, 11, cloth[0]); g.hline(9.8, 9.4, 9.4, 11, cloth[0]); }
+  if (!side && !armor && !vest) { g.hline(6.2, 9.4, 6.6, 11, body[0]); g.hline(9.8, 9.4, 9.4, 11, body[0]); }
   g.rect(side ? 5.2 : 4.2, 11.1, side ? 5.5 : 7.6, 0.8, boot);
   if (!back) g.rect(side ? 9.4 : 7.5, 11.1, 1, 0.8, ['#a8781a', '#e8c050', '#fff0a0']);
-  if (!back && !side) g.poly([[6.4, 8.5], [9.6, 8.5], [8, 10.2]], acc);
-  if (side && !back) g.poly([[9, 8.5], [10.5, 8.5], [10.4, 9.8]], acc);
+  if (!back && !side && !vest && !armor && O !== 'apron') g.poly([[6.4, 8.5], [9.6, 8.5], [8, 10.2]], acc);
+  // écharpe (face)
+  if (st.scarf && !side) { const S = sh(st.scarf); g.poly([[4.6, 8.2], [11.4, 8.2], [11, 9.4], [5, 9.4]], S); if (!back) g.poly([[9.4, 9.2], [10.8, 9.2], [10.6 + sw * 0.3, 11.8], [9.4 + sw * 0.3, 11.4]], S); else g.poly([[6, 9.2], [7.4, 9.2], [7.2 - sw * 0.3, 12], [5.8 - sw * 0.3, 11.6]], S); }
+  if (st.scarf && side) { const S = sh(st.scarf); g.poly([[6.6, 8.1], [10.6, 8.1], [10.4, 9.2], [6.4, 9.3]], S); }
   // --- bras avant ---
-  if (side) { g.ell(8.6 + sw * 0.7, 10.3, 1.1, 1.95, cloth); g.ell(8.7 + sw * 1, 12.2, 0.85, 0.85, skin); }
+  const band = vest ? acc : null;
+  if (side) { g.ell(8.6 + sw * 0.7, 10.3, robe ? 1.35 : 1.1, 1.95, arm); g.ell(8.7 + sw * 1, 12.2, 0.85, 0.85, skin); if (band) g.rect(7.9 + sw * 0.8, 11.3, 1.6, 0.6, band); }
   else {
     const a1 = frame === 1 ? -0.4 : frame === 2 ? 0.4 : 0;
-    g.ell(3.9, 10.2 + a1, 1.15, 1.95, cloth); g.ell(12.1, 10.2 - a1, 1.15, 1.95, cloth);
+    g.ell(3.9, 10.2 + a1, robe ? 1.4 : 1.15, 1.95, arm); g.ell(12.1, 10.2 - a1, robe ? 1.4 : 1.15, 1.95, arm);
     g.ell(3.9, 12.1 + a1, 0.85, 0.85, skin); g.ell(12.1, 12.1 - a1, 0.85, 0.85, skin);
+    if (band) { g.rect(3.1, 11.2 + a1, 1.6, 0.6, band); g.rect(11.3, 11.2 - a1, 1.6, 0.6, band); }
   }
   // --- tête ---
   const hx = side ? 8.4 : 8;
   if (!side && !back) { g.ell(3.7, 6, 0.6, 0.8, skin); g.ell(12.3, 6, 0.6, 0.8, skin); }
   g.ell(hx, 5.6, side ? 4.2 : 4.4, 4.1, skin);
   if (side) g.ell(12.3, 6.5, 0.6, 0.55, skin);
+  const hatOn = st.hat === 'helm' || st.hat === 'miner' || st.hat === 'hood';
   // --- cheveux ---
   if (back) {
     g.ell(8, 5.1, 4.75, 4.4, hair);
     g.hline(6, 3, 5.5, 8, hair[0]); g.hline(8, 2.4, 8, 8.4, hair[0]); g.hline(10, 3, 10.5, 8, hair[0]);
-    if (st === 'long') g.poly([[3.6, 6.5], [12.4, 6.5], [12.6, 11.6], [3.4, 11.6]], hair);
-    if (st === 'band') { g.rect(3.4, 3.8, 9.2, 0.8, acc); g.poly([[7.4, 4.5], [8.6, 4.5], [9.4, 7], [8, 6.2], [6.8, 7]], acc); }
+    if (st.hair === 'long') g.poly([[3.6, 6.5], [12.4, 6.5], [12.6, 11.6], [3.4, 11.6]], hair);
+    if (st.hair === 'band') { g.rect(3.4, 3.8, 9.2, 0.8, acc); g.poly([[7.4, 4.5], [8.6, 4.5], [9.4, 7], [8, 6.2], [6.8, 7]], acc); }
+    if (st.ribbon) { g.ell(8, 5.4, 1.4, 0.8, sh(st.ribbon)); g.poly([[7.6, 5.6], [6.8, 7.6], [8, 6.6], [9.2, 7.6], [8.4, 5.6]], sh(st.ribbon)); }
   } else if (side) {
     g.ell(7.6, 4.2, 4.6, 3.5, hair);
     g.poly([[3.5, 3.8], [8, 2.6], [7.6, 8.4], [4, 8.6]], hair);
     g.poly([[8.6, 1.4], [12.7, 4.3], [11.8, 5.6], [10.6, 4.6], [9.8, 5.8], [9, 4.4]], hair);
-    if (st === 'spiky') { g.poly([[4, 2.6], [1.8, 1.2], [4.8, 1.4]], hair); g.poly([[6, 1.4], [5.4, -0.2], [7.6, 1]], hair); g.poly([[3.4, 4.6], [1.4, 4.2], [3.6, 3.6]], hair); }
-    if (st === 'band') { g.rect(4, 3.6, 8.6, 0.8, acc); g.poly([[3.8, 3.8], [1.6, 5.2], [2.4, 6], [4, 4.6]], acc); }
-    if (st === 'beard') g.poly([[9, 7], [12.2, 7.2], [11.4, 9.6], [9.4, 9.8]], ['#b8b8c0', '#e8e8ee', '#ffffff']);
-    // visage de profil
-    g.rect(10.3, 5.6, 0.75, 1.4, P.E); g.dot(10.4, 5.7, '#ffffff'); g.hline(10.1, 5.1, 11.1, 5.2, hair[0]);
-    g.rect(11.1, 8, 0.6, 0.35, P.s);
+    for (let x = 5; x < 10; x += 0.5) g.dot(x, 2.6 + Math.abs(x - 7.5) * 0.25, hair[2]);
+    if (st.hair === 'spiky') { g.poly([[4, 2.6], [1.8, 1.2], [4.8, 1.4]], hair); g.poly([[6, 1.4], [5.4, -0.2], [7.6, 1]], hair); g.poly([[3.4, 4.6], [1.4, 4.2], [3.6, 3.6]], hair); }
+    if (st.hair === 'band') { g.rect(4, 3.6, 8.6, 0.8, acc); g.poly([[3.8, 3.8], [1.6, 5.2], [2.4, 6], [4, 4.6]], acc); }
+    if (st.ribbon) g.ell(5, 4.2, 1, 1.3, sh(st.ribbon));
+    if (st.beard) g.poly([[9, 7], [12.2, 7.2], [11.4, 9.6], [9.4, 9.8]], ['#b8b8c0', '#e8e8ee', '#ffffff']);
+    g.rect(10.3, 5.6, 0.75, 1.4, P.E); g.dot(10.4, 5.7, '#ffffff'); g.dot(10.9, 6.6, U.mix(P.E, '#8ac0ff', 0.45)); g.hline(10.1, 5.1, 11.1, 5.2, hair[0]);
+    g.rect(11.1, 8, 0.6, 0.35, U.mix(P.s, '#8a3a3a', 0.3)); g.dot(10.6, 7.6, U.mix(P.S, '#ff7a8a', 0.35));
   } else {
     g.ell(8, 3.9, 4.7, 3.3, hair);
     g.poly([[3.4, 4.1], [12.6, 4.1], [12.4, 5.6], [10.8, 4.7], [9.4, 5.5], [8, 4.6], [6.6, 5.5], [5.2, 4.7], [3.6, 5.8]], hair);
     g.rect(3.3, 4.4, 0.9, 2.8, [hair[0], hair[1], hair[1]]); g.rect(11.8, 4.4, 0.9, 2.8, [hair[0], hair[1], hair[1]]);
-    if (st === 'spiky') { g.poly([[4.6, 2.6], [3.2, 0.4], [6.2, 1.8]], hair); g.poly([[7, 1.4], [8, -0.1], [9.2, 1.4]], hair); g.poly([[10, 1.8], [12.8, 0.4], [11.6, 2.8]], hair); }
-    if (st === 'band') { g.rect(3.4, 3.3, 9.2, 0.85, acc); g.dot(4, 3.4, '#ffffff'); }
-    // yeux, sourcils, bouche, joues
-    [[5.8, 6.2], [9.3, 6.2]].forEach(([ex, ey]) => { g.rect(ex, ey, 0.95, 1.5, P.E); g.dot(ex + 0.05, ey + 0.05, '#ffffff'); g.dot(ex + 0.5, ey + 1, U.mix(P.E, '#8ac0ff', 0.45)); g.hline(ex - 0.15, ey - 0.5, ex + 1, ey - 0.6, hair[0]); });
+    for (let x = 5.5; x < 10.5; x += 0.5) g.dot(x, 2.2 + Math.abs(x - 8) * 0.3, hair[2]);
+    if (st.hair === 'spiky') { g.poly([[4.6, 2.6], [3.2, 0.4], [6.2, 1.8]], hair); g.poly([[7, 1.4], [8, -0.1], [9.2, 1.4]], hair); g.poly([[10, 1.8], [12.8, 0.4], [11.6, 2.8]], hair); }
+    if (st.hair === 'band') { g.rect(3.4, 3.3, 9.2, 0.85, acc); g.dot(4, 3.4, '#ffffff'); }
+    if (st.ribbon) { g.ell(11.4, 3.2, 1.2, 0.8, sh(st.ribbon)); g.ell(12.6, 3.6, 0.8, 0.7, sh(st.ribbon)); }
+    // ombre de la frange
+    for (let x = 4.6; x < 11.6; x += 0.5) g.dot(x, 5.9 + (Math.round(x * 2) % 3 === 0 ? 0 : 0.5) * 0, U.mix(P.S, P.s, 0.6));
+    // yeux (blanc, iris, reflet), sourcils, bouche, joues
+    [[5.8, 6.2, -1], [9.3, 6.2, 1]].forEach(([ex, ey, sd]) => {
+      g.dot(sd < 0 ? ex - 0.5 : ex + 0.95, ey + 0.5, '#ffffff'); g.dot(sd < 0 ? ex - 0.5 : ex + 0.95, ey + 1, '#e8e8f0');
+      g.rect(ex, ey, 0.95, 1.5, P.E); g.dot(ex + 0.05, ey + 0.05, '#ffffff'); g.dot(ex + 0.5, ey + 1, U.mix(P.E, '#8ac0ff', 0.45));
+      g.hline(ex - 0.15, ey - 0.5, ex + 1, ey - 0.6, hair[0]);
+    });
+    g.dot(8, 7.6, U.mix(P.S, P.s, 0.5));
     g.rect(7.6, 8.4, 0.8, 0.35, U.mix(P.s, '#8a3a3a', 0.3));
     g.dot(5.2, 7.7, U.mix(P.S, '#ff7a8a', 0.35)); g.dot(10.6, 7.7, U.mix(P.S, '#ff7a8a', 0.35));
-    if (st === 'beard') g.poly([[5.4, 7.4], [10.6, 7.4], [10, 9.6], [8, 10.6], [6, 9.6]], ['#b8b8c0', '#e8e8ee', '#ffffff']);
+    if (st.beard) g.poly([[5.4, 7.4], [10.6, 7.4], [10, 9.6], [8, 10.6], [6, 9.6]], ['#b8b8c0', '#e8e8ee', '#ffffff']);
   }
+  // --- couvre-chefs ---
+  if (st.hat === 'straw') { const S = ['#a88830', '#e8c860', '#fff0a0']; g.ell(side ? 8 : 8, 3.1, 6.6, 1.5, S); g.ell(side ? 7.8 : 8, 2, 3.6, 1.8, S); g.rect(side ? 4.4 : 4.6, 2.4, side ? 6.8 : 6.8, 0.6, sh('#c83a3a')); }
+  if (st.hat === 'cap') { g.ell(8, 2.6, 4.6, 2.2, sh(P.L)); if (!back) g.ell(side ? 11.6 : 8, side ? 3.6 : 4.2, side ? 2 : 3.4, 0.7, sh(U.mix(P.L, '#000', 0.2))); }
+  if (st.hat === 'helm' || st.hat === 'miner') {
+    g.ell(8, 4, 5, 3.8, steel); g.rect(3, 4.6, 10, 0.9, ['#5a6070', '#8a92a2', '#c8d0e0']);
+    if (!back && !side && st.hat === 'helm') g.rect(7.6, 4.6, 0.8, 2.4, steel);
+    if (st.hat === 'miner' && !back) { g.ell(side ? 11.4 : 8, 3.2, 1, 1, ['#c88a20', '#ffe080', '#ffffff']); }
+  }
+  if (st.hat === 'hood') { const Hd = sh(P.D); if (back) g.ell(8, 5, 5, 4.6, Hd); else if (side) { g.ell(7.4, 4, 4.6, 3.6, Hd); g.poly([[3.4, 3.6], [8, 2.4], [7.4, 9], [3.8, 9.4]], Hd); } else { g.ell(8, 3.6, 5, 3.4, Hd); g.rect(3, 3.6, 1.4, 5.5, Hd); g.rect(11.6, 3.6, 1.4, 5.5, Hd); } }
   return g;
 };
-SPR.CHAR_EXTRA = { kael: 'spiky', lyra: 'long', bran: 'band' };
+SPR.CHAR_EXTRA = {
+  kael: { hair: 'spiky', outfit: 'tunic', scarf: '#c83a2a' },
+  lyra: { hair: 'long', outfit: 'robe', ribbon: '#5aa0c8' },
+  bran: { hair: 'band', outfit: 'vest' },
+};
+SPR.NPC_STYLE = {
+  v_farmer: { hat: 'straw' }, v_girl: { hair: 'long', outfit: 'robe', ribbon: '#ff8ab0' }, v_guard: { outfit: 'armor', hat: 'helm' },
+  dorn: { beard: true, outfit: 'apron' }, mira: { hair: 'long', outfit: 'robe', ribbon: '#ffd0e8' }, pell: { hat: 'cap', outfit: 'vest' },
+  lise: { hair: 'long', outfit: 'apron' }, yuna: { hat: 'hood', outfit: 'robe' }, fen: { hat: 'straw', outfit: 'apron' }, grom: { beard: true, hat: 'miner' },
+};
 SPR.hero = (key, pal, dir, frame, extra) => SPR.get(`h_${key}_${dir}_${frame}`, () => {
   let g = SPR.heroPix(pal, dir === 'left' ? 'right' : dir, frame, extra);
   g.outline('#1a1020').polish(0.02, 3);
@@ -616,7 +673,7 @@ SPR.animTile = (ch, v, f) => SPR.get(`a_${ch}_${v}_${f}`, () => {
     P.fill((x, y) => { const n = tfbm(x + f * 2, y - f * 3, 51) * 0.75 + tfbm(x - f, y + f, 53) * 0.25; return ramp(['#6a1408', '#b8300e', '#e8501a', '#ff8a2a', '#ffd060', '#fff4b0'], U.clamp((n - 0.2) * 1.5, 0, 1)); });
   } else if (ch === 'w') {
     P.fill((x, y) => ramp(['#26443c', '#30544a', '#3a5e54', '#46685c'], tfbm(x + f * 4, y, 61)));
-    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const w = tn(x + f * 4, y * 2, 4, 63); if (w > 0.86) P.set(x, y, '#7a9a88', 0.5); }
+    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const w = tn(x + f * 4, y * 2, 4, 63 + v); if (w > 0.88) P.set(x, y, '#7a9a88', 0.5); }
     if (v % 3 === 0) {
       const cx = 10, cy = 10;
       for (let y = -4; y <= 4; y++) for (let x = -5; x <= 5; x++) { const r = x * x / 25 + y * y / 16; if (r < 1 && !(x > 0 && Math.abs(y) < 1)) P.set(cx + x, cy + y, r > 0.7 ? '#2e6a2a' : y < 0 ? '#5aa04a' : '#4a8a3a'); }
@@ -877,62 +934,361 @@ SPR.plot = () => SPR.get('plot', () => {
   return c;
 });
 
-// ---------------- Maisons & bâtiments ----------------
-// w,h en tuiles ; dessiné à partir du coin haut-gauche ; le toit dépasse vers le haut
-SPR.house = (w, h, roof, wall, opts = {}) => SPR.get(`house_${w}_${h}_${roof}_${wall}_${JSON.stringify(opts)}`, () => {
-  const W = w * 16, H = h * 16 + 12, g = new G.Pix(W, H, 2);
-  const R = U.shades(roof), Wl = U.shades(wall), wallTop = 12 + Math.floor(h * 16 * 0.45), beam = U.shades('#5a3a22');
-  // mur avec planches et colombages
-  g.rect(1, wallTop, W - 2, H - wallTop - 1, Wl);
-  for (let y = wallTop + 3; y < H - 2; y += 3) g.hline(2, y, W - 3, y, U.mix(Wl[1], Wl[0], 0.5));
-  for (let x = 1; x < W - 1; x += 0.5) if (U.hash(x * 2, 3, 5) < 0.06) g.dot(x, wallTop + 1 + U.hash(x * 2, 4, 5) * (H - wallTop - 3), Wl[0]);
-  g.rect(1, wallTop, 1.5, H - wallTop - 1, beam); g.rect(W - 2.5, wallTop, 1.5, H - wallTop - 1, beam); g.rect(1, wallTop, W - 2, 1.2, beam);
-  g.rect(0, H - 2, W, 2, U.shades('#6a6458'));
-  // toit en tuiles
-  g.poly([[-2, wallTop + 2], [W / 2, 0], [W + 2, wallTop + 2]], R);
-  for (let y = 2.5; y < wallTop + 1; y += 2.5) {
-    const half = (y / (wallTop + 2)) * (W / 2 + 2), row = Math.round(y / 2.5);
-    g.hline(W / 2 - half + 0.5, y, W / 2 + half - 0.5, y, R[0]);
-    for (let x = W / 2 - half + (row % 2) * 1.5; x < W / 2 + half; x += 3) g.hline(x, y - 2.4, x, y, U.mix(R[1], R[0], 0.5));
-    g.hline(W / 2 - half + 0.5, y + 0.5, W / 2 + half - 0.5, y + 0.5, U.mix(R[1], R[2], 0.5));
+// ---------------- Architecture ----------------
+// Chaque style occupe 3 cases de large (48 unités) ; la base du dessin
+// correspond au bas de l'emprise au sol, le reste s'élève au-dessus.
+const AR = {
+  stone(g, x, y, w, h, base, seed) {
+    const rowH = 2.5;
+    for (let r = 0; r * rowH < h; r++) {
+      const yy = y + r * rowH, off = (r % 2) * 2;
+      for (let bx = x - off; bx < x + w; ) {
+        const bw = 3 + U.hash(bx * 3, r, seed) * 2.5, c = U.mix(base, U.hash(bx, r, seed + 1) < 0.5 ? '#ffffff' : '#000000', U.hash(bx, r, seed + 2) * 0.14);
+        const x0 = Math.max(x, bx), x1 = Math.min(x + w, bx + bw), hh = Math.min(rowH, y + h - yy);
+        if (x1 > x0) { g.rect(x0, yy, x1 - x0, hh, [U.mix(c, '#000', 0.25), c, U.mix(c, '#fff', 0.25)]); g.hline(x0, yy + hh - 0.5, x1, yy + hh - 0.5, U.mix(base, '#000', 0.45)); g.hline(x1 - 0.5, yy, x1 - 0.5, yy + hh, U.mix(base, '#000', 0.4)); }
+        bx += bw;
+      }
+    }
+  },
+  plaster(g, x, y, w, h, base, beam, cross) {
+    g.rect(x, y, w, h, U.shades(base));
+    for (let i = 0; i < w * h * 0.6; i++) g.dot(x + U.hash(i, 1, 9) * w, y + U.hash(i, 2, 9) * h, U.mix(base, '#000', 0.08));
+    const B = U.shades(beam), cols = Math.max(2, Math.round(w / 8));
+    g.rect(x, y, w, 1.2, B); g.rect(x, y + h - 1.2, w, 1.2, B);
+    for (let i = 0; i <= cols; i++) { const bx = x + i * (w - 1.2) / cols; g.rect(bx, y, 1.2, h, B); if (cross && i < cols) { const nx = x + (i + 1) * (w - 1.2) / cols; g.line(bx + 1, y + 1, nx, y + h - 1, B[1], 0.8); g.line(nx, y + 1, bx + 1, y + h - 1, B[1], 0.8); } }
+  },
+  planks(g, x, y, w, h, base, vertical = true) {
+    const n = vertical ? Math.ceil(w / 2) : Math.ceil(h / 2);
+    for (let i = 0; i < n; i++) {
+      const c = U.mix(base, '#000', U.hash(i, 3, 7) * 0.18);
+      if (vertical) { g.rect(x + i * 2, y, Math.min(2, x + w - (x + i * 2)), h, [U.mix(c, '#000', 0.2), c, U.mix(c, '#fff', 0.15)]); g.hline(x + i * 2, y, x + i * 2, y + h, U.mix(base, '#000', 0.45)); }
+      else { g.rect(x, y + i * 2, w, Math.min(2, y + h - (y + i * 2)), [U.mix(c, '#000', 0.2), c, U.mix(c, '#fff', 0.15)]); g.hline(x, y + i * 2, x + w, y + i * 2, U.mix(base, '#000', 0.45)); }
+    }
+  },
+  // toit à deux pans : type 'tile' (tuiles), 'slate' (ardoise), 'thatch' (chaume)
+  gable(g, x, y, w, h, color, type, over = 2) {
+    const R = U.shades(color), cx = x + w / 2;
+    g.poly([[x - over, y + h], [cx, y], [x + w + over, y + h]], R);
+    const rows = type === 'thatch' ? 1.6 : type === 'slate' ? 1.8 : 2.5;
+    for (let yy = y + rows; yy < y + h; yy += rows) {
+      const t = (yy - y) / h, half = t * (w / 2 + over), row = Math.round((yy - y) / rows);
+      if (type === 'thatch') { for (let xx = cx - half + 0.5; xx < cx + half; xx += 0.5) if (U.hash(xx * 2, row, 4) < 0.45) g.hline(xx, yy - rows, xx + (xx < cx ? -0.3 : 0.3), yy, U.mix(R[1], U.hash(xx * 2, row, 5) < 0.5 ? R[0] : R[2], 0.6)); }
+      else {
+        g.hline(cx - half + 0.5, yy, cx + half - 0.5, yy, R[0]);
+        const step = type === 'slate' ? 2 : 3;
+        for (let xx = cx - half + (row % 2) * step / 2; xx < cx + half; xx += step) g.hline(xx, yy - rows + 0.3, xx, yy, U.mix(R[1], R[0], 0.55));
+        g.hline(cx - half + 0.5, yy + 0.5, cx + half - 0.5, yy + 0.5, U.mix(R[1], R[2], 0.5));
+      }
+    }
+    if (type === 'thatch') { g.ell(cx, y + h - 0.2, w / 2 + over + 0.6, 1.6, [R[0], R[1], R[1]]); g.ell(cx, y + 1.2, 1.8, 1.4, R); }
+    else { g.line(cx - 0.6, y - 0.4, cx + 0.6, y - 0.4, R[0], 1); g.hline(x - over, y + h + 0.2, x + w + over, y + h + 0.2, U.mix(R[0], '#000', 0.35)); }
+  },
+  window(g, x, y, w, h, frame, opts = {}) {
+    const F = U.shades(frame);
+    g.rect(x - 0.8, y - 0.8, w + 1.6, h + 1.6, F);
+    if (opts.arch) g.ell(x + w / 2, y, w / 2 + 0.8, w / 2 + 0.2, F);
+    g.rect(x, y, w, h, ['#a87818', '#ffd870', '#fff4c0']);
+    if (opts.arch) g.ell(x + w / 2, y, w / 2, w / 2 - 0.4, ['#a87818', '#ffd870', '#fff4c0']);
+    g.hline(x + w / 2, y - (opts.arch ? w / 2 - 0.5 : 0), x + w / 2, y + h, F[0]); g.hline(x, y + h / 2, x + w, y + h / 2, F[0]);
+    g.dot(x + 0.6, y + 0.6, '#ffffff');
+    if (opts.shutters) { const S = U.shades(opts.shutters); g.rect(x - 2.6, y - 0.6, 1.8, h + 1.2, S); g.rect(x + w + 0.8, y - 0.6, 1.8, h + 1.2, S); g.hline(x - 1.7, y, x - 1.7, y + h, S[0]); g.hline(x + w + 1.7, y, x + w + 1.7, y + h, S[0]); }
+    if (opts.box) { g.rect(x - 0.8, y + h + 0.8, w + 1.6, 1.2, U.shades('#7a5230')); [0, 1, 2, 3].forEach(i => g.dot(x + i * w / 3, y + h + 0.6, ['#ff6a8a', '#ffe060', '#ff8ac8', '#ffffff'][(i + Math.round(x)) % 4])); }
+  },
+  door(g, x, y, w, h, color, opts = {}) {
+    const D = U.shades(color);
+    if (opts.arch) { g.ell(x + w / 2, y + w / 2, w / 2 + 0.8, w / 2 + 0.8, U.shades('#6a6458')); g.rect(x - 0.8, y + w / 2, w + 1.6, h - w / 2, U.shades('#6a6458')); g.ell(x + w / 2, y + w / 2, w / 2, w / 2, D); }
+    else g.rect(x - 0.8, y - 0.8, w + 1.6, h + 0.8, U.shades('#4a3020'));
+    g.rect(x, y + (opts.arch ? w / 2 : 0), w, h - (opts.arch ? w / 2 : 0), D);
+    for (let xx = x + 1.6; xx < x + w; xx += 1.6) g.hline(xx, y + 0.5, xx, y + h, D[0]);
+    if (opts.double) { g.hline(x + w / 2, y, x + w / 2, y + h, D[0]); g.line(x + 0.5, y + 0.5, x + w / 2 - 0.5, y + h - 0.5, D[2], 0.6); g.line(x + w / 2 - 0.5, y + 0.5, x + 0.5, y + h - 0.5, D[2], 0.6); g.line(x + w / 2 + 0.5, y + 0.5, x + w - 0.5, y + h - 0.5, D[2], 0.6); g.line(x + w - 0.5, y + 0.5, x + w / 2 + 0.5, y + h - 0.5, D[2], 0.6); }
+    else g.ell(x + w - 1.4, y + h * 0.55, 0.55, 0.55, U.shades('#e8c050'));
+  },
+  chimney(g, x, y, h, color = '#7a6a64') { AR.stone(g, x, y, 4.5, h, color, 77); g.rect(x - 0.6, y - 1, 5.7, 1.4, U.shades('#4a4446')); },
+  sign(g, x, y, icon) {
+    g.hline(x - 3, y, x + 2, y, '#2a2020'); g.hline(x - 2.5, y, x - 2.5, y + 1.2, '#2a2020'); g.hline(x + 1.5, y, x + 1.5, y + 1.2, '#2a2020');
+    g.rect(x - 3.6, y + 1.2, 6.2, 4.6, U.shades('#a8784a')); g.rect(x - 3, y + 1.8, 5, 3.4, U.shades('#d8b070'));
+    const I = { mug: ['#e8c050', '#ffffff'], bed: ['#c84a4a', '#ffffff'], bottle: ['#7affb0', '#3a8a5a'], gem: ['#5ae8ff', '#ffffff'], anvil: ['#5a5a66', '#c8c8d0'], thread: ['#d84a8a', '#ffd0e8'], leaf: ['#4aa83a', '#d8ffb0'], paw: ['#8a5a3a', '#e8c8a0'] }[icon] || ['#ffffff', '#ffffff'];
+    g.ell(x - 0.5, y + 3.5, 1.3, 1.1, U.shades(I[0])); g.dot(x - 0.9, y + 3, I[1]);
+  },
+  barrel(g, x, y) { g.ell(x, y, 1.8, 2.4, U.shades('#8a5a30')); g.hline(x - 1.8, y - 1, x + 1.8, y - 1, '#4a4a52'); g.hline(x - 1.8, y + 1, x + 1.8, y + 1, '#4a4a52'); g.ell(x, y - 2, 1.4, 0.5, U.shades('#a8784a')); },
+  crate(g, x, y, s = 3) { g.rect(x, y, s, s, U.shades('#a8784a')); g.line(x + 0.3, y + 0.3, x + s - 0.3, y + s - 0.3, '#6a4a28', 0.5); g.hline(x, y + s / 2, x + s, y + s / 2, '#6a4a28'); },
+  ivy(g, x, y, h, seed) { for (let i = 0; i < h * 2; i++) g.ell(x + Math.sin(i * 0.8 + seed) * 1.2, y + i * 0.5, 0.7, 0.5, U.shades(i % 3 ? '#3a8a3a' : '#5aaa4a')); },
+  banner(g, x, y, color, emblem) { g.rect(x, y, 3.4, 7, U.shades(color)); g.poly([[x, y + 7], [x + 1.7, y + 5.6], [x + 3.4, y + 7]], U.mix(color, '#000', 0.4)); g.ell(x + 1.7, y + 3, 0.9, 0.9, U.shades(emblem || '#ffe080')); g.hline(x - 0.5, y, x + 3.9, y, '#3a2a1a'); },
+  lantern(g, x, y) { g.hline(x, y - 1.5, x, y, '#2a2020'); g.rect(x - 0.8, y, 1.6, 1.8, ['#c88a20', '#ffe080', '#fff8d0']); },
+};
+SPR.ARCH_H = { cabin: 44, stilt: 50, ruin: 40, altar: 44, timber: 60, tavern: 60, stone: 46, thatch: 44, manor: 64, barn: 50, shop: 50, forge: 54, market: 40, greenhouse: 44, mine: 46, atelier: 56, menagerie: 50 };
+SPR.arch = (style, lvl = 1, opt = {}) => SPR.get(`arch_${style}_${lvl}_${JSON.stringify(opt)}`, () => {
+  const W = 48, H = SPR.ARCH_H[style] || 50, g = new G.Pix(W, H, 2), B = H - 1; // B : ligne du sol
+  const roofC = opt.roof, wallC = opt.wall;
+  const foundation = () => g.rect(0.5, B - 1.5, W - 1, 1.8, U.shades('#6a6458'));
+  switch (style) {
+    case 'cabin': {
+      AR.chimney(g, 35, 6, 16, '#7a7068');
+      AR.gable(g, 3, 4, 42, 20, roofC || '#4a3a2a', 'slate', 2.5);
+      for (let r = 0; r < 8; r++) { const y = 24 + r * 2.4; g.rect(3, y, 42, 2.4, U.shades(r % 2 ? '#8a5a32' : '#7a4e2a')); g.ell(3, y + 1.2, 1.3, 1.2, U.shades('#c8a070')); g.ell(45, y + 1.2, 1.3, 1.2, U.shades('#c8a070')); g.hline(4, y + 2.3, 44, y + 2.3, '#4a2c14'); }
+      AR.window(g, 9, 28, 5, 5, '#4a2c14', { shutters: '#5a7a3a' }); AR.door(g, 21, B - 11.5, 6, 11.5, '#5a3a20');
+      g.line(21, 22.5, 19, 20, '#e8dcc0', 0.5); g.line(27, 22.5, 29, 20, '#e8dcc0', 0.5); g.ell(24, 23, 1.2, 0.8, U.shades('#a88050'));
+      g.rect(33, B - 5, 8, 1, U.shades('#8a5a30')); for (let k = 0; k < 4; k++) g.ell(34 + k * 2, B - 6, 0.9, 1, U.shades('#a8784a'));
+      foundation(); break;
+    }
+    case 'stilt': {
+      [6, 18, 30, 42].forEach(x => g.rect(x, 34, 1.6, B - 34, U.shades('#5a4028')));
+      g.rect(2, 32, 44, 2.4, U.shades('#7a5a38')); for (let x = 3; x < 46; x += 3) g.hline(x, 32, x, 34.4, '#4a3420');
+      g.line(36, 34, 40, B, '#6a4a2a', 0.8); g.line(39, 34, 43, B, '#6a4a2a', 0.8); for (let k = 0; k < 5; k++) g.hline(36.8 + k * 0.8, 36 + k * 3, 39.8 + k * 0.8, 36 + k * 3, '#6a4a2a');
+      for (let x = 6; x < 42; x += 1) g.rect(x, 17, 1, 15, U.shades(x % 2 ? '#a88a5a' : '#94784a'));
+      g.hline(6, 21, 42, 21, '#6a5030'); g.hline(6, 27, 42, 27, '#6a5030');
+      AR.gable(g, 4, 2, 40, 15, roofC || '#5a6a3a', 'thatch', 3);
+      AR.window(g, 12, 22, 4, 4, '#4a3420'); AR.door(g, 26, 22, 5, 10, '#4a3420'); AR.lantern(g, 33, 19);
+      break;
+    }
+    case 'ruin': {
+      AR.stone(g, 2, 22, 12, B - 22, '#a8a090', 61); g.poly([[2, 22], [6, 18], [9, 21], [14, 16], [14, 22]], '#a8a090'); AR.stone(g, 2, 16, 12, 6, '#a8a090', 62);
+      for (let x = 2; x < 14; x += 0.5) { const top = 16 + Math.abs(Math.sin(x * 1.3)) * 5; for (let y = 15; y < top; y += 0.5) g.erase(x, y); }
+      [20, 30].forEach((x, i) => { const top = i ? 10 : 18; g.rect(x, top, 5, B - top, ['#8a8478', '#c8c0b0', '#e8e2d4']); for (let y = top + 2; y < B; y += 3) g.hline(x + 1.2, top, x + 1.2, B, '#a8a090'); g.rect(x - 1, B - 2.5, 7, 2.5, U.shades('#a8a090')); if (i) g.rect(x - 1, top - 2, 7, 2, U.shades('#b8b0a0')); });
+      AR.stone(g, 36, 28, 10, B - 28, '#9a9286', 63);
+      g.ell(15, B - 1.5, 2, 1, U.shades('#9a9286')); g.ell(27, B - 1, 1.5, 0.8, U.shades('#b8b0a0')); g.ell(42, 26, 1.6, 1, U.shades('#9a9286'));
+      AR.ivy(g, 4, 18, 9, 3); AR.ivy(g, 31, 12, 12, 5);
+      break;
+    }
+    case 'altar': {
+      g.rect(8, B - 6, 32, 6, U.shades('#2a2030')); g.rect(11, B - 9, 26, 3.5, U.shades('#3a2a40'));
+      [[12, 6], [36, 6]].forEach(([x, y]) => { g.poly([[x - 3, B - 9], [x - 1, y], [x + 1, y], [x + 3, B - 9]], ['#1a1420', '#3a2a4a', '#6a4a8a']); g.hline(x - 0.3, y + 2, x - 0.5, B - 10, '#9a7ab8'); g.ell(x, y + 6, 1.2, 1.2, ['#c83a10', '#ff8a2a', '#ffe080']); });
+      g.ell(24, B - 11, 4, 2, U.shades('#3a2a40')); g.ell(24, B - 12.5, 2.4, 2.4, ['#c83a10', '#ff6a2a', '#ffe080']); g.dot(23.4, B - 13.2, '#ffffff');
+      break;
+    }
+    case 'timber': case 'tavern': {
+      AR.chimney(g, 6, 6, 18);
+      AR.gable(g, 2, 2, 44, 26, roofC || (style === 'tavern' ? '#8a3a2a' : '#a8402a'), 'tile', 2.5);
+      // lucarne
+      g.rect(20, 12, 8, 7, U.shades('#e8dcc0')); AR.gable(g, 19.5, 7.5, 9, 5, roofC || '#a8402a', 'tile', 1); AR.window(g, 22, 13.5, 4, 4, '#5a3a22');
+      AR.plaster(g, 1, 28, 46, 14, wallC || '#efe4cc', '#4a2e18', true);
+      g.rect(0, 41.5, 48, 1.2, U.shades('#3a2414'));
+      AR.stone(g, 2, 42.7, 44, B - 44, '#9a9286', 3);
+      AR.window(g, 7, 31, 5, 5, '#4a2e18', { box: true }); AR.window(g, 36, 31, 5, 5, '#4a2e18', { box: true });
+      AR.window(g, 6, 45, 5, 4.5, '#5a3a22', { shutters: '#3a6a8a' }); AR.window(g, 37, 45, 5, 4.5, '#5a3a22', { shutters: '#3a6a8a' });
+      AR.door(g, 20.5, B - 11.5, 7, 11, '#6a4424', { arch: true });
+      AR.sign(g, 33, 39, style === 'tavern' ? 'mug' : opt.icon || 'bed'); AR.lantern(g, 17.5, 44); AR.lantern(g, 30.5, 44);
+      if (style === 'tavern' || lvl >= 2) { AR.barrel(g, 4, B - 2.5); AR.barrel(g, 44, B - 2.5); }
+      if (lvl >= 2) { g.rect(15, 38.5, 18, 1.2, U.shades('#5a3a22')); for (let x = 15.5; x < 33; x += 1.8) g.hline(x, 36.2, x, 38.5, '#5a3a22'); g.hline(15, 36.2, 33, 36.2, '#5a3a22'); }
+      if (lvl >= 3) { AR.banner(g, 2, 29, '#c83a3a', '#ffe080'); AR.banner(g, 42.6, 29, '#c83a3a', '#ffe080'); }
+      foundation(); break;
+    }
+    case 'stone': {
+      AR.chimney(g, 36, 4, 14);
+      AR.gable(g, 3, 4, 42, 20, roofC || '#4a5a7a', 'slate', 2.5);
+      AR.stone(g, 2, 24, 44, B - 24, wallC || '#a89e8e', 5);
+      AR.ivy(g, 4, 25, 8, 1);
+      AR.window(g, 8, 29, 5, 6, '#4a3a2a', { shutters: '#7a3a2a', box: true }); AR.window(g, 35, 29, 5, 6, '#4a3a2a', { shutters: '#7a3a2a', box: true });
+      AR.door(g, 20.5, B - 12, 7, 12, '#7a4a28', { arch: true });
+      g.ell(24, 14, 2.4, 2.4, U.shades('#4a3a2a')); g.ell(24, 14, 1.8, 1.8, ['#a87818', '#ffd870', '#fff4c0']); g.hline(22.4, 14, 25.6, 14, '#4a3a2a');
+      foundation(); break;
+    }
+    case 'thatch': {
+      AR.gable(g, 3, 2, 42, 22, roofC || '#c8a050', 'thatch', 3);
+      AR.plaster(g, 3, 24, 42, B - 24, wallC || '#ece2c8', '#6a4a2a', false);
+      AR.window(g, 9, 28, 5, 5, '#6a4a2a', { box: true, shutters: '#4a7a3a' }); AR.window(g, 34, 28, 5, 5, '#6a4a2a', { box: true, shutters: '#4a7a3a' });
+      AR.door(g, 21, B - 11, 6, 11, '#7a5230');
+      g.ell(6, B - 1.5, 2.5, 1.5, U.shades('#4a9a3a')); g.ell(42, B - 1.5, 2.5, 1.5, U.shades('#4a9a3a')); g.dot(6, B - 2.5, '#ff8ac8'); g.dot(42, B - 2.5, '#ffe060');
+      foundation(); break;
+    }
+    case 'manor': {
+      // corps principal
+      AR.gable(g, 1, 14, 34, 18, roofC || '#5a3a7a', 'slate', 2);
+      AR.stone(g, 1, 32, 34, B - 32, wallC || '#b8b0a2', 9);
+      AR.window(g, 5, 36, 4.5, 6, '#4a3a2a', { arch: true }); AR.window(g, 27, 36, 4.5, 6, '#4a3a2a', { arch: true });
+      AR.door(g, 14.5, B - 13, 7, 13, '#5a3418', { arch: true });
+      AR.banner(g, 10.5, 34, '#7a4aa8', '#ffe080'); AR.banner(g, 22.5, 34, '#7a4aa8', '#ffe080');
+      // tour ronde
+      g.rect(34, 18, 13, B - 18, U.shades('#a8a092')); AR.stone(g, 34.6, 18, 11.8, B - 18, '#b0a898', 11);
+      g.poly([[32.5, 19], [40.5, 0.5], [48.5, 19]], U.shades(roofC || '#5a3a7a'));
+      for (let y = 4; y < 19; y += 2.2) { const half = (y / 19) * 8; g.hline(40.5 - half, y, 40.5 + half, y, U.mix(roofC || '#5a3a7a', '#000', 0.3)); }
+      g.hline(40.5, 0.5, 40.5, -1, '#2a2020'); g.poly([[40.5, -1], [43, 0], [40.5, 1]], '#ffd040');
+      AR.window(g, 38.8, 24, 3.4, 5, '#4a3a2a', { arch: true }); AR.window(g, 38.8, 36, 3.4, 5, '#4a3a2a', { arch: true });
+      foundation(); break;
+    }
+    case 'barn': case 'menagerie': {
+      const wall = wallC || (style === 'menagerie' ? '#9a3a2a' : '#8a4a2a');
+      // toit à la Mansart (grange)
+      const R = U.shades(roofC || '#4a3a30');
+      g.poly([[1, 22], [6, 9], [24, 2], [42, 9], [47, 22]], R);
+      for (let y = 4; y < 22; y += 2) for (let x = 1; x < 47; x += 0.5) if (g.get(Math.floor(x * 2), Math.floor(y * 2))) g.dot(x, y, U.mix(R[1], R[0], 0.5));
+      AR.planks(g, 3, 22, 42, B - 22, wall, true);
+      g.rect(3, 22, 42, 1.2, U.shades('#e8e0d0')); g.rect(3, 22, 1.2, B - 22, U.shades('#e8e0d0')); g.rect(43.8, 22, 1.2, B - 22, U.shades('#e8e0d0'));
+      AR.door(g, 17, B - 15, 14, 15, U.mix(wall, '#000', 0.15), { double: true });
+      g.rect(20.5, 11, 7, 6, U.shades('#3a2a1a')); g.rect(21, 14, 6, 3, U.shades('#e8c860')); g.hline(21, 14, 27, 13.5, '#fff0a0');
+      if (style === 'menagerie') {
+        for (let x = 0.5; x < 14; x += 3) { g.rect(x, B - 6, 1, 6, U.shades('#a8784a')); } g.rect(0.5, B - 5, 13, 0.8, U.shades('#a8784a')); g.rect(0.5, B - 2.5, 13, 0.8, U.shades('#a8784a'));
+        g.ell(40, B - 2.5, 3.5, 2.5, U.shades('#e8c860')); g.hline(37, B - 3, 43, B - 3, '#c8a040'); AR.sign(g, 37, 24, 'paw');
+        if (lvl >= 2) AR.banner(g, 5, 24, '#e8c050', '#8a3a2a');
+      } else { AR.crate(g, 4, B - 4); AR.crate(g, 7.5, B - 4); AR.crate(g, 5.5, B - 7.2); AR.barrel(g, 42, B - 2.5); }
+      foundation(); break;
+    }
+    case 'shop': {
+      AR.gable(g, 2, 4, 44, 18, roofC || '#3a6aa8', 'tile', 2.5);
+      AR.plaster(g, 2, 22, 44, 10, wallC || '#e8dcc0', '#5a3a22', false);
+      AR.window(g, 8, 24, 5, 5, '#5a3a22', { box: true }); AR.window(g, 35, 24, 5, 5, '#5a3a22', { box: true });
+      // auvent rayé
+      for (let x = 1; x < 47; x += 0.5) for (let y = 32; y < 36.5; y += 0.5) g.dot(x, y + (x % 4 < 2 ? 0 : 0), Math.floor(x / 3) % 2 ? (y > 35.5 ? '#c8c0b0' : '#efe8da') : (y > 35.5 ? U.mix(opt.awning || '#3a6aa8', '#000', 0.3) : (opt.awning || '#3a6aa8')));
+      for (let x = 1; x < 47; x += 3) g.ell(x + 1.5, 36.6, 1.5, 0.8, Math.floor(x / 3) % 2 ? U.shades('#efe8da') : U.shades(opt.awning || '#3a6aa8'));
+      AR.stone(g, 2, 37.5, 44, B - 37.5, '#a89e8e', 13);
+      g.rect(5, 39, 12, 7, U.shades('#5a3a22')); g.rect(5.8, 39.8, 10.4, 5.4, ['#7ab8d8', '#a8d8f0', '#e8f8ff']); [7, 10, 13].forEach((x, i) => g.ell(x, 43.6, 1.1, 1.3, U.shades(['#ff6a6a', '#6aff8a', '#6aa8ff'][i])));
+      AR.door(g, 21, B - 11, 6, 11, '#6a4424');
+      AR.crate(g, 32, B - 4.5, 3.5); AR.crate(g, 36, B - 4.5, 3.5); [33, 37].forEach(x => { g.ell(x + 0.8, B - 5, 1, 0.8, U.shades('#e8402a')); g.ell(x + 2, B - 5, 1, 0.8, U.shades('#ffb030')); });
+      AR.barrel(g, 43, B - 2.5);
+      foundation(); break;
+    }
+    case 'forge': {
+      AR.chimney(g, 34, 2, 26, '#8a5a48'); if (lvl >= 3) AR.chimney(g, 8, 6, 20, '#8a5a48');
+      AR.gable(g, 2, 14, 44, 16, roofC || (lvl >= 3 ? '#4a4a56' : '#5a4a3a'), 'slate', 2);
+      AR.stone(g, 2, 30, 44, B - 30, wallC || '#8a8278', 17);
+      // atelier ouvert sur le feu
+      g.ell(18, 38, 8, 6, U.shades('#3a3030')); g.rect(10, 38, 16, B - 39.5, U.shades('#2a2020'));
+      g.ell(18, B - 5, 5, 3, ['#c83a10', '#ff8a2a', '#ffe080']); g.ell(18, B - 5.5, 2.5, 1.5, U.shades('#fff4b0'));
+      g.rect(30, B - 6, 6, 2, U.shades('#4a4a52')); g.rect(32, B - 4, 2, 4, U.shades('#3a3a44')); g.rect(29, B - 6.6, 2, 1, U.shades('#4a4a52'));
+      AR.barrel(g, 41, B - 2.5); AR.window(g, 39, 33, 4, 4, '#3a2a1a');
+      AR.sign(g, 6, 31, 'anvil');
+      if (lvl >= 2) AR.banner(g, 26.5, 32, '#c8a040', '#3a3a44');
+      foundation(); break;
+    }
+    case 'market': {
+      const stalls = lvl >= 2 ? [[1, '#d83a3a'], [16.5, '#3a7ad8'], [32, '#4aa83a']] : [[4, '#d83a3a'], [27, '#3a7ad8']];
+      stalls.forEach(([sx, col], i) => {
+        const w = 15;
+        g.rect(sx + 1, 18, 1, B - 18, U.shades('#6a4a28')); g.rect(sx + w - 2, 18, 1, B - 18, U.shades('#6a4a28'));
+        for (let x = sx; x < sx + w; x += 0.5) for (let y = 14; y < 19; y += 0.5) g.dot(x, y - (Math.abs(x - sx - w / 2) < 3 ? 1 : 0), Math.floor((x - sx) / 2.5) % 2 ? '#f4ecdc' : col);
+        for (let x = sx; x < sx + w; x += 2.5) g.ell(x + 1.25, 19.3, 1.25, 0.7, Math.floor((x - sx) / 2.5) % 2 ? U.shades('#f4ecdc') : U.shades(col));
+        g.rect(sx + 0.5, 30, w - 1, 3, U.shades('#8a5a30')); g.rect(sx + 0.5, 33, w - 1, B - 33, U.shades('#6a4424'));
+        const goods = [['#e8402a', '#ffb030', '#6ad040'], ['#a8c8e8', '#e8e8f0', '#6a8ab0'], ['#d84a8a', '#6a3aa8', '#e8c050']][i % 3];
+        for (let k = 0; k < 5; k++) g.ell(sx + 2.5 + k * 2.3, 29.5, 1.1, 0.9, U.shades(goods[k % 3]));
+      });
+      AR.crate(g, 13, B - 4); AR.barrel(g, 45, B - 2.5);
+      if (lvl >= 3) { g.hline(24, 0.5, 24, 14, '#4a3a2a'); g.poly([[24, 0.5], [30, 2.5], [24, 4.5]], U.shades('#ffd040')); }
+      break;
+    }
+    case 'greenhouse': {
+      g.rect(2, 20, 44, B - 20, U.shades('#8a6a40'));
+      // verrière
+      g.poly([[1, 21], [24, 6], [47, 21]], ['#7ab8c8', '#a8dce8', '#e0f8ff']);
+      for (let x = 4; x < 46; x += 5) { g.line(24, 6, x, 21, '#e8e0d0', 0.5); }
+      g.rect(3, 22, 42, B - 27, ['#6aa8b8', '#9ad0e0', '#d8f4ff']); for (let k = 0; k < 6; k++) g.line(5 + k * 7, 23, 8 + k * 7, 28, '#e8faff', 0.5);
+      for (let x = 3; x < 46; x += 4.5) g.hline(x + 0.5, 22, x + 0.5, B - 2, '#e8e0d0');
+      for (let k = 0; k < 9; k++) { const px = 5 + k * 4.4, py = B - 7 - (k % 3); g.ell(px, py, 2, 2.4, U.shades(k % 3 ? '#4aa83a' : '#6ac85a')); if (k % 2) g.dot(px, py - 1, ['#ff6a8a', '#ffe060', '#d08aff'][k % 3]); }
+      g.rect(2, B - 5, 44, 4, U.shades('#7a5230'));
+      AR.door(g, 21, B - 10, 6, 10, '#6a8a6a');
+      AR.sign(g, 39, 18, 'leaf');
+      if (lvl >= 2) { g.ell(4, B - 1, 2.5, 1.5, U.shades('#d84a8a')); g.ell(44, B - 1, 2.5, 1.5, U.shades('#e8c050')); }
+      foundation(); break;
+    }
+    case 'mine': {
+      const Rk = U.shades('#7a7068');
+      g.ell(24, 28, 23, 18, Rk); g.ell(10, 22, 10, 10, Rk); g.ell(38, 20, 10, 11, Rk); g.ell(24, 14, 10, 8, Rk);
+      for (let k = 0; k < 14; k++) g.hline(4 + U.hash(k, 1, 6) * 40, 12 + U.hash(k, 2, 6) * 26, 6 + U.hash(k, 3, 6) * 40, 14 + U.hash(k, 4, 6) * 26, '#4a443c');
+      [[8, 16], [36, 12], [42, 26], [6, 30]].forEach(([x, y]) => { g.ell(x, y, 1.5, 1, U.shades('#5a8a3a')); });
+      g.ell(24, 34, 9, 10, '#1a1416'); g.rect(15, 34, 18, B - 34, '#1a1416'); g.ell(24, 36, 6.5, 7, '#0a0608');
+      g.rect(14, 26, 2, B - 26, U.shades('#7a5230')); g.rect(32, 26, 2, B - 26, U.shades('#7a5230')); g.rect(13, 25, 22, 2.2, U.shades('#8a6038'));
+      for (let y = B - 8; y < B; y += 2) g.hline(18, y, 30, y, '#5a3a22'); g.hline(19.5, B - 9, 19.5, B, '#8a8a92'); g.hline(28.5, B - 9, 28.5, B, '#8a8a92');
+      g.rect(36, B - 6, 8, 4, U.shades('#5a5a66')); g.ell(37.5, B - 1.5, 1, 1, U.shades('#2a2a30')); g.ell(42.5, B - 1.5, 1, 1, U.shades('#2a2a30'));
+      [[38, B - 7], [40, B - 7.5], [42, B - 7]].forEach(([x, y]) => g.ell(x, y, 1, 0.8, U.shades(lvl >= 3 ? '#5ae8ff' : '#d8823a')));
+      AR.lantern(g, 14, 29); AR.lantern(g, 34, 29);
+      break;
+    }
+    case 'atelier': {
+      AR.gable(g, 2, 2, 44, 22, roofC || '#3a6aa8', 'tile', 2.5);
+      AR.plaster(g, 2, 24, 44, 12, wallC || '#f0e6d0', '#5a3a22', true);
+      AR.window(g, 18, 26, 12, 7, '#5a3a22');
+      AR.stone(g, 2, 36, 44, B - 36, '#b0a898', 19);
+      AR.window(g, 6, 39, 5, 5, '#4a3a2a', { box: true }); AR.window(g, 37, 39, 5, 5, '#4a3a2a', { box: true });
+      AR.door(g, 21, B - 11, 6, 11, '#5a3a6a');
+      AR.banner(g, 2.5, 25, '#d84a8a', '#ffd0e8'); AR.sign(g, 41, 24, 'thread');
+      if (lvl >= 2) { g.hline(-0.5, 23.5, 12, 26, '#e8e0d0'); [[2, 24], [5, 24.5], [8, 25]].forEach(([x, y], i) => g.rect(x, y, 2, 3, U.shades(['#d84a8a', '#3a8ad8', '#e8c050'][i]))); }
+      foundation(); break;
+    }
   }
-  g.line(W / 2 - 0.5, 0, W / 2 - 0.5, 1.5, R[2], 1);
-  g.hline(-2, wallTop + 2.2, W + 2, wallTop + 2.2, U.mix(R[0], '#000', 0.3));
-  if (opts.chimney) { g.rect(W - 14, 0, 5, 10, U.shades('#6a6a70')); for (let y = 2; y < 10; y += 2) g.hline(W - 14, y, W - 9, y, '#4a4a50'); g.rect(W - 14.5, 0, 6, 1.2, U.shades('#4a4a52')); }
-  // porte
-  const dx = Math.floor(W / 2) - 3;
-  g.rect(dx - 1, H - 13, 9, 12, beam);
-  g.rect(dx, H - 12, 7, 11, U.shades('#6a4424')); for (let x = dx + 1.75; x < dx + 7; x += 1.75) g.hline(x, H - 11.5, x, H - 1.5, '#4a2c14');
-  g.ell(dx + 5.3, H - 6, 0.6, 0.6, U.shades('#e8c050'));
-  g.rect(dx - 1, H - 2.5, 9, 1, U.shades('#8a8478'));
-  // fenêtres avec encadrement, croisillons et volets
-  const winY = wallTop + 5, wins = W >= 48 ? [6, W - 14] : [4, W - 11];
-  wins.forEach(wx => {
-    g.rect(wx - 1, winY - 1, 9, 8, beam);
-    g.rect(wx, winY, 7, 6, ['#a87818', '#ffd870', '#fff4c0']);
-    g.hline(wx + 3.5, winY, wx + 3.5, winY + 6, '#5a3a1e'); g.hline(wx, winY + 3, wx + 7, winY + 3, '#5a3a1e');
-    g.dot(wx + 1, winY + 1, '#ffffff'); g.rect(wx - 1, winY + 6.5, 9, 1, U.shades('#8a6a4a'));
-    if (opts.flowers !== false) [0, 2, 4, 6].forEach(i => g.dot(wx + i + 0.5, winY + 6, ['#ff6a8a', '#ffe060', '#ff8ac8', '#ffffff'][i / 2]));
-  });
-  if (opts.sign) { g.rect(dx - 9, H - 19, 7, 5, U.shades('#c8a040')); g.hline(dx - 8, H - 17, dx - 3, H - 17, '#6a4a10'); g.hline(dx - 6, H - 20, dx - 6, H - 19, '#3a2a1a'); }
-  if (opts.awning) { for (let x = 1; x < W - 1; x += 0.5) for (let y = wallTop - 2; y < wallTop + 4; y += 0.5) { const st = Math.floor(x / 4) % 2; g.dot(x, y, st ? (y > wallTop + 3 ? '#c8c0b0' : '#efe8da') : (y > wallTop + 3 ? U.mix(opts.awning, '#000', 0.3) : opts.awning)); } for (let x = 1; x < W - 1; x += 2) g.dot(x, wallTop + 4, '#00000040'); }
-  if (opts.banner) { [4, W - 8].forEach(bx => { g.rect(bx, wallTop + 2, 4, 10, U.shades(opts.banner)); g.poly([[bx, wallTop + 12], [bx + 2, wallTop + 10.5], [bx + 4, wallTop + 12]], U.mix(opts.banner, '#000', 0.4)); g.ell(bx + 2, wallTop + 5, 0.8, 0.8, U.shades('#ffe080')); }); }
-  if (opts.cave) { g.ell(W / 2, H - 6, 9, 9, '#1a1416'); g.ell(W / 2, H - 5, 7, 7, '#0e0a0c'); g.rect(dx - 5, H - 4, 17, 3, U.shades('#6a5a4a')); g.hline(dx - 4, H - 3, dx + 11, H - 3, '#8a7a6a'); }
-  g.outline('#140c1c').polish(0.015, 25);
+  g.outline('#140c1c').polish(0.012, 25);
   return g.toCanvas();
 });
 // Style des bâtiments du Havre en fonction du niveau
 SPR.building = (bid, lvl) => {
   const L = Math.max(1, lvl);
   switch (bid) {
-    case 'forge': return SPR.house(3, 2, L >= 3 ? '#4a4a56' : '#6a4a3a', '#8a8278', { chimney: true, sign: L >= 2 });
-    case 'atelier': return SPR.house(3, 2, '#3a6aa8', '#e8dcc0', { banner: L >= 2 ? '#d84a8a' : null });
-    case 'marche': return SPR.house(3, 2, '#3a8a4a', '#e8d8b8', { awning: '#d83a3a' });
-    case 'menagerie': return SPR.house(3, 2, '#a83a2a', '#c8a070', { banner: L >= 2 ? '#e8c050' : null });
-    case 'herboristerie': return SPR.house(3, 2, '#4a8a3a', '#d8c8a0', { sign: true });
-    case 'mine': return SPR.house(3, 2, '#5a5048', '#7a7068', { cave: true });
-    case 'taverne': return SPR.house(3, 2, '#8a3a2a', '#d8b888', { sign: true, chimney: true });
-    case 'remparts': return null;
+    case 'forge': return SPR.arch('forge', L);
+    case 'atelier': return SPR.arch('atelier', L);
+    case 'marche': return SPR.arch('market', L);
+    case 'menagerie': return SPR.arch('menagerie', L);
+    case 'herboristerie': return SPR.arch('greenhouse', L);
+    case 'mine': return SPR.arch('mine', L);
+    case 'taverne': return SPR.arch('tavern', L);
   }
   return null;
 };
+// ---------------- Moulin & accessoires de village ----------------
+SPR.windmill = () => SPR.get('windmill', () => {
+  const g = new G.Pix(32, 52, 2), B = 51;
+  g.poly([[6, B], [10, 18], [22, 18], [26, B]], U.shades('#e8dcc0'));
+  AR.stone(g, 6, B - 8, 20, 8, '#a89e8e', 23);
+  for (let y = 22; y < B - 8; y += 3) g.hline(8 + (B - y) * 0.05, y, 24 - (B - y) * 0.05, y, '#c8bca0');
+  g.poly([[7, 19], [16, 6], [25, 19]], U.shades('#8a3a2a')); for (let y = 9; y < 19; y += 2) { const h = (y - 6) / 13 * 9; g.hline(16 - h, y, 16 + h, y, '#6a2a1a'); }
+  AR.window(g, 14, 24, 4, 4, '#5a3a22'); AR.door(g, 13.5, B - 8, 5, 8, '#6a4424');
+  g.ell(16, 16, 1.4, 1.4, U.shades('#4a3a2a'));
+  g.outline('#140c1c').polish(0.012, 27);
+  return g.toCanvas();
+});
+SPR.millBlades = a => SPR.get('blades_' + a, () => {
+  const g = new G.Pix(36, 36, 2), c = 18;
+  for (let i = 0; i < 4; i++) {
+    const ang = a / 8 * Math.PI / 2 + i * Math.PI / 2, ca = Math.cos(ang), sa = Math.sin(ang), px = -sa, py = ca;
+    g.line(c, c, c + ca * 16, c + sa * 16, '#5a3a22', 0.8);
+    for (let t = 4; t < 16; t += 0.5) for (let k = 0.6; k < 4; k += 0.5) g.dot(c + ca * t + px * k, c + sa * t + py * k, (Math.floor(t) + Math.floor(k)) % 3 === 0 ? '#8a6a40' : '#f0e8d8');
+  }
+  g.ell(c, c, 1.5, 1.5, U.shades('#3a2a1a'));
+  g.outline('#140c1c');
+  return g.toCanvas();
+});
+SPR.PROPS = {
+  barrel(g) { AR.barrel(g, 8, 12); },
+  barrels(g) { AR.barrel(g, 5, 12.5); AR.barrel(g, 10.5, 12.5); AR.barrel(g, 7.8, 9); },
+  crates(g) { AR.crate(g, 3, 9.5, 4); AR.crate(g, 7.5, 9.5, 4); AR.crate(g, 5, 5.5, 4); },
+  well(g) { AR.stone(g, 3, 8, 10, 6, '#9a9286', 29); g.ell(8, 8, 5, 1.6, U.shades('#6a6458')); g.ell(8, 8, 3.8, 1, '#1a2a3a'); g.rect(3.5, 1, 1, 7, U.shades('#6a4a28')); g.rect(11.5, 1, 1, 7, U.shades('#6a4a28')); g.poly([[2, 2], [8, -0.5], [14, 2]], U.shades('#8a3a2a')); g.hline(4, 3.5, 12, 3.5, '#4a3a2a'); g.rect(7.4, 3.5, 1.2, 2, U.shades('#8a5a30')); },
+  hay(g) { g.ell(8, 11, 5.5, 3.6, U.shades('#e8c860')); for (let x = 4; x < 13; x += 1.2) g.hline(x, 8.5, x + 0.4, 13.5, '#c8a040'); g.hline(3, 11, 13, 11, '#8a6a30'); },
+  cart(g) { g.rect(2, 7, 11, 4, U.shades('#8a5a30')); g.ell(4.5, 12, 2, 2, U.shades('#5a3a22')); g.ell(10.5, 12, 2, 2, U.shades('#5a3a22')); g.line(13, 9, 15.5, 7.5, '#5a3a22', 0.6); [[4, 6], [6.5, 5.6], [9, 6], [11, 5.8]].forEach(([x, y]) => g.ell(x, y, 1.3, 1, U.shades('#e8402a'))); },
+  bench(g) { g.rect(2, 8, 12, 1.4, U.shades('#8a5a30')); g.rect(2, 5, 12, 1.2, U.shades('#8a5a30')); g.rect(3, 9.4, 1, 4, U.shades('#5a3a22')); g.rect(12, 9.4, 1, 4, U.shades('#5a3a22')); },
+  flowerpot(g) { g.poly([[5, 9], [11, 9], [10, 14], [6, 14]], U.shades('#b8603a')); g.ell(8, 8, 3.6, 2.4, U.shades('#4a9a3a')); [[6.5, 7], [9, 6.5], [8, 8]].forEach(([x, y], i) => { g.ell(x, y, 0.9, 0.9, U.shades(['#ff6a8a', '#ffe060', '#d08aff'][i])); }); },
+  fence(g) { [2, 7.5, 13].forEach(x => g.rect(x, 6, 1.2, 8, U.shades('#a8784a'))); g.rect(1, 7.5, 14, 1, U.shades('#a8784a')); g.rect(1, 10.5, 14, 1, U.shades('#a8784a')); },
+};
+SPR.prop = type => SPR.get('prop_' + type, () => { const g = new G.Pix(16, 16, 2); SPR.PROPS[type](g); g.outline('#140c1c').polish(0.02, 33); return g.toCanvas(); });
+
+// ---------------- Fontaine, remparts, portiques ----------------
+SPR.fountain = f => SPR.get('fountain_' + f, () => {
+  const g = new G.Pix(24, 26, 2), S = ['#6a6a76', '#9a9aa8', '#c8c8d4'];
+  g.ell(12, 20, 11, 5, S); g.ell(12, 19.5, 9.5, 3.8, U.shades('#2a6ab8'));
+  for (let k = 0; k < 6; k++) { const a = (k + f * 0.5) * 1.05; g.ell(12 + Math.cos(a) * 6, 19.5 + Math.sin(a) * 2.4, 1.2, 0.4, '#a8d8ff'); }
+  AR.stone(g, 1, 20, 22, 5, '#9a9aa8', 3);
+  g.rect(10.6, 9, 2.8, 11, S); g.ell(12, 9.5, 4.2, 1.6, S); g.ell(12, 9.3, 3.2, 1, U.shades('#3a7ac8'));
+  g.ell(12, 5, 1.2, 3, ['#7ab8ec', '#bfe0ff', '#ffffff']);
+  for (let k = 0; k < 4; k++) { const t = ((f + k * 2) % 8) / 8; g.dot(12 - 3.5 * t - 0.5, 9 + t * t * 10, '#cfe8ff'); g.dot(12 + 3.5 * t, 9 + t * t * 10, '#cfe8ff'); }
+  g.outline('#140c1c').polish(0.015, 41);
+  return g.toCanvas();
+});
+SPR.wallSeg = (v, top) => SPR.get(`wall_${v}_${top ? 1 : 0}`, () => {
+  const g = new G.Pix(16, 24, 2);
+  AR.stone(g, 0, 8, 16, 15, '#9a9286', 43 + v);
+  g.rect(0, 6.5, 16, 1.8, U.shades('#b8b0a2'));
+  if (v % 2 === 0) { AR.stone(g, 1, 1, 5.5, 6, '#a8a092', 47); AR.stone(g, 9.5, 1, 5.5, 6, '#a8a092', 48); }
+  if (v % 3 === 0) AR.ivy(g, 3 + v % 5, 9, 6, v);
+  g.rect(0, 22, 16, 2, U.shades('#6a6458'));
+  g.outline('#140c1c').polish(0.015, 49);
+  return g.toCanvas();
+});
+SPR.gatePost = (zone, side, horiz) => SPR.get(`gate_${zone}_${side}_${horiz ? 1 : 0}`, () => {
+  const g = new G.Pix(16, 36, 2), col = { foret: '#3e9a4a', montagne: '#8aa0c8', marais: '#9a6ad8' }[zone] || '#c8a040';
+  const st = { foret: '#8a7650', montagne: '#a8a294', marais: '#74745e' }[zone] || '#a8a294';
+  g.rect(3, 31, 10, 4, U.shades(U.mix(st, '#000', 0.25)));
+  AR.stone(g, 4, 9, 8, 22, st, 51 + side);
+  g.rect(3, 6.5, 10, 2.6, U.shades(U.mix(st, '#fff', 0.15))); g.poly([[4, 6.5], [8, 3], [12, 6.5]], U.shades(U.mix(st, '#000', 0.1)));
+  g.rect(6.4, 0.5, 3.2, 3, ['#c88a20', '#ffe080', '#fff8d0']); g.hline(8, 3, 8, 3.5, '#3a2a1a');
+  const bx = horiz ? 6.3 : side === 0 ? 10.5 : 2;
+  g.rect(bx, 11, 3.4, 11, U.shades(col)); g.poly([[bx, 22], [bx + 1.7, 20.4], [bx + 3.4, 22]], U.mix(col, '#000', 0.4));
+  g.ell(bx + 1.7, 14.5, 1, 1, ['#c8a040', '#ffe080', '#fff8d0']); g.hline(bx - 0.4, 11, bx + 3.8, 11, '#3a2a1a');
+  g.outline('#140c1c').polish(0.015, 53);
+  return g.toCanvas();
+});

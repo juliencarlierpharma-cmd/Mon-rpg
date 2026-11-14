@@ -12,6 +12,7 @@ G.World = {
   init() {
     this.gen();
     this.defineEntities();
+    this.decorate();
     this.placeNodes();
     this.connect();
     this.refresh();
@@ -109,10 +110,10 @@ G.World = {
     const B = (x, y) => [bx + x, by + y], Hv = (x, y) => [hx + x, hy + y];
     // --- Bourg-Aube ---
     const house = (id, rx, ry, o) => { const [x, y] = B(rx, ry); add(Object.assign({ k: 'house', id, x, y, w: 3, h: 2, door: [x + 1, y + 1] }, o)); };
-    house('inn', 0, 0, { roof: '#a83a2a', wall: '#e8d8b8', label: 'Auberge', act: () => G.UI.inn('bourg'), opts: { sign: true, chimney: true } });
-    house('shop_obj', 6, 0, { roof: '#3a6aa8', wall: '#e8dcc0', label: 'Échoppe', act: () => G.UI.shop(G.SHOPS.bourg_obj), opts: { awning: '#3a6aa8' } });
-    house('shop_mat', 0, 6, { roof: '#3a8a4a', wall: '#d8c8a0', label: 'Comptoir', act: () => G.UI.shop(G.SHOPS.bourg_mat), opts: { awning: '#c87a2a' } });
-    house('elder', 6, 6, { roof: '#7a4aa8', wall: '#e8e0d0', label: 'Maison de l’Ancien', act: () => this.elderTalk(), opts: { banner: '#7a4aa8' } });
+    house('inn', 0, 0, { arch: 'timber', aopt: { icon: 'bed' }, roof: '#a83a2a', wall: '#e8d8b8', label: 'Auberge', act: () => G.UI.inn('bourg'), opts: { sign: true, chimney: true } });
+    house('shop_obj', 6, 0, { arch: 'shop', aopt: { awning: '#3a6aa8' }, roof: '#3a6aa8', wall: '#e8dcc0', label: 'Échoppe', act: () => G.UI.shop(G.SHOPS.bourg_obj), opts: { awning: '#3a6aa8' } });
+    house('shop_mat', 0, 6, { arch: 'barn', aopt: { wall: '#7a5a3a', roof: '#3a5a3a' }, roof: '#3a8a4a', wall: '#d8c8a0', label: 'Comptoir', act: () => G.UI.shop(G.SHOPS.bourg_mat), opts: { awning: '#c87a2a' } });
+    house('elder', 6, 6, { arch: 'manor', aopt: {}, roof: '#7a4aa8', wall: '#e8e0d0', label: 'Maison de l’Ancien', act: () => this.elderTalk(), opts: { banner: '#7a4aa8' } });
     add({ k: 'fountain', x: bx + 4, y: by + 4 });
     [B(3, 2), B(5, 2), B(3, 6), B(5, 6), Hv(4, 3), Hv(6, 3), Hv(3, 7), Hv(8, 7)].forEach(([x, y], i) => add({ k: 'lamp', x, y, show: i < 4 ? null : () => S().town.founded }));
     add({ k: 'sign', x: bx - 1, y: by + 3, text: '← Forêt de Sylve (ouest)\n↑ Monts Grisés (nord)\n→ Marais Brumeux (est)\n↓ Site du Havre (sud-est)' });
@@ -172,6 +173,60 @@ G.World = {
     Object.values(home).concat(Object.values(havre)).forEach(([x, y]) => this.clearAround(x, y, 0));
     this.start = B(4, 6);
   },
+  // maisons d'habitation, moulin et accessoires autour des villes
+  decorate() {
+    const [bx, by] = this.BOURG, [hx, hy] = this.HAVRE, E = this.E;
+    const occ = () => { const m = new Set(); E.forEach(e => { for (let y = e.y; y < e.y + e.h; y++) for (let x = e.x; x < e.x + e.w; x++) m.add(x + ',' + y); if (e.door) m.add(e.door[0] + ',' + (e.door[1] + 1)); }); return m; };
+    const fronts = () => E.filter(e => ['npc', 'house', 'chest', 'boss', 'sign', 'stone', 'plot', 'board', 'node'].includes(e.k));
+    // ensemble des entités importantes accessibles depuis le départ
+    const reachSet = () => {
+      const blocked = occ(), start = this.start, seen = new Set([start.join(',')]), q = [start];
+      const pass = (x, y) => WALKABLE.has(this.tile(x, y)) && !blocked.has(x + ',' + y);
+      while (q.length) { const [x, y] = q.shift(); for (const [dx, dy] of Object.values(DIRS)) { const k = (x + dx) + ',' + (y + dy); if (!seen.has(k) && pass(x + dx, y + dy)) { seen.add(k); q.push([x + dx, y + dy]); } } }
+      const ok = new Set();
+      fronts().forEach((e, i) => { if ((e.door ? [[e.door[0], e.door[1] + 1]] : Object.values(DIRS).map(([dx, dy]) => [e.x + dx, e.y + dy])).some(([x, y]) => seen.has(x + ',' + y))) ok.add(e); });
+      return ok;
+    };
+    const free = (x, y, w, h, margin) => {
+      const m = occ();
+      for (let yy = y - margin; yy < y + h + margin; yy++) for (let xx = x - margin; xx < x + w + margin; xx++) {
+        if (m.has(xx + ',' + yy)) return false;
+        if (yy >= y && yy < y + h && xx >= x && xx < x + w) { const c = this.tile(xx, yy); if (!WALKABLE.has(c) || c === '_' || c === '=' || c === 'p') return false; }
+      }
+      return true;
+    };
+    const tryAdd = (e, margin = 1) => { if (!free(e.x, e.y, e.w, e.h, margin)) return false; const before = reachSet(); E.push(e); const after = reachSet(); if ([...before].some(b => !after.has(b))) { E.pop(); return false; } return true; };
+    // maisons d'habitation (architectures variées)
+    const homes = [
+      [bx - 5, by + 1, 'thatch', { roof: '#c8a050' }], [bx - 5, by + 6, 'stone', { roof: '#4a5a7a' }], [bx + 11, by + 1, 'thatch', { roof: '#b8903a', wall: '#f0e0c0' }],
+      [bx + 11, by + 6, 'timber', { roof: '#6a4a8a' }], [bx + 1, by - 5, 'stone', { roof: '#7a4a3a', wall: '#b8a890' }], [bx + 6, by - 5, 'thatch', { roof: '#d8b060' }],
+      [bx - 1, by + 11, 'timber', { roof: '#3a6a5a', wall: '#f4ecd8' }], [hx + 13, hy + 1, 'stone', { roof: '#5a6a8a' }], [hx - 6, hy + 5, 'thatch', { roof: '#c8a050' }],
+    ];
+    const lines = ['Personne ne répond… On entend un chat ronronner derrière la porte.', 'Une odeur de pain chaud s’échappe de la maison.', '« Bonne route, voyageurs ! » lance une voix à la fenêtre.'];
+    homes.forEach(([x, y, arch, aopt], i) => tryAdd({ k: 'house', id: 'home' + i, x, y, w: 3, h: 2, door: [x + 1, y + 1], arch, aopt, label: 'Maison', act: () => G.UI.say([{ who: '', t: lines[i % lines.length] }]) }));
+    // architecture des régions sauvages : cabane, ruines, hutte sur pilotis, autel
+    const wild = { foret: ['cabin', 3], montagne: ['ruin', 3], marais: ['stilt', 2], volcan: ['altar', 2] };
+    Object.keys(wild).forEach(zone => {
+      const [arch, n] = wild[zone]; let placed = 0;
+      const cand = [];
+      for (let y = 2; y < this.H - 4; y++) for (let x = 2; x < this.W - 4; x++) if (this.z[y][x] === zone && this.z[y + 1][x + 2] === zone) cand.push([x, y, U.hash(x, y, 909)]);
+      cand.sort((a, b) => a[2] - b[2]);
+      for (const [x, y] of cand) {
+        if (placed >= n) break;
+        if (!this.isNear(x + 1, y + 2, '_', 3)) continue; // près d'un chemin pour être vue
+        if (tryAdd({ k: 'house', id: `${arch}${placed}`, x, y, w: 3, h: 2, door: [x + 1, y + 1], arch, aopt: {}, label: { cabin: 'Cabane de chasseur', ruin: 'Ruines antiques', stilt: 'Hutte sur pilotis', altar: 'Autel d’obsidienne' }[arch], act: () => G.UI.say([{ who: '', t: { cabin: 'Une cabane de chasseur. Des trophées de cerf ornent la porte.', ruin: 'Les vestiges d’un temple oublié. Des glyphes élémentaires sont gravés dans la pierre.', stilt: 'Une hutte de pêcheur perchée au-dessus des eaux noires.', altar: 'Un autel d’obsidienne où brûlent des flammes éternelles.' }[arch] }]) })) placed++;
+      }
+    });
+    // moulin
+    [[bx + 12, by + 11], [bx - 7, by + 11], [bx + 14, by - 4]].some(([x, y]) => tryAdd({ k: 'mill', id: 'mill', x, y, w: 2, h: 2, act: () => G.UI.say([{ who: '', t: 'Les ailes du moulin tournent paresseusement au gré du vent.' }]) }));
+    // accessoires
+    const props = [
+      ['well', bx - 2, by + 4], ['barrels', bx + 1, by + 2], ['crates', bx + 7, by + 2], ['flowerpot', bx + 3, by + 8], ['bench', bx + 5, by + 8], ['cart', bx - 2, by + 8], ['hay', bx + 10, by + 4],
+      ['barrels', hx + 1, hy + 2], ['crates', hx + 7, hy + 2], ['flowerpot', hx + 4, hy + 4], ['flowerpot', hx + 6, hy + 4], ['well', hx + 13, hy + 4], ['hay', hx - 2, hy + 1], ['cart', hx - 2, hy + 7], ['fence', bx - 3, by - 2], ['fence', bx - 2, by - 2],
+    ];
+    props.forEach(([t, x, y], i) => tryAdd({ k: 'prop', id: 'prop' + i, type: t, x, y, w: 1, h: 1, show: (x >= hx - 3 && y >= hy - 3) ? () => G.S.town.founded : null }, 0));
+  },
+  isNear(cx, cy, ch, r) { for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) if (this.tile(x, y) === ch) return true; return false; },
   placeNodes() {
     const rates = {
       plaines: [[0.022, 'arbre'], [0.034, 'herbe'], [0.046, 'fibre'], [0.058, 'rocher'], [0.065, 'fer']],
@@ -257,8 +312,20 @@ G.World = {
     return { x: U.clamp(P.px + 8 - R.W / 2, 0, Math.max(0, this.W * 16 - R.W)), y: U.clamp(P.py + 8 - R.H / 2, 0, Math.max(0, this.H * 16 - R.H)) };
   },
   // ---------------- Mise à jour ----------------
+  // construit en arrière-plan le prochain bloc de sol proche du joueur (un à la fois)
+  warmChunks() {
+    const CK = 16, pcx = Math.floor(this.P.x / CK), pcy = Math.floor(this.P.y / CK);
+    let best = null, bd = 1e9;
+    for (let gy = 0; gy * CK < this.H; gy++) for (let gx = 0; gx * CK < this.W; gx++) {
+      if (G.SPR.cache[`chunk_${gx}_${gy}`]) continue;
+      const d = Math.abs(gx - pcx) + Math.abs(gy - pcy); if (d < bd) { bd = d; best = [gx, gy]; }
+    }
+    if (best && bd <= 2) this.chunk(best[0], best[1]);
+  },
   update(dt) {
     const P = this.P, S = G.S;
+    this.warmT = (this.warmT || 0) - dt;
+    if (this.warmT <= 0 && !P.moving) { this.warmT = 0.25; this.warmChunks(); }
     S.time = (S.time + dt * 0.6) % 1440;
     if (this.mining) { this.updateMining(dt); }
     else if (P.moving) {
@@ -657,18 +724,20 @@ G.World = {
       });
       // teinte continue à grande échelle (sur l'herbe et la roche)
       const img = x.getImageData(0, 0, c.width, c.height), D = img.data, W = c.width;
-      for (let Y = 0; Y < c.height; Y += 1) for (let X = 0; X < W; X += 1) {
-        const i = (Y * W + X) * 4; if (D[i + 3] === 0) continue;
-        const tx = gx * CK + (X >> 5), ty = gy * CK + (Y >> 5), ch = this.baseCh(tx, ty);
+      for (let BY = 0; BY < c.height; BY += 4) for (let BX = 0; BX < W; BX += 4) {
+        const tx = gx * CK + (BX >> 5), ty = gy * CK + (BY >> 5), ch = this.baseCh(tx, ty);
         if (!ch || ch === '_' || ch === 'p' || ch === 's') continue;
-        const wx = (gx * CK * 32 + X) / 32, wy = (gy * CK * 32 + Y) / 32;
+        const wx = (gx * CK * 32 + BX + 2) / 32, wy = (gy * CK * 32 + BY + 2) / 32;
         const n = U.noise(wx / 5, wy / 5, 61), b = (U.noise(wx / 2, wy / 2, 62) - 0.5) * 0.12;
         let tr = 0, tg = 0, tb = 0, a = 0;
         if (ch === '.' || ch === ',' || ch === 'g') { if (n < 0.42) { tr = 196; tg = 176; tb = 80; a = (0.42 - n) * 0.9; } else if (n > 0.6) { tr = 30; tg = 110; tb = 80; a = (n - 0.6) * 0.8; } }
         else if (ch === 'f') { if (n > 0.55) { tr = 20; tg = 70; tb = 60; a = (n - 0.55) * 0.8; } else { tr = 90; tg = 110; tb = 40; a = (0.55 - n) * 0.4; } }
         else if (ch === 'r') { if (n < 0.45) { tr = 120; tg = 96; tb = 70; a = (0.45 - n) * 0.8; } else { tr = 100; tg = 110; tb = 130; a = (n - 0.45) * 0.5; } }
         a = Math.min(0.32, a);
-        D[i] = Math.min(255, (D[i] * (1 - a) + tr * a) * (1 + b)); D[i + 1] = Math.min(255, (D[i + 1] * (1 - a) + tg * a) * (1 + b)); D[i + 2] = Math.min(255, (D[i + 2] * (1 - a) + tb * a) * (1 + b));
+        for (let Y = BY; Y < BY + 4; Y++) for (let X = BX; X < BX + 4; X++) {
+          const i = (Y * W + X) * 4; if (D[i + 3] === 0) continue;
+          D[i] = Math.min(255, (D[i] * (1 - a) + tr * a) * (1 + b)); D[i + 1] = Math.min(255, (D[i + 1] * (1 - a) + tg * a) * (1 + b)); D[i + 2] = Math.min(255, (D[i + 2] * (1 - a) + tb * a) * (1 + b));
+        }
       }
       x.putImageData(img, 0, 0);
       // transitions douces : le sol « dominant » déborde sur son voisin
@@ -711,8 +780,8 @@ G.World = {
     const x = G.R.lx, t = performance.now() / 1000;
     switch (e.k) {
       case 'house': {
-        const img = G.SPR.house(e.w, e.h, e.roof, e.wall, e.opts || {});
-        G.SPR.draw(x, img, sx, sy - 12);
+        const img = G.SPR.arch(e.arch || 'thatch', 1, e.aopt || {});
+        G.SPR.draw(x, img, sx, sy + e.h * 16 - G.SPR.lh(img));
         if (day.night) lights.push({ x: sx + e.w * 8, y: sy + 14, r: 34, c: '#ffcf70', a: 0.6 });
         break;
       }
@@ -721,33 +790,18 @@ G.World = {
         if (!lvl) { G.SPR.draw(x, G.SPR.plot(), sx, sy); }
         else {
           const img = G.SPR.building(e.id, lvl);
-          G.SPR.draw(x, img, sx, sy - 12);
+          G.SPR.draw(x, img, sx, sy + 32 - G.SPR.lh(img));
           for (let i = 0; i < lvl; i++) { x.fillStyle = '#ffd86a'; x.fillRect(sx + 2 + i * 4, sy + 28, 3, 3); }
           if (e.id === 'forge') { lights.push({ x: sx + 24, y: sy + 26, r: 40, c: '#ff8a2a', a: 0.8 }); if (Math.random() < 0.08) G.R.parts.push({ x: sx + 36, y: sy - 12, vx: U.rand(-3, 3), vy: -12, life: 2.5, max: 2.5, size: 5, c: '#c8c8c8', glow: false, grav: -2, drag: 1, type: 'fog', rot: 0, layer: 1 }); }
           if (day.night) lights.push({ x: sx + 24, y: sy + 14, r: 34, c: '#ffcf70', a: 0.6 });
         }
         break;
       }
-      case 'wall': {
-        x.fillStyle = '#8a8478'; x.fillRect(sx, sy - 6, 16, 18); x.fillStyle = '#a8a294'; x.fillRect(sx, sy - 6, 16, 2);
-        x.fillStyle = '#6a645a'; x.fillRect(sx, sy + 12, 16, 4); x.fillRect(sx + 7, sy - 4, 1, 16);
-        if ((e.x + e.y) % 2 === 0) { x.fillStyle = '#9a9488'; x.fillRect(sx + 2, sy - 10, 5, 4); x.fillRect(sx + 10, sy - 10, 5, 4); }
-        break;
-      }
+      case 'wall': G.SPR.draw(x, G.SPR.wallSeg((e.x * 7 + e.y * 3) % 6), sx, sy + 16 - 24 + 2); break;
       case 'gate': {
-        const col = { foret: '#3e9a4a', montagne: '#8aa0c8', marais: '#9a6ad8' }[e.zone] || '#c8a040';
-        const st = { foret: ['#6a5a3a', '#8a7650', '#4a3e28'], montagne: ['#8a8478', '#a8a294', '#5e584e'], marais: ['#5a5a4a', '#74745e', '#3a3a30'] }[e.zone] || ['#8a8478', '#a8a294', '#5e584e'];
         this.shadow(sx + 8, sy + 15, 6);
-        x.fillStyle = st[2]; x.fillRect(sx + 3, sy + 12, 10, 4);
-        x.fillStyle = st[0]; x.fillRect(sx + 4, sy - 14, 8, 27);
-        x.fillStyle = st[1]; x.fillRect(sx + 4, sy - 14, 2, 27); x.fillRect(sx + 3, sy - 17, 10, 3);
-        x.fillStyle = st[2]; x.fillRect(sx + 11, sy - 14, 1, 27);
-        // bannière vers le chemin
-        const bxp = e.horiz ? sx + 5 : (e.side === 0 ? sx + 11 : sx - 1);
-        x.fillStyle = col; x.fillRect(bxp, sy - 10, 6, 11); x.fillStyle = U.mix(col, '#000000', 0.35); x.fillRect(bxp, sy + 1, 2, 2); x.fillRect(bxp + 4, sy + 1, 2, 2);
-        x.fillStyle = '#fff2b0'; x.fillRect(bxp + 2, sy - 7, 2, 2);
-        x.fillStyle = '#ffd86a'; x.fillRect(sx + 6, sy - 21, 4, 4);
-        lights.push({ x: sx + 8, y: sy - 19, r: day.night ? 48 : 22, c: '#ffd070', a: 0.9 });
+        G.SPR.draw(x, G.SPR.gatePost(e.zone, e.side, e.horiz), sx, sy + 16 - 36 + 2);
+        lights.push({ x: sx + 8, y: sy - 17, r: day.night ? 48 : 22, c: '#ffd070', a: 0.9 });
         break;
       }
       case 'board': {
@@ -774,21 +828,25 @@ G.World = {
         if (Math.random() < 0.25) G.R.parts.push({ x: sx + 8 + U.rand(-10, 10), y: sy + 12, vx: 0, vy: -14, life: 1.2, max: 1.2, size: 1, c: '#ff5a6a', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
         break;
       }
+      case 'mill': {
+        const img = G.SPR.windmill(); G.SPR.draw(x, img, sx, sy + 32 - G.SPR.lh(img));
+        const bl = G.SPR.millBlades(Math.floor(t * 4) % 8); G.SPR.draw(x, bl, sx + 16 - 18, sy + 32 - 52 + 16 - 18);
+        if (day.night) lights.push({ x: sx + 16, y: sy + 8, r: 30, c: '#ffcf70', a: 0.6 });
+        break;
+      }
+      case 'prop': G.SPR.draw(x, G.SPR.prop(e.type), sx, sy); break;
       case 'lamp': G.SPR.draw(x, G.SPR.lamp(), sx + 3, sy - 10); if (day.night || this.zoneAt(e.x, e.y) === 'havre') lights.push({ x: sx + 8, y: sy - 5, r: day.night ? 55 : 20, c: '#ffd070', a: 1 }); break;
       case 'sign': G.SPR.draw(x, G.SPR.sign(), sx, sy); break;
       case 'fountain': {
-        x.fillStyle = '#8a8a96'; x.fillRect(sx - 2, sy + 4, 20, 12); x.fillStyle = '#a8a8b4'; x.fillRect(sx - 2, sy + 4, 20, 2);
-        x.fillStyle = '#3a8ad8'; x.fillRect(sx, sy + 6, 16, 8);
-        x.fillStyle = '#9ad0ff'; x.fillRect(sx + (frame % 4) * 3, sy + 8, 3, 1);
-        x.fillStyle = '#8a8a96'; x.fillRect(sx + 6, sy - 4, 4, 10); x.fillStyle = '#bfe6ff'; x.fillRect(sx + 7, sy - 8 + (frame % 2), 2, 4);
-        if (Math.random() < 0.3) G.R.parts.push({ x: sx + 8, y: sy - 6, vx: U.rand(-12, 12), vy: U.rand(-20, -8), life: 0.7, max: 0.7, size: 0.7, c: '#cfeaff', glow: true, grav: 80, drag: 1, type: 'dot', rot: 0, layer: 1 });
+        G.SPR.draw(x, G.SPR.fountain(frame), sx - 4, sy + 16 - 26 + 3);
+        if (Math.random() < 0.3) G.R.parts.push({ x: sx + 8, y: sy - 5, vx: U.rand(-12, 12), vy: U.rand(-20, -8), life: 0.7, max: 0.7, size: 0.7, c: '#cfeaff', glow: true, grav: 80, drag: 1, type: 'dot', rot: 0, layer: 1 });
         lights.push({ x: sx + 8, y: sy + 4, r: 36, c: '#6ab8ff', a: 0.6 });
         break;
       }
       case 'npc': {
         const bob = Math.floor(t * 2 + e.x) % 2;
         this.shadow(sx + 8, sy + 15, 5);
-        G.SPR.draw(x, G.SPR.hero('npc_' + e.id, e.pal, e.dir || 'down', 0, e.id === 'r_grom' || e.id === 'h_grom' || e.id === 'r_dorn' || e.id === 'h_dorn' ? 'beard' : (e.id.includes('mira') || e.id.includes('yuna') || e.id.includes('lise') || e.id === 'v_girl') ? 'long' : null), sx, sy - bob);
+        G.SPR.draw(x, G.SPR.hero('npc_' + e.id, e.pal, e.dir || 'down', 0, G.SPR.NPC_STYLE[e.npc || e.id] || {}), sx, sy - bob);
         if (e.npc && !G.S.npcs[e.npc]) { const q = G.S.quests['r_' + e.npc]; x.fillStyle = q ? '#7affd8' : '#ffd86a'; x.font = 'bold 8px monospace'; x.fillText(q ? '…' : '!', sx + 6, sy - 3 + Math.sin(t * 4) * 1.5); }
         break;
       }
