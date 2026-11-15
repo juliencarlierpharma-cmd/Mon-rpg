@@ -292,7 +292,7 @@ G.UI = {
       return `<button class="anode ${s} ${this.achSel === a.id ? 'sel' : ''}" style="left:${x}px;top:${y}px" data-a="achSel" data-i="${a.id}">
         <b>${s === 'locked' ? '🔒 ' : s === 'claimed' ? '✔ ' : s === 'ready' ? '✦ ' : ''}${esc(a.n)}</b><small>${s === 'claimed' ? 'Obtenu' : `${Math.min(cur, tgt)}/${tgt}`}</small>${bar(Math.min(cur, tgt), tgt, 'aff')}</button>`;
     }).join('');
-    let detail = '<p class="dim">Touchez un nœud pour voir sa récompense. Les nœuds se débloquent en réclamant leurs prérequis.</p>';
+    let detail = '<p class="dim">Touchez un nœud pour voir sa récompense ; un nœud ✦ prêt est réclamé dès qu’on le touche. Les nœuds se débloquent en réclamant leurs prérequis.</p>';
     if (sel) {
       const s = G.achState(sel), [cur, tgt] = sel.c(G.S);
       detail = `<h3>${esc(sel.n)}</h3><div>${esc(sel.d)} <b>(${Math.min(cur, tgt)}/${tgt})</b></div><div class="rw">Récompense : ${G.rewardText(sel.rw).map(esc).join(' · ')}</div>
@@ -457,7 +457,7 @@ G.UI = {
     return `<h2>Système</h2><div class="card"><div>Temps de jeu : ${Math.floor(t / 60)} h ${t % 60} min · Combats gagnés : ${G.S.stats.wins} · Monstres vaincus : ${G.S.stats.kills}</div>
       <div class="actions"><button class="btn gold" data-a="save">💾 Sauvegarder</button><button class="btn" data-a="sound">${G.Audio.on ? '🔊 Son activé' : '🔇 Son coupé'}</button><button class="btn" data-a="title">↩ Écran titre</button></div></div>
       <div class="card"><h3>Commandes</h3><ul class="help">
-      <li><b>Déplacement</b> : flèches / ZQSD / WASD ou croix tactile</li><li><b>Action (A)</b> : Entrée, Espace ou E — parler, ouvrir, <b>récolter</b> une ressource en lui faisant face</li>
+      <li><b>Déplacement</b> : flèches / ZQSD / WASD ou toucher/cliquer une case (glisser = joystick)</li><li><b>Action (A)</b> : Entrée, Espace ou E — parler, ouvrir, <b>récolter</b> une ressource en lui faisant face</li>
       <li><b>Menu (B)</b> : Échap, M ou bouton ☰</li><li>Dans les menus : flèches + Entrée, Échap pour revenir</li></ul></div>
       <div class="card"><h3>Conseils</h3><ul class="help">
       <li>Pas de marchand d’armes : forgez vos 4 armes par héros avec les matériaux des monstres (onglet Armes).</li>
@@ -470,7 +470,7 @@ G.UI = {
   menuHandlers(rerender) {
     const R = rerender || (() => this.renderMenu());
     const S = G.S;
-    return {
+    const acts = {
       goarmes: d => { this.menuChar = d.c; this.menuTab = 'armes'; this.renderMenu(); },
       lead: d => { S.party = [d.c].concat(S.party.filter(c => c !== d.c)); G.World.placePlayer(G.World.P.x, G.World.P.y, G.World.P.dir); R(); },
       equipList: d => this.equipList(d.c, d.s, R),
@@ -515,7 +515,7 @@ G.UI = {
         G.Audio.sfx(up ? 'level' : 'get'); if (up) this.toast(`${G.FAMS[d.f].n} passe au niveau ${f.lvl} !`); this.checkAch(); R();
       },
       travel: d => { this.closeMenu(); G.World.travel(d.i); },
-      achSel: d => { this.achSel = d.i; R(); },
+      achSel: d => { this.achSel = d.i; const a = G.ACH.find(x => x.id === d.i); if (a && G.achState(a) === 'ready') return acts.claim(d); R(); },
       claim: d => { if (G.claimAch(d.i)) { G.Audio.sfx('achieve'); const a = G.ACH.find(x => x.id === d.i); this.toast(`✦ ${a.n} : ${G.rewardGotText(a.rw).join(', ')}`); this.lastReady = G.achReadyCount(); G.World.refresh(); R(); } },
       build: d => {
         const r = G.buildReq(d.b); if (!r.ok) return;
@@ -528,6 +528,7 @@ G.UI = {
       sound: () => { G.Audio.toggle(); R(); },
       title: async () => { const r = await this.ask('Retourner à l’écran titre ? (la partie sera sauvegardée)', ['Oui', 'Non']); if (r === 0) { G.save(); this.closeMenu(); G.showTitle(); } },
     };
+    return acts;
   },
   equipList(cid, slot, R) {
     const c = G.S.chars[cid], cur = c[slot];
