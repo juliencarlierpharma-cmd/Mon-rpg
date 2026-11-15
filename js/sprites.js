@@ -65,7 +65,7 @@ SPR.heroPix = (pal, dir, frame, extra, K = 8) => {
     g.hline(5.5, 14.2 - l1, 7.6, 14.2 - l1, boot[2]); g.hline(8.4, 14.2 - l2, 10.5, 14.2 - l2, boot[2]);
   }
   // --- bras arrière (profil) ---
-  if (side) { g.ell(6.4 - sw * 0.6, 10.3, robe ? 1.3 : 1.05, 1.9, [arm[0], arm[0], arm[1]]); g.ell(6.4 - sw * 0.9, 12.1, 0.8, 0.8, [skin[0], skin[0], skin[1]]); }
+  if (side && !st.noArms) { g.ell(6.4 - sw * 0.6, 10.3, robe ? 1.3 : 1.05, 1.9, [arm[0], arm[0], arm[1]]); g.ell(6.4 - sw * 0.9, 12.1, 0.8, 0.8, [skin[0], skin[0], skin[1]]); }
   // --- torse ---
   if (side) g.poly([[5.4, 8.5], [10.4, 8.5], [10.8, 12.1], [5.1, 12.1]], body);
   else g.poly([[4.5, 8.5], [11.5, 8.5], [12, 12.1], [4, 12.1]], body);
@@ -85,7 +85,7 @@ SPR.heroPix = (pal, dir, frame, extra, K = 8) => {
   if (st.scarf && side) { const S = sh(st.scarf); g.poly([[6.6, 8.1], [10.6, 8.1], [10.4, 9.2], [6.4, 9.3]], S); }
   // --- bras avant ---
   const band = vest ? acc : null;
-  if (side) { g.ell(8.6 + sw * 0.7, 10.3, robe ? 1.35 : 1.1, 1.95, arm); g.ell(8.7 + sw * 1, 12.2, 0.85, 0.85, skin); if (band) g.rect(7.9 + sw * 0.8, 11.3, 1.6, 0.6, band); }
+  if (side) { if (!st.noArms) { g.ell(8.6 + sw * 0.7, 10.3, robe ? 1.35 : 1.1, 1.95, arm); g.ell(8.7 + sw * 1, 12.2, 0.85, 0.85, skin); if (band) g.rect(7.9 + sw * 0.8, 11.3, 1.6, 0.6, band); } }
   else {
     const a1 = frame === 1 ? -0.4 : frame === 2 ? 0.4 : 0;
     g.ell(3.9, 10.2 + a1, robe ? 1.4 : 1.15, 1.95, arm); g.ell(12.1, 10.2 - a1, robe ? 1.4 : 1.15, 1.95, arm);
@@ -170,100 +170,352 @@ SPR.hero = (key, pal, dir, frame, extra) => SPR.get(`h_${key}_${dir}_${frame}`, 
   return g.toCanvas(2);
 });
 
-// ---------------- Armes (vue de profil, tournée vers la droite) ----------------
-const STEEL = ['#7d8796', '#c3ccd8', '#f4f8ff'];
+// ---------------- Armes (haute définition, vue de profil, tournées vers la droite) ----------------
+const STEEL = ['#6a7484', '#c3ccd8', '#f6faff'];
 SPR.WCOL = {
-  brise_braise: { blade: ['#8a2a1a', '#e0602a', '#ffc070'], hilt: '#3a2418', gem: '#ffcf40' },
-  lame_ressac: { blade: ['#6a8ab0', '#c8e0ff', '#ffffff'], hilt: '#1a2a4a', gem: '#43a8ff' },
-  griffes_zephyr: { blade: STEEL, hilt: '#2a4a2a', gem: '#7dffb0' },
-  rempart: { blade: STEEL, hilt: '#5a3a22', gem: '#d8a84a', shield: ['#7a5a20', '#c8963a', '#f0d080'] },
-  sceptre_solaire: { blade: ['#5a3418', '#8a5a2e', '#b8844a'], hilt: '#5a3418', gem: '#ff7a2a' },
-  calice: { blade: ['#a87a20', '#e8c050', '#fff0a0'], hilt: '#a87a20', gem: '#43a8ff' },
-  arc_celeste: { blade: ['#4a6a3a', '#8ac070', '#d0f0b0'], hilt: '#e8e8e8', gem: '#7dffb0' },
-  grimoire: { blade: ['#3a2410', '#6a4420', '#9a6a3a'], hilt: '#d8a84a', gem: '#d8a84a' },
-  gantelets: { blade: ['#8a2a10', '#d8582a', '#ffa060'], hilt: '#3a2a2a', gem: '#ffcf40' },
-  trident: { blade: ['#2a6a7a', '#4ab8c8', '#a8f0ff'], hilt: '#2a3a4a', gem: '#43a8ff' },
-  lance_dragon: { blade: ['#2a6a4a', '#5ac08a', '#c0ffd8'], hilt: '#3a2a20', gem: '#7dffb0' },
-  hache: { blade: ['#5a5a60', '#9a9aa4', '#d8d8e0'], hilt: '#6a4420', gem: '#a0a0a0' },
+  brise_braise: { blade: ['#7a2010', '#e0602a', '#ffc070'], hilt: '#3a2418', gem: '#ffcf40', metal: '#4a4048' },
+  lame_ressac: { blade: ['#5a7aa0', '#c8e0ff', '#ffffff'], hilt: '#1a2a4a', gem: '#43a8ff', metal: '#c8a040' },
+  griffes_zephyr: { blade: STEEL, hilt: '#2a5a3a', gem: '#7dffb0', metal: '#8a9aa0' },
+  rempart: { blade: STEEL, hilt: '#5a3a22', gem: '#d8a84a', metal: '#c8a040', shield: ['#5a3a18', '#a87a3a', '#e8c080'] },
+  sceptre_solaire: { blade: ['#4a2a12', '#8a5a2e', '#c89458'], hilt: '#5a3418', gem: '#ff7a2a', metal: '#c8a040' },
+  calice: { blade: ['#8a6418', '#e8c050', '#fff4b0'], hilt: '#a87a20', gem: '#43a8ff', metal: '#e8c050' },
+  arc_celeste: { blade: ['#3a5a2a', '#8ac070', '#d8f8c0'], hilt: '#e8e8e8', gem: '#7dffb0', metal: '#d8e0e8' },
+  grimoire: { blade: ['#3a2410', '#6a4420', '#a8784a'], hilt: '#d8a84a', gem: '#c88a3a', metal: '#d8a84a' },
+  gantelets: { blade: ['#6a1a0a', '#d8582a', '#ffa868'], hilt: '#3a2a2a', gem: '#ffcf40', metal: '#4a3a3a' },
+  trident: { blade: ['#1a5a6a', '#4ab8c8', '#b8f8ff'], hilt: '#2a3a4a', gem: '#43a8ff', metal: '#c8a040' },
+  lance_dragon: { blade: ['#1a5a3a', '#5ac08a', '#d0ffe0'], hilt: '#3a2a20', gem: '#7dffb0', metal: '#c8a040' },
+  hache: { blade: ['#4a4a54', '#9a9aa8', '#e8e8f0'], hilt: '#6a4420', gem: '#a8d8ff', metal: '#6a5a4a' },
 };
-function blade(g, x, y, ang, len, w, cols, hiltLen, hiltCol, guardCol) {
-  const ca = Math.cos(ang), sa = Math.sin(ang), px = -sa, py = ca, st = 0.5 / g.k;
-  for (let i = -hiltLen; i <= len; i += st) {
-    for (let q = 0; q < w; q += st) {
-      const xx = x + ca * i + px * (q - (w - st) / 2), yy = y + sa * i + py * (q - (w - st) / 2);
-      if (i < 0) g.px1(xx, yy, (Math.round(i * 4) % 2) ? hiltCol : U.mix(hiltCol, '#ffffff', 0.25));
-      else g.px1(xx, yy, i > len - 1 ? cols[2] : q < st ? cols[2] : q >= w - st ? cols[0] : cols[1]);
+// couleur d'accent de la tenue selon l'emplacement élémentaire de l'arme
+SPR.SLOT_TINT = { feu: '#d8402a', eau: '#3a8ad8', vent: '#3aa868', terre: '#c89a3a' };
+const WP = {
+  at(x, y, a, t, o = 0) { const c = Math.cos(a), s = Math.sin(a); return [x + c * t - s * o, y + s * t + c * o]; },
+  // lame : largeur w, pointe (fraction), courbure, effilement ; renvoie les bords
+  blade(g, x, y, a, len, w, cols, o = {}) {
+    const tip = o.tip || 0.22, cv = o.curve || 0, tp = o.taper || 0, N = 30, L = [], R = [], M = [];
+    const C = t => WP.at(x, y, a, t * len, -cv * t * t * len);
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, [px, py] = C(t), [qx, qy] = C(Math.min(1, t + 0.02)), [rx, ry] = C(Math.max(0, t - 0.02)), dl = Math.hypot(qx - rx, qy - ry) || 1;
+      const nx = -(qy - ry) / dl, ny = (qx - rx) / dl, base = w / 2 * (1 - tp * t);
+      const wd = t < 1 - tip ? base : base * Math.pow((1 - t) / tip, o.round ? 0.5 : 1);
+      L.push([px + nx * wd, py + ny * wd]); R.push([px - nx * wd * (o.back == null ? 1 : o.back), py - ny * wd * (o.back == null ? 1 : o.back)]); M.push([px, py]);
     }
-  }
-  if (guardCol) for (let q = -2; q <= 2; q += st) for (let w2 = 0; w2 < 0.5; w2 += st) { g.px1(x + px * q - ca * w2, y + py * q - sa * w2, guardCol); g.px1(x + px * q - ca * (w2 + 0.5), y + py * q - sa * (w2 + 0.5), U.mix(guardCol, '#000', 0.3)); }
+    g.poly(L.concat(R.slice().reverse()), cols);
+    if (o.fuller !== false) g.stroke(M.slice(1, Math.round(N * (1 - tip) * 0.85)), w * 0.13, w * 0.08, U.mix(cols[0], cols[1], 0.45));
+    g.stroke(L.slice(0, N), 0.07, 0.05, U.mix(cols[2], '#ffffff', 0.5));
+    g.stroke(R.slice(0, N), 0.06, 0.04, U.mix(cols[0], '#000000', 0.2));
+    g.stroke(M.slice(2, Math.round(N * 0.5)).map(([px, py], i) => [px + (L[i + 2][0] - px) * 0.45, py + (L[i + 2][1] - py) * 0.45]), 0.05, 0.03, '#ffffff');
+    return { L, R, M };
+  },
+  grip(g, x, y, a, len, col, r = 0.32) {
+    g.stroke([WP.at(x, y, a, 0), WP.at(x, y, a, -len)], r, r, MON.sh(col, 0.5, 0.35));
+    for (let t = 0.2; t < len - 0.1; t += 0.42) g.stroke([WP.at(x, y, a, -t, -r * 0.9), WP.at(x, y, a, -t - 0.28, r * 0.9)], 0.06, 0.06, MON.dk(col, 0.45));
+  },
+  guard(g, x, y, a, half, col, r = 0.3) {
+    const c = MON.sh(col, 0.5, 0.5);
+    g.stroke([WP.at(x, y, a, 0, -half), WP.at(x, y, a, 0.15, 0), WP.at(x, y, a, 0, half)], r, r, c);
+    g.ell(...WP.at(x, y, a, 0, -half), r * 1.35, r * 1.35, c); g.ell(...WP.at(x, y, a, 0, half), r * 1.35, r * 1.35, c);
+  },
+  gem(g, x, y, r, col, glow) {
+    if (glow) g.blendEll(x, y, r * 3.2, r * 3.2, col, 0.45 * glow, 1.2);
+    g.ell(x, y, r, r, MON.sh(col, 0.5, 0.65)); g._disc(x - r * 0.35, y - r * 0.35, r * 0.3, '#ffffff');
+  },
+  // gravures dorées (rang 3+), aura (rang 7)
+  runes(g, M, col, n = 5) { for (let i = 0; i < n; i++) { const p = M[Math.round(M.length * (0.15 + 0.6 * i / n))]; if (!p) continue; g.inside(t => { t.stroke([[p[0] - 0.25, p[1] + 0.12], [p[0], p[1] - 0.18], [p[0] + 0.25, p[1] + 0.12]], 0.05, 0.05, col); }); } },
+  aura(g, M, col) { g.blendEll(0, 0, 0.01, 0.01, col, 0); M.forEach((p, i) => { if (i % 3 === 0) g.blendEll(p[0], p[1], 1.0, 1.0, col, 0.28, 1); }); },
+  sparkles(g, pts) { pts.forEach(([x, y, r]) => { g.stroke([[x - r, y], [x + r, y]], 0.07, 0.07, '#ffffff'); g.stroke([[x, y - r], [x, y + r]], 0.07, 0.07, '#ffffff'); g._disc(x, y, 0.12, '#ffffff'); }); },
+};
+// lame tenue par un monstre (squelette, chevalier) : même rendu que les armes des héros
+function blade(g, x, y, a, len, w, cols, hiltLen, hiltCol, guardCol) {
+  WP.blade(g, x, y, a, len, w, cols, { tip: 0.18 });
+  if (guardCol) WP.guard(g, x, y, a, w * 0.9, guardCol, 0.24);
+  WP.grip(g, x, y, a, hiltLen, hiltCol, 0.26);
 }
-SPR.drawWeapon = (g, wid, pose) => {
-  const W = G.WEAPONS[wid], C = SPR.WCOL[wid], hx = 13, hy = 17, atk = pose === 'atk';
-  switch (W.kind) {
-    case 'greatsword': blade(g, hx, hy, atk ? 0.15 : -1.15, 13, 3, C.blade, 3, C.hilt, '#c8a040'); break;
-    case 'katana': blade(g, hx, hy, atk ? 0.05 : -0.75, 12, 1, C.blade, 3, C.hilt, '#d8b040'); break;
-    case 'daggers':
-      blade(g, hx, hy, atk ? 0 : -0.6, 5, 2, C.blade, 2, C.hilt, null);
-      blade(g, hx - 6, hy, atk ? 0.4 : -2.3, 5, 2, C.blade, 2, C.hilt, null); break;
-    case 'swordshield':
-      blade(g, hx, hy, atk ? 0.1 : -1.2, 8, 2, C.blade, 2, C.hilt, '#c8a040');
-      g.ell(hx - 1 + (atk ? 0 : 2), hy - 1, 3, 4.5, C.shield); g.dot(hx - 1 + (atk ? 0 : 2), hy - 1, '#fff6c0'); break;
-    case 'staff':
-      g.line(hx - 1, hy + 5, hx + (atk ? 6 : 1), hy - 12, C.blade[1]); g.line(hx, hy + 5, hx + (atk ? 7 : 2), hy - 12, C.blade[0]);
-      g.ell(hx + (atk ? 7 : 2), hy - 13, 2.4, 2.4, U.shades(C.gem)); g.dot(hx + (atk ? 6 : 1), hy - 14, '#ffffff'); break;
-    case 'chalice':
-      g.rect(hx, hy - 1, 1, 3, C.blade[1]); g.rect(hx - 1, hy + 2, 3, 1, C.blade[0]);
-      g.ell(hx + 0.5, hy - 3, 2.5, 2, C.blade); g.rect(hx - 1, hy - 4, 3, 1, U.shades(C.gem)[2]); break;
-    case 'bow': {
-      const bx = hx + 2;
-      for (let a = -1.3; a <= 1.3; a += 0.05) g.dot(bx + Math.cos(a) * 3, hy + Math.sin(a) * 9, a < -1 || a > 1 ? C.blade[2] : C.blade[1]);
-      g.line(bx + Math.cos(-1.3) * 3, hy - 9, bx + Math.cos(1.3) * 3, hy + 9, '#f0f0f0');
-      if (atk) g.line(bx - 2, hy, bx + 8, hy, '#e8d8a8');
-      break;
+// Dessin de chaque arme : (g, x, y = point de prise principal, a = angle, C = couleurs, T = palier 0..3)
+SPR.WDRAW = {
+  greatsword(g, x, y, a, C, T) {
+    const bx = WP.at(x, y, a, 1.0);
+    const b = WP.blade(g, bx[0], bx[1], a, 11, 2.5, MON.sh(C.blade[1], 0.55, 0.5), { tip: 0.16, taper: 0.1 });
+    for (let i = 3; i < 22; i += 3) { const [px, py] = b.R[i], [qx, qy] = b.M[i]; g.poly([[px, py], [px + (px - qx) * 0.5 + Math.cos(a) * 0.5, py + (py - qy) * 0.5 + Math.sin(a) * 0.5], [b.R[i + 2][0], b.R[i + 2][1]]], MON.sh(C.blade[1], 0.55, 0.5)); }
+    g.inside(t => b.M.slice(2, 22).forEach((p, i) => i % 4 === 0 && t.blendEll(p[0], p[1], 0.8, 0.8, '#ffcf40', 0.35, 1)));
+    if (T >= 1) WP.runes(g, b.M, '#ffe080', 4 + T);
+    if (T >= 3) WP.aura(g, b.M, '#ff8a2a');
+    WP.grip(g, ...WP.at(x, y, a, 0.6), a, 2.6, C.hilt, 0.34);
+    WP.guard(g, ...WP.at(x, y, a, 0.9), a, 2.0, C.metal, 0.34);
+    WP.gem(g, ...WP.at(x, y, a, 1.05), 0.45, C.gem, T >= 2 ? 1 : 0.4);
+    g.ell(...WP.at(x, y, a, -2.3), 0.55, 0.55, MON.sh(C.metal, 0.5, 0.5));
+    if (T >= 3) WP.sparkles(g, [WP.at(x, y, a, 11.5, 1.2).concat(0.6), WP.at(x, y, a, 7, -2).concat(0.45)]);
+  },
+  katana(g, x, y, a, C, T) {
+    const bx = WP.at(x, y, a, 0.9);
+    const b = WP.blade(g, bx[0], bx[1], a, 10.5, 1.0, MON.sh(C.blade[1], 0.5, 0.6), { tip: 0.1, curve: 0.08, back: 0.6, fuller: false });
+    g.stroke(b.M.slice(1, 27).map(([px, py], i) => [px + (b.L[i + 1][0] - px) * (0.35 + 0.15 * Math.sin(i * 1.3)), py + (b.L[i + 1][1] - py) * (0.35 + 0.15 * Math.sin(i * 1.3))]), 0.07, 0.05, '#ffffff');
+    if (T >= 1) WP.runes(g, b.M, '#9ad8ff', 3 + T);
+    if (T >= 3) WP.aura(g, b.M, '#43a8ff');
+    g.ell(...WP.at(x, y, a, 0.95), 0.32, 0.32, MON.sh(C.metal));
+    const [tx, ty] = WP.at(x, y, a, 0.7); g.ell(tx, ty, 0.95, 0.95, MON.sh('#2a2a3a', 0.4, 0.5)); g.ell(tx, ty, 0.6, 0.6, MON.sh(C.metal, 0.5, 0.5));
+    g.stroke([WP.at(x, y, a, 0.5), WP.at(x, y, a, -2.8)], 0.3, 0.28, MON.sh('#f0f0f0', 0.4, 0.3));
+    for (let t = 0.6; t < 2.7; t += 0.45) { g.stroke([WP.at(x, y, a, -t, -0.3), WP.at(x, y, a, -t - 0.22, 0), WP.at(x, y, a, -t, 0.3)], 0.07, 0.07, C.hilt); g.stroke([WP.at(x, y, a, -t - 0.22, -0.3), WP.at(x, y, a, -t, 0), WP.at(x, y, a, -t - 0.22, 0.3)], 0.07, 0.07, C.hilt); }
+    g.ell(...WP.at(x, y, a, -2.95), 0.38, 0.34, MON.sh(C.metal));
+    g.stroke([WP.at(x, y, a, -2.9), WP.at(x, y, a, -3.6, 0.8), WP.at(x, y, a, -3.4, 1.6)], 0.1, 0.07, C.gem);
+    if (T >= 2) WP.gem(g, tx, ty, 0.25, C.gem, 1);
+    if (T >= 3) WP.sparkles(g, [WP.at(x, y, a, 10.6, 0).concat(0.55)]);
+  },
+  dagger(g, x, y, a, C, T) {
+    const bx = WP.at(x, y, a, 0.55);
+    const b = WP.blade(g, bx[0], bx[1], a, 5.4, 1.35, MON.sh(C.blade[1], 0.55, 0.55), { tip: 0.32, curve: 0.2, back: 0.5, fuller: false });
+    if (T >= 3) WP.aura(g, b.M, '#7dffb0');
+    WP.guard(g, ...WP.at(x, y, a, 0.5), a, 0.9, C.metal, 0.22);
+    WP.grip(g, ...WP.at(x, y, a, 0.45), a, 1.4, C.hilt, 0.24);
+    const [rx, ry] = WP.at(x, y, a, -1.25); g.ell(rx, ry, 0.42, 0.42, MON.sh(C.metal)); g.ell(rx, ry, 0.2, 0.2, '#1a1020');
+    if (T >= 2) WP.gem(g, ...WP.at(x, y, a, 0.5), 0.2, C.gem, 1);
+    g.stroke(b.M.slice(5, 22).map(([px, py], i) => [px + (b.L[i + 5][0] - px) * 0.5, py + (b.L[i + 5][1] - py) * 0.5]), 0.04, 0.03, '#2a5a3a');
+  },
+  sword(g, x, y, a, C, T) {
+    const bx = WP.at(x, y, a, 0.7);
+    const b = WP.blade(g, bx[0], bx[1], a, 7.4, 1.35, MON.sh(C.blade[1], 0.55, 0.55), { tip: 0.18 });
+    if (T >= 1) WP.runes(g, b.M, '#e8c860', 3 + T);
+    if (T >= 3) WP.aura(g, b.M, '#ffd860');
+    WP.guard(g, ...WP.at(x, y, a, 0.65), a, 1.3, C.metal, 0.24);
+    WP.grip(g, ...WP.at(x, y, a, 0.45), a, 1.6, C.hilt, 0.26);
+    g.ell(...WP.at(x, y, a, -1.4), 0.4, 0.4, MON.sh(C.metal));
+  },
+  shield(g, x, y, C, T) {
+    const S = C.shield, pts = [[x - 2.2, y - 2.8], [x + 2.2, y - 2.8], [x + 2.3, y + 0.6], [x, y + 3.4], [x - 2.3, y + 0.6]];
+    g.part(t => {
+      t.poly(pts, MON.sh(S[1], 0.55, 0.45));
+      t.inside(u => { u.poly([[x - 2.2, y - 2.8], [x, y - 2.8], [x, y + 3.4], [x - 2.3, y + 0.6]], MON.sh(MON.dk(S[1], 0.15), 0.55, 0.4)); });
+      t.stroke(pts.concat([pts[0]]), 0.26, 0.26, MON.sh(C.metal, 0.5, 0.55));
+      t.poly([[x - 1.2, y + 0.9], [x - 0.2, y - 1.0], [x + 0.4, y - 0.1], [x + 0.9, y - 0.8], [x + 1.5, y + 0.9]], MON.sh('#6a4a1a', 0.4, 0.3));
+      t.stroke([[x - 0.2, y - 1.0], [x - 0.6, y - 0.3]], 0.07, 0.07, '#fff0c0');
+      t.ell(x, y + 1.7, 0.42, 0.42, MON.sh(C.metal));
+      [[x - 1.7, y - 2.3], [x + 1.7, y - 2.3], [x - 1.8, y + 0.4], [x + 1.8, y + 0.4]].forEach(([px, py]) => t._disc(px, py, 0.16, '#fff0c0'));
+    });
+    MON.spec(g, x - 1, y - 1.6, 1.2, 0.9, 0.35);
+    if (T >= 2) WP.gem(g, x, y + 1.7, 0.36, C.gem, 1);
+    if (T >= 3) { g.blendEll(x, y, 2.6, 3.2, '#ffe080', 0.25, 1); WP.sparkles(g, [[x + 2.2, y - 2.6, 0.6]]); }
+  },
+  staff(g, x, y, a, C, T) {
+    const top = WP.at(x, y, a, 10.4), bot = WP.at(x, y, a, -3.8);
+    g.stroke([bot, WP.at(x, y, a, 4), top], 0.32, 0.26, MON.sh(C.blade[1], 0.5, 0.4));
+    for (let t = -3; t < 9.5; t += 1.6) g.stroke([WP.at(x, y, a, t, -0.26), WP.at(x, y, a, t + 0.5, 0.26)], 0.05, 0.05, MON.dk(C.blade[1], 0.4));
+    g.stroke([WP.at(x, y, a, 0.8, -0.35), WP.at(x, y, a, 0.8, 0.35)], 0.16, 0.16, MON.sh(C.metal));
+    g.stroke([WP.at(x, y, a, -0.9, -0.35), WP.at(x, y, a, -0.9, 0.35)], 0.16, 0.16, MON.sh(C.metal));
+    g.ell(...bot, 0.36, 0.36, MON.sh(C.metal));
+    const o = WP.at(x, y, a, 11.4);
+    g.blendEll(o[0], o[1], 3.4, 3.4, C.gem, 0.5, 1.2);
+    [-1, 1].forEach(s => g.stroke([WP.at(x, y, a, 10, s * 0.3), WP.at(x, y, a, 11, s * 1.25), WP.at(x, y, a, 12.4, s * 0.9), WP.at(x, y, a, 12.9, s * 0.2)], 0.2, 0.08, MON.sh(C.metal, 0.5, 0.5)));
+    WP.gem(g, o[0], o[1], 0.95, C.gem, T >= 2 ? 1.2 : 0.7);
+    g.ell(o[0] + 0.1, o[1] + 0.1, 0.45, 0.45, '#fff4c0');
+    for (let i = 0; i < 8; i++) { const an = i / 8 * 6.283, r0 = 1.2, r1 = T >= 1 ? 2.2 : 1.7; g.stroke([[o[0] + Math.cos(an) * r0, o[1] + Math.sin(an) * r0], [o[0] + Math.cos(an) * r1, o[1] + Math.sin(an) * r1]], 0.07, 0.03, '#ffd060'); }
+    if (T >= 3) WP.sparkles(g, [[o[0] + 1.8, o[1] - 1.6, 0.5], [o[0] - 1.6, o[1] + 1.2, 0.4]]);
+    const rib = WP.at(x, y, a, 9.6); g.stroke([rib, [rib[0] - 0.6, rib[1] + 1.4], [rib[0] - 0.2, rib[1] + 2.6]], 0.16, 0.08, MON.sh('#c83a2a', 0.5, 0.4));
+  },
+  chalice(g, x0, y0, C, T, glow) {
+    const k = 1.4, X = v => x0 + v * k, Y = v => y0 + v * k, x = 0, y = 0;
+    const G2 = MON.sh(C.blade[1], 0.55, 0.6);
+    g.part(t => {
+      t.ell(X(0), Y(0.3), 1.2 * k, 0.35 * k, G2);
+      t.stroke([[X(0), Y(0.2)], [X(0), Y(-1.2)]], 0.24 * k, 0.2 * k, G2); t.ell(X(0), Y(-0.6), 0.38 * k, 0.3 * k, G2);
+      t.poly([[X(-1.7), Y(-3.4)], [X(1.7), Y(-3.4)], [X(1.3), Y(-2.2)], [X(0.6), Y(-1.4)], [X(-0.6), Y(-1.4)], [X(-1.3), Y(-2.2)]], G2);
+      t.ell(X(0), Y(-3.4), 1.7 * k, 0.42 * k, MON.sh(C.metal, 0.5, 0.6));
+      t.ell(X(0), Y(-3.4), 1.4 * k, 0.3 * k, MON.sh(C.gem, 0.4, 0.6));
+    });
+    g.stroke([[X(-1.4), Y(-2.8)], [X(1.4), Y(-2.8)]], 0.06, 0.06, '#fff4b0');
+    WP.gem(g, X(0), Y(-2.4), 0.42, C.gem, T >= 2 ? 1 : 0.5);
+    if (T >= 1) [[X(-0.9), Y(-2.5)], [X(0.9), Y(-2.5)]].forEach(([px, py]) => g._disc(px, py, 0.14, '#fff4b0'));
+    g.blendEll(X(0), Y(-3.6), 3.2, 2.4, C.gem, 0.3 + (glow ? 0.25 : 0), 1);
+    if (glow) { [[X(-0.6), Y(-4.6), 0.32], [X(0.4), Y(-5.4), 0.42], [X(0.9), Y(-4.4), 0.24]].forEach(([px, py, r]) => g.ell(px, py, r * k, r * k * 1.2, MON.sh('#7ac8ff', 0.3, 0.7))); }
+    if (T >= 3) WP.sparkles(g, [[X(1.8), Y(-4.6), 0.5]]);
+  },
+  bow(g, x, y, C, T, draw, hx, hy) {
+    const lim = MON.sh(C.blade[1], 0.5, 0.45), top = [x - 0.6, y - 6.2], bot = [x - 0.6, y + 6.2];
+    g.stroke([[x - 0.2, y - 0.9], [x + 0.6, y - 3.2], [x + 0.4, y - 5.4], top, [x - 1.1, y - 6.6]], 0.36, 0.14, lim);
+    g.stroke([[x - 0.2, y + 0.9], [x + 0.6, y + 3.2], [x + 0.4, y + 5.4], bot, [x - 1.1, y + 6.6]], 0.36, 0.14, lim);
+    g.stroke([[x - 0.15, y - 1.1], [x - 0.15, y + 1.1]], 0.42, 0.42, MON.sh(C.hilt, 0.4, 0.3));
+    [[x + 0.55, y - 3.4], [x + 0.55, y + 3.4]].forEach(([px, py]) => g._disc(px, py, 0.2, T >= 2 ? '#d8fff0' : '#c8a040'));
+    if (T >= 2) WP.gem(g, x + 0.05, y, 0.28, C.gem, 1);
+    const sx = draw ? hx : x - 1.6, sy = draw ? hy : y;
+    g.stroke([top, [sx, sy]], 0.05, 0.05, '#f4f4f4'); g.stroke([[sx, sy], bot], 0.05, 0.05, '#f4f4f4');
+    const ax = sx, ay = sy, tipx = x + 2.4;
+    g.stroke([[ax, ay], [tipx, ay]], 0.1, 0.1, MON.sh('#c8a070'));
+    g.poly([[tipx - 0.1, ay - 0.42], [tipx + 1.0, ay], [tipx - 0.1, ay + 0.42]], MON.sh('#c8d0dc', 0.5, 0.6));
+    [-1, 1].forEach(s => g.poly([[ax + 0.2, ay], [ax + 1.4, ay], [ax + 1.0, ay + s * 0.55], [ax - 0.1, ay + s * 0.6]], MON.sh(C.gem, 0.45, 0.4)));
+    if (T >= 3) { g.blendEll(tipx, ay, 1.4, 1.4, C.gem, 0.5, 1); WP.sparkles(g, [[tipx + 1.4, ay - 1, 0.5]]); }
+  },
+  tome(g, x, y, C, T, open) {
+    const cov = MON.sh(C.blade[1], 0.5, 0.4), gold = MON.sh(C.metal, 0.5, 0.55), page = ['#c8b890', '#f4ead0', '#fffaf0'];
+    if (!open) {
+      g.part(t => {
+        t.poly([[x - 1.6, y - 2.2], [x + 1.6, y - 2.2], [x + 1.6, y + 2.2], [x - 1.6, y + 2.2]], cov);
+        t.poly([[x + 1.6, y - 2.0], [x + 2.1, y - 1.8], [x + 2.1, y + 2.4], [x + 1.6, y + 2.2]], page);
+        for (let i = 0; i < 4; i++) t.stroke([[x + 1.7, y - 1.4 + i * 1.0], [x + 2.0, y - 1.3 + i * 1.0]], 0.03, 0.03, '#b8a880');
+        [[x - 1.6, y - 2.2], [x + 1.6, y - 2.2], [x - 1.6, y + 2.2], [x + 1.6, y + 2.2]].forEach(([px, py]) => t.ell(px, py, 0.45, 0.45, gold));
+        t.stroke([[x - 1.5, y - 1.6], [x - 1.5, y + 1.6]], 0.14, 0.14, gold);
+      });
+      g.stroke([[x - 0.8, y - 1.5], [x + 1.1, y - 1.5], [x + 1.1, y + 1.5], [x - 0.8, y + 1.5], [x - 0.8, y - 1.5]], 0.06, 0.06, '#e8c060');
+      WP.gem(g, x + 0.15, y, 0.5, C.gem, T >= 2 ? 1 : 0.3);
+      return;
     }
-    case 'tome':
-      if (atk) { g.rect(hx - 1, hy - 4, 7, 4, ['#d8c8a0', '#f4ead0', '#fffaf0']); g.line(hx + 2, hy - 4, hx + 2, hy - 1, '#8a6a3a'); g.ell(hx + 3, hy - 7, 1.5, 1.5, U.shades('#ffd040')); }
-      else { g.rect(hx - 1, hy - 3, 5, 5, C.blade); g.dot(hx + 1, hy - 1, C.gem); g.rect(hx + 3, hy - 3, 1, 5, '#e8dcc0'); }
-      break;
-    case 'fists':
-      g.ell(hx + (atk ? 4 : 0), hy, 2.6, 2.2, C.blade); g.dot(hx + (atk ? 5 : 1), hy - 1, C.gem);
-      g.ell(hx - 6, hy + 1, 2.2, 2, C.blade); break;
-    case 'trident': {
-      const a = atk ? 0 : -0.95, ca = Math.cos(a), sa = Math.sin(a);
-      blade(g, hx - ca * 4, hy - sa * 4, a, 16, 1, [C.hilt, C.hilt, C.hilt], 0, C.hilt, null);
-      const tx = hx + ca * 12, ty = hy + sa * 12, px = -sa, py = ca;
-      [-2, 0, 2].forEach(k => blade(g, tx + px * k, ty + py * k, a, 4, 1, C.blade, 0, C.blade[1], null));
-      for (let k = -2; k <= 2; k++) g.dot(tx + px * k, ty + py * k, C.blade[1]);
-      break;
-    }
-    case 'lance': {
-      const a = atk ? 0.05 : -1.35;
-      blade(g, hx - Math.cos(a) * 6, hy - Math.sin(a) * 6, a, 14, 1, [C.hilt, '#6a4a30', '#8a6a48'], 0, C.hilt, null);
-      const tx = hx + Math.cos(a) * 9, ty = hy + Math.sin(a) * 9;
-      blade(g, tx, ty, a, 6, 3, C.blade, 0, C.blade[0], '#d8b040');
-      break;
-    }
-    case 'axe': {
-      const a = atk ? 0.1 : -1.2, ca = Math.cos(a), sa = Math.sin(a);
-      blade(g, hx, hy, a, 11, 1, [C.hilt, '#8a5a30', '#a8784a'], 3, C.hilt, null);
-      const ax = hx + ca * 9, ay = hy + sa * 9, px = -sa, py = ca;
-      g.poly([[ax, ay], [ax + px * 5 + ca * 3, ay + py * 5 + sa * 3], [ax + px * 6 - ca * 3, ay + py * 6 - sa * 3], [ax - ca * 2, ay - sa * 2]].map(p => [p[0], p[1]]), C.blade);
-      break;
-    }
-  }
+    g.blendEll(x, y, 4, 3.2, C.gem, 0.0);
+    g.part(t => {
+      t.poly([[x - 2.8, y - 1.4], [x, y - 0.9], [x + 2.8, y - 1.4], [x + 3.0, y + 1.0], [x, y + 1.4], [x - 3.0, y + 1.0]], cov);
+      t.poly([[x - 2.6, y - 1.7], [x - 0.1, y - 1.1], [x - 0.1, y + 1.0], [x - 2.7, y + 0.6]], page);
+      t.poly([[x + 0.1, y - 1.1], [x + 2.6, y - 1.7], [x + 2.7, y + 0.6], [x + 0.1, y + 1.0]], page);
+    });
+    for (let i = 0; i < 4; i++) { g.stroke([[x - 2.2, y - 1.0 + i * 0.42], [x - 0.5, y - 0.7 + i * 0.42]], 0.035, 0.035, '#8a7a5a'); g.stroke([[x + 0.5, y - 0.7 + i * 0.42], [x + 2.2, y - 1.0 + i * 0.42]], 0.035, 0.035, '#8a7a5a'); }
+    const o = [x, y - 3.4];
+    g.blendEll(o[0], o[1], 3, 2.4, C.gem, 0.4, 1);
+    [[0, -1.6], [1.6, 0], [0, 1.6], [-1.6, 0]].forEach(([dx, dy], i) => { const px = o[0] + dx, py = o[1] + dy * 0.6; g.stroke([[px - 0.35, py], [px, py - 0.4], [px + 0.35, py], [px, py + 0.4], [px - 0.35, py]], 0.07, 0.07, i % 2 ? '#ffe080' : '#fff4c0'); });
+    WP.gem(g, o[0], o[1], 0.7, C.gem, 1);
+    if (T >= 3) WP.sparkles(g, [[o[0] + 2.4, o[1] - 0.8, 0.5]]);
+  },
+  gauntlet(g, x, y, C, T, a = 0) {
+    const k = 1.45, at = (t, o = 0) => WP.at(x, y, a, t * k, o * k);
+    const P = MON.sh(C.blade[1], 0.55, 0.5), M = MON.sh(C.metal, 0.5, 0.45);
+    g.part(t => {
+      t.stroke([at(-0.5), at(-2.0)], 0.78 * k, 0.72 * k, M);
+      t.ell(...at(-1.0), 0.9 * k, 0.9 * k, P);
+      t.blob([[x, y, 1.15 * k, 1.0 * k], [...at(0.5), 0.85 * k, 0.85 * k]], P, x, y, 1.4 * k, 1.3 * k);
+    });
+    g.stroke([at(-0.8, -0.85), at(-0.8, 0.85)], 0.13, 0.13, MON.dk(C.blade[1], 0.45));
+    [-0.55, 0, 0.55].forEach(o => { const [px, py] = at(0.9, o); g.ell(px, py, 0.3 * k, 0.3 * k, M); g.poly([[px - 0.15, py - 0.1], [px + 0.7 * k * Math.cos(a), py + 0.7 * k * Math.sin(a) - 0.05], [px + 0.15, py + 0.12]], ['#8a7a5a', '#e8dcc0', '#fffbee']); });
+    WP.gem(g, ...at(-0.2, -0.45), 0.4, C.gem, T >= 2 ? 1 : 0.4);
+    g.blendEll(x, y, 2.6, 2.6, '#ffcf40', T >= 3 ? 0.4 : 0.2, 1);
+    if (T >= 1) g.stroke([at(-1.6, -0.6), at(-1.6, 0.6)], 0.1, 0.1, '#e8c860');
+  },
+  trident(g, x, y, a, C, T) {
+    const shaft = MON.sh(C.hilt, 0.45, 0.4), H = MON.sh(C.blade[1], 0.5, 0.6);
+    g.stroke([WP.at(x, y, a, -5), WP.at(x, y, a, 10.4)], 0.26, 0.26, shaft);
+    for (let t = -4.5; t < 9; t += 2.2) g.stroke([WP.at(x, y, a, t, -0.26), WP.at(x, y, a, t + 0.4, 0.26)], 0.07, 0.07, MON.dk(C.hilt, 0.4));
+    g.ell(...WP.at(x, y, a, -5.1), 0.36, 0.36, MON.sh(C.metal));
+    g.part(t => {
+      t.stroke([WP.at(x, y, a, 10.2, -1.4), WP.at(x, y, a, 10.8, 0), WP.at(x, y, a, 10.2, 1.4)], 0.3, 0.3, H);
+      WP.blade(t, ...WP.at(x, y, a, 10.6), a, 4.2, 0.7, H, { tip: 0.35, fuller: false });
+      [-1, 1].forEach(s => { const b = WP.at(x, y, a, 10.2, s * 1.4); WP.blade(t, b[0], b[1], a - s * 0.06, 3, 0.55, H, { tip: 0.45, fuller: false, curve: s * 0.08 }); t.poly([WP.at(x, y, a, 12, s * 1.55), WP.at(x, y, a, 11.4, s * 2.1), WP.at(x, y, a, 12.4, s * 1.6)], H); });
+    });
+    WP.gem(g, ...WP.at(x, y, a, 10.5), 0.42, C.gem, T >= 2 ? 1 : 0.4);
+    if (T >= 1) g.stroke([WP.at(x, y, a, 9.6, -0.4), WP.at(x, y, a, 9.6, 0.4)], 0.14, 0.14, MON.sh(C.metal));
+    if (T >= 3) { g.blendEll(...WP.at(x, y, a, 12.5), 2.6, 2.6, '#7ae0ff', 0.35, 1); WP.sparkles(g, [WP.at(x, y, a, 14.4, 1).concat(0.5)]); }
+  },
+  lance(g, x, y, a, C, T) {
+    const shaft = MON.sh('#6a4a30', 0.45, 0.4), H = MON.sh(C.blade[1], 0.55, 0.55);
+    g.stroke([WP.at(x, y, a, -5.2), WP.at(x, y, a, 9.2)], 0.28, 0.24, shaft);
+    for (let t = -4.6; t < 8.6; t += 0.9) g.stroke([WP.at(x, y, a, t, -0.27), WP.at(x, y, a, t + 0.45, 0.27)], 0.08, 0.08, '#2a7a4a');
+    g.ell(...WP.at(x, y, a, -5.3), 0.36, 0.36, MON.sh(C.metal));
+    const b = WP.blade(g, ...WP.at(x, y, a, 9.4), a, 5, 1.7, H, { tip: 0.5, round: true });
+    if (T >= 1) WP.runes(g, b.M, '#e8ffe0', 2 + T);
+    g.part(t => [-1, 1].forEach(s => t.poly([WP.at(x, y, a, 9.6, s * 0.3), WP.at(x, y, a, 8.6, s * 2.0), WP.at(x, y, a, 9.3, s * 1.4), WP.at(x, y, a, 8.4, s * 1.2), WP.at(x, y, a, 9.2, s * 0.6)], MON.sh(C.metal, 0.5, 0.5))));
+    WP.gem(g, ...WP.at(x, y, a, 9.3), 0.4, C.gem, T >= 2 ? 1 : 0.4);
+    const f = WP.at(x, y, a, 8.2); g.part(t => t.poly([f, [f[0] - 2.2, f[1] + 0.5], [f[0] - 3.4, f[1] + 1.4], [f[0] - 2.4, f[1] + 1.6], [f[0] - 1.2, f[1] + 1.9], ...[WP.at(x, y, a, 6.6)]], MON.sh('#3aa868', 0.5, 0.4)));
+    if (T >= 3) { WP.aura(g, b.M, '#7dffb0'); WP.sparkles(g, [WP.at(x, y, a, 14.6, 0.8).concat(0.5)]); }
+  },
+  axe(g, x, y, a, C, T) {
+    const haft = MON.sh('#7a5030', 0.45, 0.4), H = MON.sh(C.blade[1], 0.55, 0.55);
+    g.stroke([WP.at(x, y, a, -2.4), WP.at(x, y, a, 9.6)], 0.32, 0.28, haft);
+    for (let t = -2; t < 1.2; t += 0.42) g.stroke([WP.at(x, y, a, t, -0.32), WP.at(x, y, a, t + 0.26, 0.32)], 0.07, 0.07, '#3a2010');
+    g.ell(...WP.at(x, y, a, -2.5), 0.42, 0.42, MON.sh(C.metal));
+    const head = [WP.at(x, y, a, 7.2, -0.3), WP.at(x, y, a, 6.2, -2.6), WP.at(x, y, a, 7.6, -3.6), WP.at(x, y, a, 9.6, -3.9), WP.at(x, y, a, 11, -3.2), WP.at(x, y, a, 9.6, -0.3)];
+    g.part(t => {
+      t.poly(head, H);
+      t.poly([WP.at(x, y, a, 7.4, 0.3), WP.at(x, y, a, 8.4, 2.2), WP.at(x, y, a, 9.2, 0.3)], H);
+      t.stroke([WP.at(x, y, a, 7, 0), WP.at(x, y, a, 9.8, 0)], 0.4, 0.4, MON.sh(C.metal, 0.5, 0.45));
+    });
+    g.stroke([WP.at(x, y, a, 6.4, -2.7), WP.at(x, y, a, 7.7, -3.55), WP.at(x, y, a, 9.6, -3.85), WP.at(x, y, a, 10.9, -3.2)], 0.12, 0.08, '#ffffff');
+    g.inside(t => t.stroke([WP.at(x, y, a, 7.6, -0.6), WP.at(x, y, a, 8.6, -2.6), WP.at(x, y, a, 9.6, -0.6)], 0.06, 0.06, MON.dk(C.blade[1], 0.4)));
+    if (T >= 1) WP.runes(g, [WP.at(x, y, a, 8, -1.4), WP.at(x, y, a, 8.8, -2.2), WP.at(x, y, a, 9.6, -1.6)], '#e8c860', 3);
+    if (T >= 2) WP.gem(g, ...WP.at(x, y, a, 8.4, 0), 0.32, C.gem, 1);
+    if (T >= 3) { g.blendEll(...WP.at(x, y, a, 8.6, -2.2), 3, 3, '#ffe080', 0.3, 1); WP.sparkles(g, [WP.at(x, y, a, 11.4, -4.2).concat(0.55)]); }
+  },
 };
-// Sprite de combat 48x48 pixels (personnage + arme), regard vers la gauche
-SPR.battler = (cid, wid, pose) => SPR.get(`b_${cid}_${wid}_${pose}`, () => {
-  const d = G.CHARS[cid];
-  const K = 16, g = new G.Pix(24, 24, K); g.smooth = true;
-  const h = SPR.heroPix(d.pal, 'right', pose === 'atk' ? 1 : 0, SPR.CHAR_EXTRA[cid], K);
-  const back = G.WEAPONS[wid].kind === 'bow' || G.WEAPONS[wid].kind === 'staff';
-  if (back) SPR.drawWeapon(g, wid, pose);
-  for (let y = 0; y < h.h; y++) for (let x = 0; x < h.w; x++) { const c = h.get(x, y); if (c) g._s(x + 4 * K, y + 7 * K, c); }
-  if (!back) SPR.drawWeapon(g, wid, pose);
-  g.outline('#1a1020').outline('#1a1020').outline('#1a1020').polish(0, 5);
-  return g.mirror().toCanvas(2);
-});
+// main : poing refermé sur la prise (doigts perpendiculaires à la prise)
+WP.hand = (g, x, y, a, skin, open) => {
+  g.ell(x, y, 0.72, 0.68, skin);
+  if (open) { [-0.5, 0, 0.5].forEach(o => g.stroke([WP.at(x, y, a, 0.3, o * 0.8), WP.at(x, y, a, 1.0, o)], 0.2, 0.16, skin)); return; }
+  [-0.32, 0, 0.32].forEach(o => g.stroke([WP.at(x, y, a, o - 0.05, -0.5), WP.at(x, y, a, o, 0.45)], 0.035, 0.035, U.mix(skin[0], '#5a2a2a', 0.35)));
+};
+// bras articulé (épaule -> coude -> main), coude plié vers l'arrière/le bas
+WP.arm = (g, sx, sy, hx, hy, L, sleeve, skin, band, robe) => {
+  let dx = hx - sx, dy = hy - sy, d = Math.hypot(dx, dy);
+  if (d > 2 * L * 0.995) { const f = 2 * L * 0.995 / d; hx = sx + dx * f; hy = sy + dy * f; dx *= f; dy *= f; d = 2 * L * 0.995; }
+  const h = Math.sqrt(Math.max(0, L * L - d * d / 4)), mx = (sx + hx) / 2, my = (sy + hy) / 2, ex = mx + (dy / d) * h * 0.9 - 0.15, ey = my - (dx / d) * h * 0.9 + 0.1;
+  const ex2 = ex, ey2 = Math.max(ey, Math.min(sy, hy));
+  g.stroke([[sx, sy], [ex2, ey2]], robe ? 1.05 : 0.9, robe ? 0.9 : 0.78, sleeve);
+  g.stroke([[ex2, ey2], [hx, hy]], robe ? 0.9 : 0.78, robe ? 0.8 : 0.62, sleeve);
+  if (robe) { const ux = (hx - ex2), uy = (hy - ey2), ul = Math.hypot(ux, uy) || 1; g.ell(hx - ux / ul * 0.6, hy - uy / ul * 0.6, 0.95, 0.95, sleeve); }
+  if (band) { const ux = (hx - ex2), uy = (hy - ey2), ul = Math.hypot(ux, uy) || 1; g.stroke([[hx - ux / ul * 1.0, hy - uy / ul * 1.0], [hx - ux / ul * 0.45, hy - uy / ul * 0.45]], 0.72, 0.68, band); }
+  return [hx, hy];
+};
+// poses : main avant (H1), main arrière (H2), angle de l'arme ; coordonnées du sprite 32 x 28
+SPR.POSE = {
+  greatsword: { idle: { a: -0.8, H1: [19.4, 22.8], back2: 1.2 }, atk: { a: -0.22, H1: [20.4, 21.6], back2: 1.2 } },
+  katana: { idle: { a: -1.0, H1: [19.2, 22.6], back2: 1.1 }, atk: { a: 0.05, H1: [20.5, 21.5], back2: 1.1 } },
+  daggers: { idle: { a: 1.75, H1: [19.6, 22.4], H2: [18.2, 21.2], a2: 2.35 }, atk: { a: 0.12, H1: [20.6, 21.2], H2: [17.8, 22.8], a2: 1.9 } },
+  swordshield: { idle: { a: -1.35, H2: [18.4, 20.6], H1: [19.2, 22.8] }, atk: { a: -0.06, H2: [20.4, 21.2], H1: [18.8, 23] } },
+  staff: { idle: { a: -1.42, H1: [19.6, 22.4], H2: [17.8, 23.4], open2: true }, atk: { a: -0.55, H1: [20.2, 21.8], back2: 2.0 } },
+  chalice: { idle: { H1: [19.4, 22], H2: [18.6, 23.2], open2: true }, atk: { H1: [19.4, 19.4], H2: [18.4, 20.8], open2: true } },
+  bow: { idle: { H1: [20.6, 21.6], H2: [18.7, 21.6] }, atk: { H1: [20.8, 21.4], H2: [16.6, 21.3] } },
+  tome: { idle: { H1: [19.4, 22.8], H2: [17.8, 23.3], open2: true }, atk: { H1: [20.4, 21.2], H2: [18.8, 21.9], open1: true, open2: true } },
+  fists: { idle: { H1: [19.7, 21.4], H2: [18.7, 22.4] }, atk: { H1: [20.6, 20.9], H2: [17.4, 22.8] } },
+  trident: { idle: { a: -0.85, H1: [19.4, 22.6], back2: 1.8 }, atk: { a: -0.08, H1: [20.4, 21.6], back2: 2.0 } },
+  lance: { idle: { a: -1.25, H1: [19.4, 22.4], back2: 1.9 }, atk: { a: -0.06, H1: [20.4, 21.5], back2: 2.0 } },
+  axe: { idle: { a: -1.0, H1: [19.2, 22.8], back2: 1.5 }, atk: { a: 0.42, H1: [20.2, 21.6], back2: 1.5 } },
+};
+SPR.weaponTier = (cid, wid) => {
+  if (!G.S || !G.S.chars || !G.S.chars[cid]) return 1;
+  const w = G.S.chars[cid].weapons[G.WEAPONS[wid].slot]; return (w && w.tier) || 1;
+};
+// Sprite de combat (32 x 28 unités) : héros sans bras + bras articulés tenant l'arme, regard vers la gauche
+SPR.battler = (cid, wid, pose, tierArg) => {
+  const tier = tierArg || SPR.weaponTier(cid, wid), T = tier >= 7 ? 3 : tier >= 5 ? 2 : tier >= 3 ? 1 : 0;
+  return SPR.get(`b_${cid}_${wid}_${pose}_${T}`, () => {
+    const d = G.CHARS[cid], W = G.WEAPONS[wid], C = SPR.WCOL[wid], kind = W.kind, atk = pose === 'atk';
+    const tint = SPR.SLOT_TINT[W.slot] || '#c8a040';
+    const ex = Object.assign({}, SPR.CHAR_EXTRA[cid], { noArms: true });
+    const pal = Object.assign({}, d.pal);
+    if (ex.scarf) ex.scarf = tint; if (ex.ribbon) ex.ribbon = tint; if (ex.hair === 'band') pal.L = tint;
+    const K = 16, g = new G.Pix(32, 28, K); g.smooth = true;
+    const P = SPR.fullPal(pal), sh = c => [U.mix(c, '#120a20', 0.42), c, U.mix(c, '#ffffff', 0.35)];
+    const skin = [U.mix(P.S, P.s, 0.7), P.S, U.mix(P.S, '#ffffff', 0.35)], vest = ex.outfit === 'vest', robe = ex.outfit === 'robe';
+    const sleeve = vest ? skin : sh(P.C), sleeveB = sleeve.map(c => U.mix(c, '#120a20', 0.25)), skinB = skin.map(c => U.mix(c, '#120a20', 0.2));
+    const band = vest ? sh(P.L) : null;
+    const pz = SPR.POSE[kind][atk ? 'atk' : 'idle'], a = pz.a || 0, ca = Math.cos(a), sa = Math.sin(a);
+    const H1 = pz.H1, H2 = pz.H2 || (pz.back2 ? [H1[0] - ca * pz.back2, H1[1] - sa * pz.back2] : H1);
+    const FS = [16.6, 20.3], BS = [15.0, 20.3];
+    const hero = SPR.heroPix(pal, 'right', atk ? 1 : 0, ex, K);
+    // 1. armes portées derrière le corps
+    if (kind === 'staff' && !atk) SPR.WDRAW.staff(g, H1[0], H1[1], a, C, T);
+    // 2. bras arrière
+    const h2 = WP.arm(g, BS[0], BS[1], H2[0], H2[1], 2.45, sleeveB, skinB, band && band.map(c => U.mix(c, '#120a20', 0.25)), robe);
+    if (kind === 'fists') SPR.WDRAW.gauntlet(g, h2[0], h2[1], C, T, atk ? 0.4 : 0.2);
+    else if (kind === 'daggers') { SPR.WDRAW.dagger(g, h2[0], h2[1], pz.a2, C, T); WP.hand(g, h2[0], h2[1], pz.a2, skinB); }
+    else WP.hand(g, h2[0], h2[1], a, skinB, pz.open2);
+    // 3. corps
+    for (let y = 0; y < hero.h; y++) for (let x = 0; x < hero.w; x++) { const c = hero.get(x, y); if (c) g._s(x + 8 * K, y + 11 * K, c); }
+    // 4. arme principale
+    switch (kind) {
+      case 'greatsword': case 'katana': case 'trident': case 'lance': case 'axe': SPR.WDRAW[kind](g, H1[0], H1[1], a, C, T); break;
+      case 'staff': if (atk) SPR.WDRAW.staff(g, H1[0], H1[1], a, C, T); break;
+      case 'daggers': SPR.WDRAW.dagger(g, H1[0], H1[1], a, C, T); break;
+      case 'swordshield': SPR.WDRAW.sword(g, h2[0], h2[1], a, C, T); WP.hand(g, h2[0], h2[1], a, skinB); break;
+      case 'chalice': SPR.WDRAW.chalice(g, H1[0], H1[1] - 0.3, C, T, atk); break;
+      case 'bow': SPR.WDRAW.bow(g, H1[0], H1[1], C, T, atk, H2[0], H2[1]); break;
+      case 'tome': if (atk) SPR.WDRAW.tome(g, 21.6, 18.6, C, T, true); break;
+    }
+    // 5. bras avant et main refermée sur la prise
+    const h1 = WP.arm(g, FS[0], FS[1], H1[0], H1[1], 2.0, sleeve, skin, band, robe);
+    if (kind === 'fists') SPR.WDRAW.gauntlet(g, h1[0], h1[1], C, T, atk ? -0.1 : 0.15);
+    else if (kind === 'tome' && !atk) { SPR.WDRAW.tome(g, h1[0] + 0.4, h1[1] - 0.6, C, T, false); WP.hand(g, h1[0], h1[1] + 0.9, -1.57, skin); }
+    else if (kind === 'bow') WP.hand(g, h1[0], h1[1], -1.57, skin);
+    else if (kind === 'chalice') WP.hand(g, h1[0], h1[1], -1.57, skin);
+    else WP.hand(g, h1[0], h1[1], kind === 'swordshield' ? -1.57 : a, skin, pz.open1);
+    if (kind === 'swordshield') SPR.WDRAW.shield(g, h1[0] + 0.6, h1[1] - 0.6, C, T);
+    if (kind === 'bow') WP.hand(g, h2[0], h2[1], 0, skin);
+    g.outline('#1a1020').outline('#1a1020').outline('#1a1020').polish(0, 5);
+    return g.mirror().toCanvas(2);
+  });
+};
+
 
 // ---------------- Monstres ----------------
 const EYE = '#ffffff', PUP = '#14101c';
@@ -666,7 +918,7 @@ SPR.DRAW = {
     MON.tooth(g, 10.9, 9.65, 0.3, 0.42); MON.tooth(g, 12.4, 9.65, 0.3, 0.42);
     g.part(t => MON.membrane(t, [12.2, 9.4], [[18.8, 2.4], [19.2, 7.8], [17.2, 10.8]], MON.sh('#5a1a2a', 0.5, 0.35), bone, 0.2));
     g.part(t => { t.stroke([[13.4, 11.2], [15.2, 12.4]], 0.5, 0.4, P); t.ell(15.6, 12.4, 0.6, 0.55, P); });
-    g.blendEll(16.6, 11, 2, 2, '#ffcf40', 0.5, 1, false);
+    g.blendEll(16.6, 11, 2, 2, '#ffcf40', 0.5, 1);
     MON.flame(g, 16.6, 12, 0.9, 3.0, ['#ff5a1a', '#ffb030', '#fff4b0'], 4);
   },
   ent(g, P, C) {
@@ -766,7 +1018,7 @@ SPR.DRAW = {
     g.stroke([[46.6, 9.4], [49.8, 9.0]], 0.4, 0.2, MON.dk(C, 0.5));
     MON.eye(g, 48.6, 10.6, 1.1, '#ffff60', { glow: true, slit: true });
     g._disc(54.6, 12.8, 0.3, '#1a0a0a');
-    g.blendEll(55.4, 15.6, 2.4, 2.4, '#ffb030', 0.5, 1, false);
+    g.blendEll(55.4, 15.6, 2.4, 2.4, '#ffb030', 0.5, 1);
     MON.flame(g, 55.4, 16.4, 0.7, 2.8, ['#ff6a1a', '#ffd060', '#fff4c0'], 5);
     g.part(t => { t.stroke([[20, 40], [19.4, 46], [20.4, 50.6]], 3, 2, P); t.ell(21.4, 51.2, 3, 1.1, P); });
     [[18.4, 51.6], [20.4, 51.9], [22.4, 51.9], [24.2, 51.6], [33.6, 51.6], [35.6, 51.9], [37.6, 51.9]].forEach(([x, y]) => MON.claw(g, x, y, 1.0, 0.4));
@@ -782,59 +1034,101 @@ SPR.enemy = (spr, color, elem) => SPR.get(`e_${spr}_${color}`, () => {
   return g.toCanvas(2);
 });
 
-// ---------------- Familiers (16x16) ----------------
+// ---------------- Familiers (16x16 unités, haute définition, tournés vers la droite) ----------------
 SPR.FAM_DRAW = {
   bulle(g) {
-    const B = U.shades('#9a6a42');
-    g.thick([[4, 12], [1.5, 10], [0.5, 7]], 1.6, 0.9, B);
-    g.ell(8, 11, 4.6, 3.5, B); g.ell(11, 7, 3.1, 2.8, B); g.ell(12.3, 8.2, 1.8, 1.3, '#f0d8b8');
-    g.set(11, 6, PUP); g.set(13, 6, PUP); g.set(14, 8, '#3a2018');
-    g.ell(6, 14.5, 1.6, 1, B[0]); g.ell(10, 14.5, 1.6, 1, B[0]);
-    g.ell(13.5, 2.5, 1.7, 1.7, U.shades('#7fd0ff')); g.set(13, 2, '#fff');
+    const C = '#9a6a42', P = MON.sh(C), D = MON.sh(MON.dk(C, 0.3)), cream = ['#c8a888', '#f4e2c8', '#fffaf0'];
+    g.part(t => t.stroke([[4.6, 12.4], [2.4, 11.6], [1, 9.6], [0.8, 7.4]], 1.3, 0.5, D));
+    g.part(t => { t.ell(5.4, 14.4, 1.5, 0.8, D); t.ell(9.4, 14.6, 1.4, 0.75, D); });
+    g.part(t => t.blob([[7.8, 11.4, 4.4, 3.2], [10.8, 8.2, 3, 2.7], [10, 10, 2.4, 2.4]], P, 8.6, 9.6, 5.4, 5));
+    g.inside(t => { t.ell(9.6, 12.4, 2.4, 1.8, cream); t.ell(12.4, 9.2, 1.9, 1.3, cream); });
+    MON.fur(g, 7, 11, 4, 2.8, MON.dk(C, 0.3), 21, 26, 0.7, 2.7, 0.06);
+    g.part(t => { t.ell(9.4, 5.9, 0.75, 0.7, P); t.ell(10.8, 14.7, 1.5, 0.75, P); t.ell(6.6, 14.6, 1.4, 0.7, P); });
+    MON.eye(g, 11.2, 7.7, 0.68, '#2a1a10', { look: 0.3 });
+    g.ell(14, 8.7, 0.5, 0.36, ['#1a0c08', '#3a2018', '#7a5a4a']);
+    g.stroke([[13.6, 9.6], [13, 10], [12.4, 9.7]], 0.07, 0.07, '#5a3a28');
+    [[0, -0.15], [0, 0.25]].forEach(([a, b]) => g.stroke([[13.2, 9.3 + b], [15.2, 9 + b * 2]], 0.035, 0.02, '#fff8ec'));
+    g.blendEll(11.2, 9.3, 0.7, 0.4, '#ff8a8a', 0.4);
+    g.part(t => t.ell(13.4, 2.8, 2, 2, MON.sh('#7fd0ff', 0.35, 0.6)));
+    g.blendEll(13.6, 3.2, 1.6, 1.6, '#ffffff', 0.35, 1); MON.spec(g, 12.7, 2.1, 0.7, 0.5, 0.95);
+    g.stroke([[14.6, 2.4], [14.9, 3.2], [14.6, 4]], 0.08, 0.05, '#ffffff');
   },
   pyron(g) {
-    const B = U.shades('#ff7a2a');
-    g.thick([[5, 11], [2, 9], [1, 6]], 1.8, 1, B); g.ell(1, 4.5, 1.4, 2, U.shades('#ffd040'));
-    g.ell(8, 11, 4.2, 2.8, B); g.ell(12, 9, 2.8, 2.4, B);
-    g.set(12, 8, PUP); g.set(14, 10, '#7a2010');
-    g.rect(6, 13, 1, 2, B[0]); g.rect(10, 13, 1, 2, B[0]);
-    [[6, 8.5], [8, 8], [10, 8.3]].forEach(p => g.set(p[0], p[1], '#ffd040'));
+    const C = '#ff7a2a', P = MON.sh(C), D = MON.sh(MON.dk(C, 0.3)), belly = MON.sh('#ffd070');
+    g.part(t => { t.stroke([[7, 13], [6.6, 14.6]], 0.6, 0.5, D); t.ell(6.8, 14.9, 0.9, 0.45, D); t.stroke([[10.6, 13], [11, 14.6]], 0.6, 0.5, D); t.ell(11.2, 14.9, 0.9, 0.45, D); });
+    g.part(t => { t.stroke([[5.4, 11.4], [2.8, 10.6], [1.4, 8.6], [1.2, 6.6]], 1.4, 0.45, P); t.blob([[8.6, 11.2, 4.2, 2.5], [12.2, 9.2, 2.8, 2.3]], P, 9.4, 10, 5.4, 3.8); });
+    g.inside(t => t.ell(9.2, 12.8, 3.6, 1.1, belly));
+    [[6.4, 9.6, 0.5], [8.6, 9.2, 0.6], [10.6, 9.4, 0.45], [4, 10.6, 0.4]].forEach(([x, y, r]) => g.inside(t => t.ell(x, y, r, r * 0.8, MON.sh('#ffd040', 0.4, 0.5))));
+    g.blendEll(1.4, 5.4, 2, 2, '#ffcf40', 0.5, 1);
+    MON.flame(g, 1.3, 7, 1.0, 4.4, ['#ff5a1a', '#ffb030', '#fff4b0'], 2);
+    g.part(t => { t.stroke([[8.4, 12.4], [8.8, 14.6]], 0.65, 0.55, P); t.ell(9.2, 14.9, 1, 0.45, P); t.stroke([[12, 11.4], [12.6, 14.6]], 0.6, 0.5, P); t.ell(13, 14.9, 0.95, 0.45, P); });
+    MON.eye(g, 12.6, 8.4, 0.7, '#3a1a0a', { look: 0.3 });
+    g._disc(14.7, 9, 0.12, '#7a2010');
+    g.stroke([[12.6, 10.3], [13.8, 10.4], [14.6, 9.9]], 0.07, 0.06, '#7a2010');
+    g.blendEll(12, 10, 0.7, 0.4, '#ff3a5a', 0.35);
   },
   zephy(g) {
-    const B = U.shades('#e8f0e0'), W = U.shades('#4aa86a');
-    g.poly([[4, 10], [0, 13], [4, 12.5]], W[0]);
-    g.ell(8, 10, 4, 3.6, B); g.ell(11, 6.5, 2.6, 2.5, B);
-    g.poly([[13, 6], [15.5, 7], [13, 8]], '#e8b030'); g.set(11, 5, PUP);
-    g.poly([[4, 8], [9, 9], [7, 13], [2, 12]], W); g.poly([[9, 3], [11, 4], [10, 5]], W[1]);
-    g.line(7, 13, 7, 15, '#e8b030'); g.line(9, 13, 9, 15, '#e8b030');
+    const B = ['#b8c4c0', '#f2f6ee', '#ffffff'], W = MON.sh('#4aa86a'), Wd = MON.sh('#2a7a4a'), gold = ['#a8701a', '#e8b030', '#fff0a0'];
+    g.part(t => { for (let i = 0; i < 3; i++) t.poly([[4.4, 10 + i * 0.3], [0.2, 11 + i * 1.1], [0.8, 12 + i * 1.1], [4.4, 11.4 + i * 0.3]], i === 1 ? W : Wd); });
+    [[7, 12.6], [9.2, 12.6]].forEach(([x, y]) => { g.stroke([[x, y], [x + 0.1, y + 1.8]], 0.22, 0.16, gold[1]); [[0.9, 0.3], [-0.6, 0.3], [0.4, 0.5]].forEach(([dx, dy]) => g.stroke([[x + 0.1, y + 1.8], [x + 0.1 + dx, y + 1.8 + dy]], 0.12, 0.06, gold[1])); });
+    g.part(t => t.blob([[7.6, 10, 4.1, 3.3], [11, 6.8, 2.5, 2.4], [9.8, 8.4, 2.2, 2.2]], B, 8.6, 8.6, 5, 4.6));
+    MON.scales(g, 8.8, 9.6, 11.4, 12.6, 0.38, '#c8d4cc', 0.045);
+    g.part(t => { t.poly([[12.8, 5.9], [15.8, 6.8], [15.2, 7.8], [12.9, 7.6]], gold); });
+    g.stroke([[15.2, 7.2], [15.6, 8.1]], 0.12, 0.05, '#7a4a10');
+    g.inside(t => t.stroke([[10, 5.4], [12.6, 6.6], [13.2, 8.2]], 0.32, 0.25, MON.dk('#4aa86a', 0.3)));
+    MON.eye(g, 11.8, 6.4, 0.62, '#ffb020', { look: 0.25, lid: '#2a5a3a' });
+    g.part(t => {
+      t.poly([[3.8, 8], [9.8, 7.6], [10.4, 9.2], [7.6, 12.8], [2, 12.4]], W);
+      for (let i = 0; i < 5; i++) t.ell(2.7 + i * 1.15, 12 - i * 0.62, 1.4, 0.55, i % 2 ? Wd : W);
+    });
+    for (let i = 0; i < 5; i++) g.stroke([[9.6 - i * 0.25, 8.4 + i * 0.5], [3.2 + i * 1.1, 11.8 - i * 0.6]], 0.05, 0.03, '#1e5a36');
+    g.part(t => { t.poly([[9.4, 4.4], [10.4, 2.2], [11.2, 4.8]], W); t.poly([[10.6, 4.6], [12, 2.8], [12.2, 5.2]], Wd); });
   },
   mousse(g) {
-    const S = U.shades('#5a8a3a'), K = U.shades('#a8c878');
-    g.ell(3.5, 13, 1.5, 1.2, K); g.ell(12.5, 13, 1.5, 1.2, K); g.ell(4.5, 9, 1.4, 1, K);
-    g.ell(13.5, 10, 2.4, 2.1, K); g.set(14, 9, PUP);
-    g.ell(8, 10, 5.6, 4.2, S);
-    [[6, 8], [9, 7], [11, 9], [7, 11], [10, 12]].forEach(p => g.set(p[0], p[1], S[0]));
-    g.ell(7, 6.5, 1.6, 1, U.shades('#8ad860')); g.set(10, 6, '#ffd0f0');
+    const S = MON.sh('#5a8a3a'), K = MON.sh('#a8c878'), moss = MON.sh('#4a9a2a');
+    g.part(t => { t.ell(3.6, 13.2, 1.6, 1.1, K); t.ell(11.8, 13.4, 1.6, 1.1, K); });
+    g.part(t => { t.blob([[13.4, 10.2, 2.4, 2.1], [12, 11, 1.6, 1.4]], K, 13.2, 9.8, 2.8, 2.6); });
+    MON.eye(g, 13.8, 9.6, 0.62, '#2a3a1a', { look: 0.3 });
+    g.stroke([[14.4, 11], [15.2, 10.8]], 0.07, 0.05, '#3a5a2a');
+    g.blendEll(13, 10.8, 0.6, 0.35, '#ff9a9a', 0.35);
+    g.part(t => t.ell(8, 12.4, 6, 1.4, MON.sh('#c8b880')));
+    g.part(t => t.blob([[8, 10, 5.7, 4.3]], S, 7.6, 9, 6, 5));
+    g.inside(t => { [[8, 9.4, 1.6], [5.2, 10.6, 1.2], [10.8, 10.6, 1.2], [6.4, 7.4, 1.1], [9.8, 7.4, 1.1]].forEach(([x, y, r]) => { t.poly([[x - r, y], [x - r / 2, y - r * 0.85], [x + r / 2, y - r * 0.85], [x + r, y], [x + r / 2, y + r * 0.85], [x - r / 2, y + r * 0.85]], MON.sh('#6a9a48', 0.45, 0.4)); }); });
+    g.inside(t => [[8, 9.4, 1.6], [5.2, 10.6, 1.2], [10.8, 10.6, 1.2], [6.4, 7.4, 1.1], [9.8, 7.4, 1.1]].forEach(([x, y, r]) => t.stroke([[x - r, y], [x - r / 2, y - r * 0.85], [x + r / 2, y - r * 0.85], [x + r, y], [x + r / 2, y + r * 0.85], [x - r / 2, y + r * 0.85], [x - r, y]], 0.06, 0.06, '#2a4a1a')));
+    g.part(t => { t.blob([[7, 6.4, 2.6, 1.2], [9.6, 6.6, 1.8, 1], [5, 7.4, 1.2, 0.8]], moss, 7.4, 6, 3.6, 2); });
+    MON.fur(g, 7.4, 6.4, 3, 1, '#7ad848', 31, 10, 0.5, -1.6, 0.05);
+    g.part(t => { t.stroke([[9.4, 5.9], [9.6, 4.6]], 0.08, 0.06, '#3a7a2a'); [0, 1.26, 2.5, 3.77, 5.03].forEach(a => t.ell(9.6 + Math.cos(a) * 0.45, 4.3 + Math.sin(a) * 0.45, 0.35, 0.35, MON.sh('#ff9ad8', 0.3, 0.5))); t._disc(9.6, 4.3, 0.2, '#ffe060'); });
   },
   lumi(g) {
-    const B = U.shades('#ffe0a0'), T = U.shades('#fff8e8');
-    g.thick([[5, 11], [2, 9], [1, 5]], 2.2, 1.4, B); g.ell(1.5, 4.5, 1.4, 1.6, T);
-    g.ell(8, 11, 4.2, 3, B); g.ell(11.5, 7, 3, 2.6, B); g.ell(13.4, 8.2, 1.6, 1, T);
-    g.poly([[9.5, 5], [10, 1], [11.5, 4.5]], B[1]); g.poly([[12, 4.5], [14, 1], [14, 5.5]], B[1]);
-    g.set(12, 7, '#4a3aa8'); g.set(14.5, 8, '#3a2a2a');
-    g.rect(6, 13, 1, 2, B[0]); g.rect(10, 13, 1, 2, B[0]);
-    [[3, 2], [7, 7], [15, 3]].forEach(p => g.set(p[0], p[1], '#ffffff'));
+    const B = MON.sh('#ffe0a0', 0.4, 0.5), T = ['#d8d0c0', '#fff8e8', '#ffffff'], D = MON.sh(MON.dk('#ffe0a0', 0.25));
+    g.part(t => { t.stroke([[7, 13], [6.6, 14.6]], 0.55, 0.45, D); t.stroke([[11, 13], [11.4, 14.6]], 0.55, 0.45, D); });
+    g.part(t => { t.stroke([[5.4, 11.4], [2.4, 9.8], [1.2, 6.4], [2, 4.2]], 2.1, 1.3, B); });
+    g.inside(t => t.stroke([[1.5, 6], [2, 4.2]], 1.4, 1.3, T));
+    MON.fur(g, 2.4, 8, 1.8, 3.4, MON.dk('#ffe0a0', 0.3), 41, 14, 0.7, -1.9, 0.06);
+    g.part(t => t.blob([[8.4, 11.2, 4, 2.7], [11.6, 7.6, 2.9, 2.6], [10.4, 9.6, 2.2, 2.2]], B, 9.2, 9.6, 5, 4.4));
+    g.inside(t => { t.ell(10.6, 12.4, 2.2, 1.3, T); t.ell(13, 8.8, 1.7, 1.1, T); });
+    g.part(t => { t.poly([[9.6, 6.2], [9.8, 1.4], [12, 5.4]], B); t.poly([[12, 5.6], [14.2, 1.6], [14.2, 6.6]], B); t.poly([[10.2, 5.6], [10.3, 2.8], [11.4, 5.2]], MON.sh('#ff9ab0')); t.poly([[12.8, 5.6], [13.8, 3.2], [13.8, 6]], MON.sh('#ff9ab0')); });
+    g.part(t => { t.stroke([[8.4, 12.4], [8.8, 14.6]], 0.6, 0.5, B); t.stroke([[12.2, 11.6], [12.8, 14.6]], 0.6, 0.5, B); t.ell(9.1, 14.9, 0.8, 0.4, T); t.ell(13.1, 14.9, 0.8, 0.4, T); });
+    MON.eye(g, 12.4, 7.4, 0.68, '#4a3aa8', { look: 0.3 });
+    g.ell(14.7, 8.6, 0.38, 0.3, ['#1a0c0c', '#3a2a2a', '#7a6a6a']);
+    g.stroke([[14.2, 9.4], [13.6, 9.7]], 0.06, 0.05, '#7a5a4a');
+    [[3, 1.6, 0.5], [7, 6.4, 0.35], [15, 3.4, 0.45], [5.6, 3.6, 0.3]].forEach(([x, y, r]) => { g.stroke([[x - r, y], [x + r, y]], 0.07, 0.07, '#ffffff'); g.stroke([[x, y - r], [x, y + r]], 0.07, 0.07, '#ffffff'); });
   },
   noctis(g) {
-    const B = U.shades('#2a2440');
-    g.thick([[4, 12], [1, 10], [1.5, 6], [3, 5]], 1.1, 0.9, B);
-    g.ell(7, 11, 4.4, 3.1, B); g.ell(11.5, 7, 3.1, 2.8, B);
-    g.poly([[9, 5], [9.5, 1.5], [11, 4.5]], B[1]); g.poly([[12, 4.5], [13.5, 1.5], [14, 5.5]], B[1]);
-    g.set(11, 7, '#c86aff'); g.set(13, 7, '#c86aff'); g.set(12, 8.5, '#ff9ad8');
-    g.rect(5, 13, 1, 2, B[0]); g.rect(9, 13, 1, 2, B[0]);
+    const C = '#2a2440', B = MON.sh(C, 0.45, 0.4), D = MON.sh(MON.dk(C, 0.3), 0.4, 0.3);
+    g.part(t => { t.stroke([[6, 13], [5.6, 14.6]], 0.55, 0.45, D); t.stroke([[9.6, 13], [10, 14.6]], 0.55, 0.45, D); });
+    g.part(t => t.stroke([[4.4, 12], [1.6, 11], [0.8, 8.4], [1.4, 6], [2.8, 5.2]], 0.8, 0.5, B));
+    g.part(t => t.blob([[7.2, 11.4, 4.2, 2.7], [11.4, 7.8, 3, 2.7], [9.8, 9.8, 2.2, 2.2]], B, 8.4, 9.6, 5, 4.4));
+    g.part(t => { t.poly([[9, 6.2], [9.2, 1.8], [11.2, 5.2]], B); t.poly([[12, 5.2], [13.8, 1.8], [14.2, 6.6]], B); t.poly([[9.6, 5.6], [9.7, 3], [10.6, 5]], MON.sh('#6a3a8a')); t.poly([[12.8, 5.4], [13.6, 3.2], [13.8, 6]], MON.sh('#6a3a8a')); });
+    g.part(t => { t.stroke([[8, 12.6], [8.2, 14.6]], 0.6, 0.5, B); t.stroke([[11.4, 11.6], [11.8, 14.6]], 0.6, 0.5, B); t.ell(8.5, 14.9, 0.8, 0.4, B); t.ell(12.1, 14.9, 0.8, 0.4, B); });
+    MON.speckle(g, 0, 4, 16, 16, 30, ['#c8b0ff', '#ffffff', '#8a6aff'], 51, 0.05, 0.12);
+    MON.eye(g, 11.4, 7.6, 0.6, '#c86aff', { glow: true, slit: true }); MON.eye(g, 13.4, 7.6, 0.55, '#c86aff', { glow: true, slit: true });
+    g._disc(14.6, 8.8, 0.18, '#ff9ad8');
+    [[0, 0], [0.4, 0.3]].forEach(([a, b]) => g.stroke([[14.2, 9.2 + b], [15.8, 8.9 + b + a]], 0.035, 0.02, '#a898c8'));
+    g.blendEll(2.8, 5.2, 1.6, 1.6, '#a86aff', 0.6, 1);
   },
 };
-SPR.fam = id => SPR.get('f_' + id, () => { const g = new G.Pix(16, 16, 2); SPR.FAM_DRAW[id](g); g.outline('#140c1c').polish(0.03, 9); return g.toCanvas(); });
+SPR.fam = id => SPR.get('f_' + id, () => { const g = new G.Pix(16, 16, 16); g.smooth = true; SPR.FAM_DRAW[id](g); g.outline('#140c1c').outline('#140c1c').outline('#140c1c').polish(0, 9); return g.toCanvas(2); });
 
 // ---------------- Portraits (data URL pour l'interface) ----------------
 SPR.url = (key, canvasFn, scale = 4) => SPR.get('url_' + key + '_' + scale, () => {
@@ -845,7 +1139,7 @@ SPR.url = (key, canvasFn, scale = 4) => SPR.get('url_' + key + '_' + scale, () =
 SPR.charURL = cid => SPR.url('char_' + cid, () => SPR.hero(cid, G.CHARS[cid].pal, 'down', 0, SPR.CHAR_EXTRA[cid]));
 SPR.famURL = fid => SPR.url('fam_' + fid, () => SPR.fam(fid));
 SPR.enemyURL = eid => { const e = G.ENEMIES[eid]; return SPR.url('en_' + eid, () => SPR.enemy(e.spr, e.pal, e.e), SPR.ENEMY_SIZE[e.spr] > 24 ? 1 : 2); };
-SPR.battlerURL = (cid, wid) => SPR.url('bt_' + cid + wid, () => SPR.battler(cid, wid, 'idle'), 3);
+SPR.battlerURL = (cid, wid) => { const t = SPR.weaponTier(cid, wid); return SPR.url('bt_' + cid + wid + '_' + (t >= 7 ? 3 : t >= 5 ? 2 : t >= 3 ? 1 : 0), () => SPR.battler(cid, wid, 'idle', t), 3); };
 
 // ---------------- Tuiles 32x32 pixels (16x16 unités) ----------------
 const TS = 32;

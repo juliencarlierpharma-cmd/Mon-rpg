@@ -654,7 +654,7 @@ G.Battle = {
       if (u.side === 'e' && u.alpha <= 0) continue;
       const bob = u.alive ? Math.sin(t * 3 + u.i * 1.7) * (u.side === 'e' ? 1.5 : 0.8) : 0;
       let img, sc;
-      if (u.side === 'p') { img = G.SPR.battler(u.cid, u.calc.wid, u.pose === 'atk' ? 'atk' : 'idle'); sc = 2; }
+      if (u.side === 'p') { img = G.SPR.battler(u.cid, u.calc.wid, u.pose === 'atk' ? 'atk' : 'idle', u.calc.tier); sc = 2; }
       else { img = G.SPR.enemy(u.E.spr, u.E.pal, u.E.e); sc = this.escale(u); }
       const w = G.SPR.lw(img) * sc, h = G.SPR.lh(img) * sc;
       const px = Math.round(u.hx + u.ox - w / 2), py = Math.round(u.hy + u.oy - h + (u.side === 'p' ? 2 : 0) + bob);

@@ -160,7 +160,21 @@ G.Pix = class Pix {
     const st = Math.max(0.35 / this.k, Math.min(r0, r1) * 0.35), seg = [];
     for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / st)); for (let q = 0; q < n; q++) seg.push([a[0] + (b[0] - a[0]) * q / n, a[1] + (b[1] - a[1]) * q / n]); }
     seg.push(pts[pts.length - 1]);
-    seg.forEach((p, i) => { const r = r0 + (r1 - r0) * i / Math.max(1, seg.length - 1); if (Array.isArray(c)) this.ell(p[0], p[1], r, r, c); else this._disc(p[0], p[1], r, c); });
+    seg.forEach((p, i) => {
+      const r = r0 + (r1 - r0) * i / Math.max(1, seg.length - 1);
+      if (!Array.isArray(c)) return this._disc(p[0], p[1], r, c);
+      const a = seg[Math.max(0, i - 1)], b = seg[Math.min(seg.length - 1, i + 1)], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      this._tube(p[0], p[1], r, c, (b[0] - a[0]) / L, (b[1] - a[1]) / L);
+    });
+  }
+  // disque ombré comme une section de tube (éclairage continu le long du trait)
+  _tube(cx, cy, r, c, dx, dy) {
+    const k = this.k;
+    for (let Y = Math.floor((cy - r) * k); Y <= Math.ceil((cy + r) * k); Y++) for (let X = Math.floor((cx - r) * k); X <= Math.ceil((cx + r) * k); X++) {
+      const ox = (X + 0.5) / k - cx, oy = (Y + 0.5) / k - cy; if (ox * ox + oy * oy > r * r) continue;
+      const o = U.clamp((ox * -dy + oy * dx) / r, -0.999, 0.999);
+      this._s(X, Y, this._shade(c, -dy * o, dx * o, o * o));
+    }
   }
   _disc(cx, cy, r, c) {
     const k = this.k, R = Math.max(r, 0.5 / k);
