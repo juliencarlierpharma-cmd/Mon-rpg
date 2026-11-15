@@ -27,6 +27,8 @@ Vous pouvez aussi le servir en local (`python3 -m http.server`) ou l’héberger
 
 **Démo rapide** : le bouton de l’écran titre lance une partie de milieu d’aventure (niveau 15, Havre en construction, familiers liés, armes forgées et matériaux en stock) pour essayer tous les systèmes tout de suite. Le voyage rapide se trouve dans Menu › Carte.
 
+**Fluidité** : Menu › Système › Qualité (Auto, Haute, Moyenne, Économie). En mode Auto, le jeu démarre en Économie sur téléphone, monte d’un cran s’il reste fluide et redescend s’il ralentit. L’Économie calcule l’image à mi-résolution et retire le flou de profondeur, le halo et les rayons de lumière.
+
 La partie est sauvegardée dans le navigateur : automatiquement, à l’auberge et depuis le menu Système.
 
 ## Systèmes de jeu

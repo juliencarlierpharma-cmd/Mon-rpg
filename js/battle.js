@@ -700,8 +700,9 @@ G.Battle = {
   },
   // Décor de fond (mis en cache)
   background(W, H, BH) {
-    return G.SPR.get(`bg_${this.bg}_${W}_${H}_${BH}`, () => {
-      const c = U.canvas(W * 4, H * 4), x = c.getContext('2d'), b = this.bg; x.scale(4, 4); c._d = 4;
+    const QD = G.R.D;
+    return G.SPR.get(`bg_${this.bg}_${W}_${H}_${BH}_${QD}`, () => {
+      const c = U.canvas(W * QD, H * QD), x = c.getContext('2d'), b = this.bg; x.scale(QD, QD); c._d = QD;
       const pal = {
         plains: { sky: ['#6ab0f0', '#cfe8ff'], far: '#7aa0c8', mid: '#4f8f3e', ground: ['#5aa03c', '#3f7a2e'] },
         forest: { sky: ['#2a5a3a', '#7ab070'], far: '#24482a', mid: '#1f3f22', ground: ['#3d7a32', '#244a1e'] },

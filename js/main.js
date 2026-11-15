@@ -202,11 +202,20 @@ G.onResize = () => {
   console.log('Monde généré en', G.World.genTime, 'ms');
   // pré-calcule les sprites de monstres (haute définition) pendant les temps morts, les grands d'abord
   const pre = Object.values(G.ENEMIES).sort((a, b) => G.SPR.ENEMY_SIZE[b.spr] - G.SPR.ENEMY_SIZE[a.spr]);
-  const warm = () => { const E = pre.shift(); if (!E) return; G.SPR.enemy(E.spr, E.pal, E.e); (window.requestIdleCallback || (f => setTimeout(f, 30)))(warm, { timeout: 400 }); };
+  const tiles = []; ['~', 'w', 'l'].forEach(ch => { for (let v = 0; v < 4; v++) for (let f = 0; f < 8; f++) tiles.push([ch, v, f]); });
+  // sans requestIdleCallback (Safari), on ne travaille qu'aux moments calmes : écran titre ou héros immobile hors combat
+  const idle = f => window.requestIdleCallback ? requestIdleCallback(f, { timeout: 600 }) : setTimeout(f, 120);
+  const calm = () => G.view === 'title' || (G.view !== 'battle' && G.World.P && !G.World.P.moving && !(G.World.path && G.World.path.length));
+  const warm = () => {
+    if (!calm()) return setTimeout(warm, 400);
+    const T = tiles.shift(); if (T) { G.SPR.animTile(...T); return idle(warm); }
+    const E = pre.shift(); if (!E) return; G.SPR.enemy(E.spr, E.pal, E.e); idle(warm);
+  };
   setTimeout(warm, 300);
   G.showTitle();
   let last = performance.now();
   const loop = t => {
+    G.R.frameTime(t - last);
     const dt = Math.min(0.05, (t - last) / 1000); last = t;
     try {
       G.R.update(dt);

@@ -455,7 +455,9 @@ G.UI = {
   tab_systeme() {
     const t = Math.floor(G.S.playTime / 60);
     return `<h2>Système</h2><div class="card"><div>Temps de jeu : ${Math.floor(t / 60)} h ${t % 60} min · Combats gagnés : ${G.S.stats.wins} · Monstres vaincus : ${G.S.stats.kills}</div>
-      <div class="actions"><button class="btn gold" data-a="save">💾 Sauvegarder</button><button class="btn" data-a="sound">${G.Audio.on ? '🔊 Son activé' : '🔇 Son coupé'}</button><button class="btn" data-a="title">↩ Écran titre</button></div></div>
+      <div class="actions"><button class="btn gold" data-a="save">💾 Sauvegarder</button><button class="btn" data-a="sound">${G.Audio.on ? '🔊 Son activé' : '🔇 Son coupé'}</button><button class="btn" data-a="title">↩ Écran titre</button></div>
+      <div class="actions"><button class="btn" data-a="quality">🖥️ Qualité : ${{ auto: 'Auto', high: 'Haute', medium: 'Moyenne', low: 'Économie' }[G.R.qMode]}${G.R.qMode === 'auto' ? ' (' + ['économie', 'moyenne', 'haute'][G.R.qLevel] + ')' : ''}</button></div>
+      <p class="dim small">Sur téléphone, « Économie » donne la meilleure fluidité. « Auto » baisse la qualité tout seul si le jeu ralentit.</p></div>
       <div class="card"><h3>Commandes</h3><ul class="help">
       <li><b>Déplacement</b> : flèches / ZQSD / WASD ou toucher/cliquer une case (glisser = joystick)</li><li><b>Action (A)</b> : Entrée, Espace ou E — parler, ouvrir, <b>récolter</b> une ressource en lui faisant face</li>
       <li><b>Menu (B)</b> : Échap, M ou bouton ☰</li><li>Dans les menus : flèches + Entrée, Échap pour revenir</li></ul></div>
@@ -526,6 +528,7 @@ G.UI = {
       collect: () => { const got = G.collectTown(); if (got.length) { G.Audio.sfx('get'); this.toast('Récupéré : ' + got.join(', ')); } R(); },
       save: () => { this.toast(G.save() ? '💾 Partie sauvegardée.' : 'Échec de la sauvegarde.'); },
       sound: () => { G.Audio.toggle(); R(); },
+      quality: () => { const M = ['auto', 'high', 'medium', 'low'], m = M[(M.indexOf(G.R.qMode) + 1) % M.length]; G.R.setQualityMode(m); if (m === 'auto') { G.R.qMax = 2; G.R.setQuality(matchMedia('(pointer: coarse)').matches ? 0 : 2); } R(); },
       title: async () => { const r = await this.ask('Retourner à l’écran titre ? (la partie sera sauvegardée)', ['Oui', 'Non']); if (r === 0) { G.save(); this.closeMenu(); G.showTitle(); } },
     };
     return acts;

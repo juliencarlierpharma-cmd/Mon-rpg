@@ -13,25 +13,34 @@ G.R = {
     this.litC = U.canvas(4, 4); this.litX = this.litC.getContext('2d');
     this.parts = []; this.texts = []; this.flashes = []; this.shakeT = 0; this.shakeA = 0;
     this.trans = null; this.flashA = 0; this.flashC = '#fff';
+    this.glowCache = {}; this.vigC = null;
+    // qualité graphique : 'auto' (s'adapte à la fluidité), 'high', 'medium', 'low'
+    let q = 'auto'; try { q = localStorage.getItem('rpg_quality') || 'auto'; } catch (e) {}
+    this.qMode = q;
+    const mobile = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+    this.qLevel = q === 'auto' ? (mobile ? 0 : 2) : { high: 2, medium: 1, low: 0 }[q] ?? 2;
+    this.qMax = 2; this.goodWin = 0;
+    this.ft = []; this.ftT = 0;
     window.addEventListener('resize', () => this.resize());
     this.resize();
   },
   resize() {
     const cw = window.innerWidth, ch = window.innerHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
     const short = Math.min(cw, ch);
-    // D : densité de pixels (chaque unité logique = D pixels réels du tampon)
-    this.D = 4;
+    // qf : fraction de la résolution native (qualité) ; D : densité du tampon (pixels par unité logique)
+    const qf = this.qf = [0.5, 0.75, 1][this.qLevel];
+    this.D = 4 * qf;
     // m pixels écran par pixel du tampon (entier => pixels nets), vue d'environ 224 unités sur le petit côté
-    const me = Math.max(1, short * dpr / (224 * this.D)), mr = Math.round(me);
+    const me = Math.max(1, short * dpr / (224 * 4)), mr = Math.round(me);
     const m = Math.abs(mr - me) / me < 0.12 ? mr : me;
-    const s = m * this.D / dpr;
+    const s = m * 4 / dpr;
     this.scale = s;
     this.W = Math.ceil(cw / s); this.H = Math.ceil(ch / s);
     this.dpr = dpr;
-    this.cv.width = Math.floor(cw * dpr); this.cv.height = Math.floor(ch * dpr);
+    this.cv.width = Math.floor(cw * dpr * qf); this.cv.height = Math.floor(ch * dpr * qf);
     this.cv.style.width = cw + 'px'; this.cv.style.height = ch + 'px';
-    this.k = s * dpr;
-    this.low.width = this.W * this.D; this.low.height = this.H * this.D;
+    this.k = s * dpr * qf; this.vigC = null;
+    this.low.width = Math.ceil(this.W * this.D); this.low.height = Math.ceil(this.H * this.D);
     this.tiny.width = Math.max(4, Math.ceil(this.W / 4)); this.tiny.height = Math.max(4, Math.ceil(this.H / 4));
     this.dofC.width = Math.ceil(this.W / 2); this.dofC.height = Math.ceil(this.H / 2);
     this.litC.width = Math.ceil(this.W / 2); this.litC.height = Math.ceil(this.H / 2);
@@ -39,7 +48,39 @@ G.R = {
     if (G.onResize) G.onResize();
   },
   // prépare le tampon pour un dessin en coordonnées logiques
-  begin() { const x = this.lx; x.setTransform(this.D, 0, 0, this.D, 0, 0); x.imageSmoothingEnabled = false; x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.filter = 'none'; return x; },
+  begin() { const x = this.lx; x.setTransform(this.D, 0, 0, this.D, 0, 0); x.imageSmoothingEnabled = this.qf < 1; x.imageSmoothingQuality = 'low'; x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.filter = 'none'; return x; },
+  // change le niveau de qualité (0 bas, 1 moyen, 2 haut)
+  setQuality(level) {
+    level = U.clamp(level, 0, 2); if (level === this.qLevel) return;
+    this.qLevel = level; this.resize();
+    if (G.World && G.World._chunks) G.World._chunks.clear();
+  },
+  setQualityMode(mode) { this.qMode = mode; try { localStorage.setItem('rpg_quality', mode); } catch (e) {} this.ft = []; this.ftT = 0; if (mode !== 'auto') this.setQuality({ high: 2, medium: 1, low: 0 }[mode]); },
+  // mode auto : baisse la qualité si les images sont trop lentes
+  frameTime(dtMs) {
+    if (this.qMode !== 'auto' || document.hidden) return;
+    if (dtMs > 250) return;
+    this.ft.push(dtMs); this.ftT += dtMs;
+    if (this.ftT < 2000) return;
+    const avg = this.ftT / this.ft.length; this.ft = []; this.ftT = 0;
+    if (avg > 22 && this.qLevel > 0) { this.qMax = this.qLevel - 1; this.goodWin = 0; this.setQuality(this.qLevel - 1); }
+    else if (avg < 18 && this.qLevel < this.qMax) { if (++this.goodWin >= 2) { this.goodWin = 0; this.setQuality(this.qLevel + 1); } }
+    else this.goodWin = 0;
+  },
+  // halo radial pré-calculé (remplace les dégradés recréés à chaque image)
+  glow(c) {
+    let g = this.glowCache[c]; if (g) return g;
+    g = U.canvas(32, 32); const x = g.getContext('2d'), rg = x.createRadialGradient(16, 16, 0, 16, 16, 16);
+    const rgb = c[0] === '#' && c.length === 7 ? c : '#ffffff';
+    rg.addColorStop(0, rgb); rg.addColorStop(0.35, U.rgba(rgb, 0.4)); rg.addColorStop(1, U.rgba(rgb, 0));
+    x.fillStyle = rg; x.fillRect(0, 0, 32, 32); return (this.glowCache[c] = g);
+  },
+  soft(c) {
+    const key = 's' + c; let g = this.glowCache[key]; if (g) return g;
+    g = U.canvas(32, 32); const x = g.getContext('2d'), rg = x.createRadialGradient(16, 16, 0, 16, 16, 16);
+    rg.addColorStop(0, c[0] === '#' ? U.rgba(c, 1) : c); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = rg; x.fillRect(0, 0, 32, 32); return (this.glowCache[key] = g);
+  },
   shake(a, t) { this.shakeA = Math.max(this.shakeA, a); this.shakeT = Math.max(this.shakeT, t); },
   flash(c = '#fff', a = 0.8) { this.flashC = c; this.flashA = a; },
   light(x, y, r, c, a, life) { this.flashes.push({ x, y, r, c, a, life, max: life }); },
@@ -89,7 +130,8 @@ G.R = {
     this.tx.clearRect(0, 0, this.tiny.width, this.tiny.height);
     this.tx.drawImage(this.low, 0, 0, this.tiny.width, this.tiny.height);
     d.imageSmoothingEnabled = true;
-    if (o.dof) {
+    const Q = this.qLevel;
+    if (o.dof && Q >= 1) {
       const X = this.dofX, w = this.dofC.width, h = this.dofC.height;
       X.globalCompositeOperation = 'source-over'; X.clearRect(0, 0, w, h); X.imageSmoothingEnabled = true;
       X.drawImage(this.tiny, 0, 0, w, h);
@@ -99,7 +141,7 @@ G.R = {
       X.fillStyle = gr; X.fillRect(0, 0, w, h);
       d.globalAlpha = o.dof; d.drawImage(this.dofC, sx, sy, DW, DH); d.globalAlpha = 1;
     }
-    if (o.bloom) {
+    if (o.bloom && Q >= 1) {
       d.globalCompositeOperation = 'screen'; d.globalAlpha = o.bloom;
       d.drawImage(this.tiny, sx, sy, DW, DH);
       d.globalCompositeOperation = 'source-over'; d.globalAlpha = 1;
@@ -123,10 +165,9 @@ G.R = {
     for (const l of lights) {
       if (!l.c) continue;
       const x = l.x * k + sx, y = l.y * k + sy, r = l.r * k;
-      const g = d.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, U.rgba(l.c, 0.17 * (l.a ?? 1))); g.addColorStop(1, U.rgba(l.c, 0));
-      d.fillStyle = g; d.fillRect(x - r, y - r, r * 2, r * 2);
+      d.globalAlpha = U.clamp(0.17 * (l.a ?? 1), 0, 1); d.drawImage(this.soft(l.c), x - r, y - r, r * 2, r * 2);
     }
+    d.globalAlpha = 1;
     // particules (lissées, haute résolution)
     for (const p of this.parts) {
       const a = U.clamp(p.life / p.max, 0, 1), x = p.x * k + sx, y = p.y * k + sy, s = p.size * k;
@@ -145,20 +186,16 @@ G.R = {
         d.save(); d.translate(x, y); d.rotate(Math.sin(p.rot) * 1.2); d.fillRect(-s, -s * 0.4, s * 2, s * 0.8); d.restore();
       } else if (p.type === 'fog') {
         d.globalCompositeOperation = 'source-over'; d.globalAlpha = a * 0.16 * Math.min(1, (p.max - p.life) * 2);
-        const g = d.createRadialGradient(x, y, 0, x, y, s); g.addColorStop(0, p.c); g.addColorStop(1, 'rgba(255,255,255,0)');
-        d.fillStyle = g; d.fillRect(x - s, y - s, s * 2, s * 2);
+        d.drawImage(this.soft(p.c), x - s, y - s, s * 2, s * 2);
       } else {
         d.globalCompositeOperation = p.glow ? 'lighter' : 'source-over';
-        if (p.glow) {
-          const g = d.createRadialGradient(x, y, 0, x, y, s * 2.5);
-          g.addColorStop(0, p.c); g.addColorStop(0.35, U.rgba(p.c.length === 7 ? p.c : '#ffffff', 0.4)); g.addColorStop(1, 'rgba(0,0,0,0)');
-          d.fillStyle = g; d.fillRect(x - s * 2.5, y - s * 2.5, s * 5, s * 5);
-        } else { d.fillStyle = p.c; d.beginPath(); d.arc(x, y, s, 0, Math.PI * 2); d.fill(); }
+        if (p.glow) d.drawImage(this.glow(p.c), x - s * 2.5, y - s * 2.5, s * 5, s * 5);
+        else { d.fillStyle = p.c; d.beginPath(); d.arc(x, y, s, 0, Math.PI * 2); d.fill(); }
       }
     }
     d.globalAlpha = 1; d.globalCompositeOperation = 'source-over';
     // rayons de lumière (god rays)
-    if (o.rays) {
+    if (o.rays && Q >= 2) {
       d.globalCompositeOperation = 'lighter';
       const t = performance.now() / 4000;
       for (let i = 0; i < 4; i++) {
@@ -170,11 +207,15 @@ G.R = {
       }
       d.globalCompositeOperation = 'source-over';
     }
-    if (o.grade) { d.globalCompositeOperation = 'soft-light'; d.fillStyle = o.grade; d.fillRect(0, 0, DW, DH); d.globalCompositeOperation = 'source-over'; }
+    if (o.grade) { d.globalCompositeOperation = Q >= 2 ? 'soft-light' : 'source-over'; d.globalAlpha = Q >= 2 ? 1 : 0.35; d.fillStyle = o.grade; d.fillRect(0, 0, DW, DH); d.globalCompositeOperation = 'source-over'; d.globalAlpha = 1; }
     // vignette
-    const vg = d.createRadialGradient(DW / 2, DH / 2, Math.min(DW, DH) * 0.35, DW / 2, DH / 2, Math.max(DW, DH) * 0.75);
-    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, `rgba(0,0,0,${o.vignette ?? 0.45})`);
-    d.fillStyle = vg; d.fillRect(0, 0, DW, DH);
+    const va = o.vignette ?? 0.45;
+    if (!this.vigC || this.vigC._a !== va || this.vigC.width !== Math.ceil(DW / 4)) {
+      const w = Math.ceil(DW / 4), h = Math.ceil(DH / 4), v = this.vigC = U.canvas(w, h), vx = v.getContext('2d'); v._a = va;
+      const vg = vx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
+      vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, `rgba(0,0,0,${va})`); vx.fillStyle = vg; vx.fillRect(0, 0, w, h);
+    }
+    d.drawImage(this.vigC, 0, 0, DW, DH);
     // textes flottants
     for (const t of this.texts) {
       const a = t.t < t.max * 0.7 ? 1 : 1 - (t.t - t.max * 0.7) / (t.max * 0.3);

@@ -542,7 +542,7 @@ G.World = {
   update(dt) {
     const P = this.P, S = G.S;
     this.warmT = (this.warmT || 0) - dt;
-    if (this.warmT <= 0 && !P.moving) { this.warmT = 0.25; this.warmChunks(); }
+    if (this.warmT <= 0) { this.warmT = P.moving ? 0.45 : 0.2; this.warmChunks(); }
     S.time = (S.time + dt * 0.6) % 1440;
     if (this.mining) { this.updateMining(dt); }
     else if (P.moving) {
@@ -916,7 +916,7 @@ G.World = {
   // ---------------- Rendu ----------------
   render() {
     const R = G.R, x = R.begin(), cam = this.cam, frame = Math.floor(performance.now() / 220) % 8;
-    const cx = Math.round(cam.x * 4) / 4, cy = Math.round(cam.y * 4) / 4;
+    const QD = R.D, cx = Math.round(cam.x * QD) / QD, cy = Math.round(cam.y * QD) / QD;
     const x0 = Math.max(0, Math.floor(cx / 16)), x1 = Math.min(this.W - 1, Math.ceil((cx + R.W) / 16));
     const y0 = Math.max(0, Math.floor(cy / 16)), y1 = Math.min(this.H - 1, Math.ceil((cy + R.H) / 16) + 2);
     x.fillStyle = '#000'; x.fillRect(0, 0, R.W, R.H);
@@ -926,7 +926,7 @@ G.World = {
       const ch = this.t[ty][tx], sx = tx * 16 - cx, sy = ty * 16 - cy;
       if (ch !== '~' && ch !== 'l' && ch !== 'w' && ch !== '=') continue;
       const v = Math.floor(U.hash(tx, ty, 5) * 8);
-      x.drawImage(G.SPR.animTile(ch === '=' ? '~' : ch, v, frame), sx, sy, 16, 16);
+      x.drawImage(G.SPR.animTile(ch === '=' ? '~' : ch, v % 4, frame), sx, sy, 16, 16);
       if (ch === '=') x.drawImage(G.SPR.bridge(), sx, sy, 16, 16);
       if (ch === '~' && ty > 0 && this.t[ty - 1][tx] !== '~' && this.t[ty - 1][tx] !== '=') {
         x.fillStyle = 'rgba(15,40,90,0.5)'; x.fillRect(sx, sy, 16, 3);
@@ -959,14 +959,14 @@ G.World = {
     this.followers.forEach((f, i) => {
       const cid = party[i + 1]; if (!cid) return;
       const moving = P.moving && (f.fx !== f.x || f.fy !== f.y);
-      objs.push({ y: f.py + 16 - 0.1, d: () => { this.shadow(f.px - cx + 8, f.py - cy + 15, 5); G.SPR.draw(x, G.SPR.hero(cid, G.CHARS[cid].pal, f.dir, moving ? walkF : 0, G.SPR.CHAR_EXTRA[cid]), Math.round((f.px - cx) * 4) / 4, Math.round((f.py - cy) * 4) / 4); } });
+      objs.push({ y: f.py + 16 - 0.1, d: () => { this.shadow(f.px - cx + 8, f.py - cy + 15, 5); G.SPR.draw(x, G.SPR.hero(cid, G.CHARS[cid].pal, f.dir, moving ? walkF : 0, G.SPR.CHAR_EXTRA[cid]), Math.round((f.px - cx) * QD) / QD, Math.round((f.py - cy) * QD) / QD); } });
     });
     const lead = party[0];
     if (lead) objs.push({ y: P.py + 16, d: () => {
       this.shadow(P.px - cx + 8, P.py - cy + 15, 5);
       let ox = 0, oy = 0;
       if (this.mining) { const s = Math.sin(this.mining.t / 0.28 * Math.PI); const [dx, dy] = DIRS[P.dir]; ox = dx * s * 3; oy = dy * s * 3; }
-      G.SPR.draw(x, G.SPR.hero(lead, G.CHARS[lead].pal, P.dir, walkF, G.SPR.CHAR_EXTRA[lead]), Math.round((P.px - cx + ox) * 4) / 4, Math.round((P.py - cy + oy) * 4) / 4);
+      G.SPR.draw(x, G.SPR.hero(lead, G.CHARS[lead].pal, P.dir, walkF, G.SPR.CHAR_EXTRA[lead]), Math.round((P.px - cx + ox) * QD) / QD, Math.round((P.py - cy + oy) * QD) / QD);
     } });
     objs.sort((a, b) => a.y - b.y).forEach(o => o.d());
     // repère de destination (toucher / clic)
@@ -1035,8 +1035,8 @@ G.World = {
   },
   buildChunk(gx, gy) {
     return (() => {
-      const CK = 16, c = U.canvas(CK * 64, CK * 64), x = c.getContext('2d');
-      x.imageSmoothingEnabled = false; x.scale(4, 4);
+      const CK = 16, QD = G.R.D, c = U.canvas(CK * 16 * QD, CK * 16 * QD), x = c.getContext('2d');
+      x.imageSmoothingEnabled = QD < 4; x.imageSmoothingQuality = 'high'; x.scale(QD, QD);
       const tiles = [];
       for (let ty = gy * CK; ty < Math.min(this.H, gy * CK + CK); ty++) for (let tx = gx * CK; tx < Math.min(this.W, gx * CK + CK); tx++) tiles.push([tx, ty]);
       // textures
@@ -1088,7 +1088,11 @@ G.World = {
     })();
   },
   baseCh(x, y) { if (x < 0 || y < 0 || x >= this.W || y >= this.H) return null; const c = this.t[y][x]; return c === 'T' || c === '^' ? this.groundOf(this.z[y][x]) : c === '=' ? null : c; },
-  shadow(x, y, r) { const c = G.R.lx; c.fillStyle = 'rgba(10,10,30,0.28)'; c.beginPath(); c.ellipse(Math.round(x), Math.round(y), r, r * 0.45, 0, 0, Math.PI * 2); c.fill(); },
+  // ombre au sol : ellipse pré-dessinée (bien moins coûteuse qu'un tracé à chaque image)
+  shadow(x, y, r) {
+    let S = this._shadowC; if (!S) { S = this._shadowC = U.canvas(64, 29); const c = S.getContext('2d'); c.fillStyle = 'rgba(10,10,30,0.28)'; c.beginPath(); c.ellipse(32, 14.5, 32, 14.4, 0, 0, Math.PI * 2); c.fill(); }
+    G.R.lx.drawImage(S, Math.round(x) - r, Math.round(y) - r * 0.45, r * 2, r * 0.9);
+  },
   drawCliff(tx, ty, sx, sy, zone) {
     const x = G.R.lx, volc = zone === 'volcan', v = Math.floor(U.hash(tx, ty, 6) * 4);
     const below = this.tile(tx, ty + 1) === '^', snow = !volc && ty < 7 && U.hash(tx, ty, 8) < 0.7;
