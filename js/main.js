@@ -200,6 +200,10 @@ G.onResize = () => {
   G.World.init();
   G.S = G.newState();
   console.log('Monde généré en', G.World.genTime, 'ms');
+  // pré-calcule les sprites de monstres (haute définition) pendant les temps morts, les grands d'abord
+  const pre = Object.values(G.ENEMIES).sort((a, b) => G.SPR.ENEMY_SIZE[b.spr] - G.SPR.ENEMY_SIZE[a.spr]);
+  const warm = () => { const E = pre.shift(); if (!E) return; G.SPR.enemy(E.spr, E.pal, E.e); (window.requestIdleCallback || (f => setTimeout(f, 30)))(warm, { timeout: 400 }); };
+  setTimeout(warm, 300);
   G.showTitle();
   let last = performance.now();
   const loop = t => {

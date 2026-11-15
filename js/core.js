@@ -155,6 +155,56 @@ G.Pix = class Pix {
     steps.push(pts[pts.length - 1]);
     steps.forEach((p, i) => { const r = r0 + (r1 - r0) * i / Math.max(1, steps.length - 1); this.ell(p[0], p[1], r, r, c); });
   }
+  // trait effilé lisse (rayon r0 -> r1), points d'appui denses : poils, griffes, nervures
+  stroke(pts, r0, r1, c) {
+    const st = Math.max(0.35 / this.k, Math.min(r0, r1) * 0.35), seg = [];
+    for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / st)); for (let q = 0; q < n; q++) seg.push([a[0] + (b[0] - a[0]) * q / n, a[1] + (b[1] - a[1]) * q / n]); }
+    seg.push(pts[pts.length - 1]);
+    seg.forEach((p, i) => { const r = r0 + (r1 - r0) * i / Math.max(1, seg.length - 1); if (Array.isArray(c)) this.ell(p[0], p[1], r, r, c); else this._disc(p[0], p[1], r, c); });
+  }
+  _disc(cx, cy, r, c) {
+    const k = this.k, R = Math.max(r, 0.5 / k);
+    for (let Y = Math.floor((cy - R) * k); Y <= Math.ceil((cy + R) * k); Y++) for (let X = Math.floor((cx - R) * k); X <= Math.ceil((cx + R) * k); X++) {
+      const dx = (X + 0.5) / k - cx, dy = (Y + 0.5) / k - cy; if (dx * dx + dy * dy <= R * R) this._s(X, Y, c);
+    }
+  }
+  // fusionne une couleur sur les pixels existants (dégradé radial doux) : reflets, ombres portées, lueurs
+  blendEll(cx, cy, rx, ry, c, a = 0.5, soft = 1, onlyOn = true) {
+    const k = this.k;
+    for (let Y = Math.floor((cy - ry) * k); Y <= Math.ceil((cy + ry) * k); Y++) for (let X = Math.floor((cx - rx) * k); X <= Math.ceil((cx + rx) * k); X++) {
+      if (X < 0 || Y < 0 || X >= this.w || Y >= this.h) continue;
+      const nx = ((X + 0.5) / k - cx) / rx, ny = ((Y + 0.5) / k - cy) / ry, r = nx * nx + ny * ny; if (r > 1) continue;
+      const o = this.d[Y * this.w + X]; if (!o && onlyOn) continue;
+      const f = a * (soft ? Math.pow(1 - Math.sqrt(r), soft) : 1);
+      this.d[Y * this.w + X] = o && o.length === 7 ? U.mix(o, c, f) : o || c;
+    }
+  }
+  // union d'ellipses ombrée comme un seul volume (cx, cy, rx, ry : volume d'éclairage)
+  blob(shapes, c, cx, cy, rx, ry) {
+    const k = this.k;
+    shapes.forEach(([ex, ey, erx, ery]) => {
+      for (let Y = Math.floor((ey - ery) * k); Y <= Math.ceil((ey + ery) * k); Y++) for (let X = Math.floor((ex - erx) * k); X <= Math.ceil((ex + erx) * k); X++) {
+        const px = (X + 0.5) / k, py = (Y + 0.5) / k, ux = (px - ex) / erx, uy = (py - ey) / ery;
+        if (ux * ux + uy * uy > 1) continue;
+        let nx = (px - cx) / rx, ny = (py - cy) / ry, r = nx * nx + ny * ny;
+        if (r > 0.995) { const f = Math.sqrt(0.995 / r); nx *= f; ny *= f; r = 0.995; }
+        this._s(X, Y, Array.isArray(c) ? this._shade(c, nx, ny, r) : c);
+      }
+    });
+  }
+  // dessine seulement par-dessus les pixels déjà présents (motifs, bouches, ventres)
+  inside(fn) {
+    const t = new Pix(1, 1); t.k = this.k; t.smooth = this.smooth; t.w = this.w; t.h = this.h; t.d = new Array(this.w * this.h).fill(null);
+    fn(t); for (let i = 0; i < t.d.length; i++) if (t.d[i] && this.d[i]) this.d[i] = t.d[i];
+    return this;
+  }
+  // dessine dans un calque séparé, détouré d'un fin contour sombre, puis le pose : contours internes nets entre les parties
+  part(fn, col = '#1a1020', n = 1) {
+    const t = new Pix(1, 1); t.k = this.k; t.smooth = this.smooth; t.w = this.w; t.h = this.h; t.d = new Array(this.w * this.h).fill(null);
+    fn(t); for (let i = 0; i < n; i++) t.outline(col);
+    for (let i = 0; i < t.d.length; i++) if (t.d[i]) this.d[i] = t.d[i];
+    return this;
+  }
   ascii(lines, pal, ox = 0, oy = 0) {
     lines.forEach((row, y) => { for (let x = 0; x < row.length; x++) { const ch = row[x]; if (ch !== '.' && pal[ch]) this.set(ox + x, oy + y, pal[ch]); } });
   }
