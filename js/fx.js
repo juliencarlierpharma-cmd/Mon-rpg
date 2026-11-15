@@ -126,9 +126,11 @@ G.R = {
     d.imageSmoothingEnabled = false;
     d.drawImage(this.low, sx, sy, this.W * k, this.H * k);
     // flou basse fréquence partagé (DOF + bloom)
-    this.tx.imageSmoothingEnabled = true;
-    this.tx.clearRect(0, 0, this.tiny.width, this.tiny.height);
-    this.tx.drawImage(this.low, 0, 0, this.tiny.width, this.tiny.height);
+    if (this.qLevel >= 1 && (o.dof || o.bloom)) {
+      this.tx.imageSmoothingEnabled = true;
+      this.tx.clearRect(0, 0, this.tiny.width, this.tiny.height);
+      this.tx.drawImage(this.low, 0, 0, this.tiny.width, this.tiny.height);
+    }
     d.imageSmoothingEnabled = true;
     const Q = this.qLevel;
     if (o.dof && Q >= 1) {

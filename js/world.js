@@ -537,12 +537,23 @@ G.World = {
       if (this._chunks && this._chunks.has(gx + ',' + gy)) continue;
       const d = Math.abs(gx - pcx) + Math.abs(gy - pcy); if (d < bd) { bd = d; best = [gx, gy]; }
     }
-    if (best && bd <= 2) this.chunk(best[0], best[1]);
+    if (best && bd <= 2 && !this._gen) this._gen = { key: best[0] + ',' + best[1], it: this.buildChunkGen(best[0], best[1]), D: G.R.D };
+  },
+  // avance la construction en cours avec un budget de temps par image
+  stepChunkGen(budget) {
+    const g = this._gen; if (!g) return;
+    if (g.D !== G.R.D) { this._gen = null; return; }
+    const t0 = performance.now();
+    while (performance.now() - t0 < budget) {
+      const r = g.it.next();
+      if (r.done) { const C = this._chunks = this._chunks || new Map(); C.set(g.key, r.value); if (C.size > 24) C.delete(C.keys().next().value); this._gen = null; return; }
+    }
   },
   update(dt) {
     const P = this.P, S = G.S;
     this.warmT = (this.warmT || 0) - dt;
-    if (this.warmT <= 0) { this.warmT = P.moving ? 0.45 : 0.2; this.warmChunks(); }
+    if (this.warmT <= 0) { this.warmT = 0.15; this.warmChunks(); }
+    this.stepChunkGen(P.moving ? 3 : 6);
     S.time = (S.time + dt * 0.6) % 1440;
     if (this.mining) { this.updateMining(dt); }
     else if (P.moving) {
@@ -922,12 +933,21 @@ G.World = {
     x.fillStyle = '#000'; x.fillRect(0, 0, R.W, R.H);
     const lights = [], objs = [], day = this.dayLight();
     // 1) surfaces animées (eau, lave, marais) et ponts
+    // eau, lave, marais : une bande remplie par motif animé par suite de cases identiques (au lieu d'un dessin par case)
+    for (let ty = y0; ty <= y1; ty++) {
+      let tx = x0;
+      while (tx <= x1) {
+        const c0 = this.t[ty][tx], k = c0 === '=' ? '~' : c0;
+        if (k !== '~' && k !== 'l' && k !== 'w') { tx++; continue; }
+        let t2 = tx; while (t2 + 1 <= x1) { const c1 = this.t[ty][t2 + 1]; if ((c1 === '=' ? '~' : c1) !== k) break; t2++; }
+        x.fillStyle = this.waterPattern(k, frame, cx, cy); x.fillRect(tx * 16 - cx, ty * 16 - cy, (t2 - tx + 1) * 16, 16);
+        tx = t2 + 1;
+      }
+    }
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
       const ch = this.t[ty][tx], sx = tx * 16 - cx, sy = ty * 16 - cy;
-      if (ch !== '~' && ch !== 'l' && ch !== 'w' && ch !== '=') continue;
-      const v = Math.floor(U.hash(tx, ty, 5) * 8);
-      x.drawImage(G.SPR.animTile(ch === '=' ? '~' : ch, v % 4, frame), sx, sy, 16, 16);
-      if (ch === '=') x.drawImage(G.SPR.bridge(), sx, sy, 16, 16);
+      if (ch !== '~' && ch !== 'l' && ch !== '=') continue;
+      if (ch === '=') x.drawImage(G.SPR.fit(G.SPR.bridge()), sx, sy, 16, 16);
       if (ch === '~' && ty > 0 && this.t[ty - 1][tx] !== '~' && this.t[ty - 1][tx] !== '=') {
         x.fillStyle = 'rgba(15,40,90,0.5)'; x.fillRect(sx, sy, 16, 3);
         x.fillStyle = (frame % 4 < 2) ? '#cfe8ff' : '#9fd0ff'; x.fillRect(sx + ((frame * 2) % 6), sy + 3.5, 4, 0.5); x.fillRect(sx + 9 - (frame % 3), sy + 4.5, 3, 0.5);
@@ -942,7 +962,7 @@ G.World = {
       const ch = this.t[ty][tx], sx = tx * 16 - cx, sy = ty * 16 - cy, zone = this.z[ty][tx];
       if (ch === 'T') {
         const kind = this.treeKind(tx, ty, zone);
-        objs.push({ y: ty * 16 + 16, d: () => { this.shadow(sx + 8, sy + 14, 7); const img = G.SPR.tree(kind); G.SPR.draw(x, img, sx + 8 - G.SPR.lw(img) / 2, sy + 16 - G.SPR.lh(img) + 2); } });
+        objs.push({ y: ty * 16 + 16, d: () => { const img = G.SPR.tree(kind); x.drawImage(this.treeImg(kind), sx + 8 - G.SPR.lw(img) / 2, sy + 16 - G.SPR.lh(img) + 2, G.SPR.lw(img), G.SPR.lh(img)); } });
       } else if (ch === '^') objs.push({ y: ty * 16 + 15, d: () => this.drawCliff(tx, ty, sx, sy, zone) });
     }
     // entités
@@ -1029,23 +1049,27 @@ G.World = {
   chunk(gx, gy) {
     const key = gx + ',' + gy, C = this._chunks = this._chunks || new Map();
     if (C.has(key)) { const v = C.get(key); C.delete(key); C.set(key, v); return v; }
-    const v = this.buildChunk(gx, gy); C.set(key, v);
+    let v; if (this._gen && this._gen.key === key) { let r; while (!(r = this._gen.it.next()).done); v = r.value; this._gen = null; } else v = this.buildChunk(gx, gy);
+    C.set(key, v);
     if (C.size > 24) C.delete(C.keys().next().value);
     return v;
   },
-  buildChunk(gx, gy) {
-    return (() => {
+  buildChunk(gx, gy) { const it = this.buildChunkGen(gx, gy); let r; while (!(r = it.next()).done); return r.value; },
+  // construction découpable : rend la main régulièrement (étalée sur plusieurs images)
+  *buildChunkGen(gx, gy) {
+    {
       const CK = 16, QD = G.R.D, c = U.canvas(CK * 16 * QD, CK * 16 * QD), x = c.getContext('2d');
       x.imageSmoothingEnabled = QD < 4; x.imageSmoothingQuality = 'high'; x.scale(QD, QD);
-      const tiles = [];
+      const tiles = []; let __n = 0;
       for (let ty = gy * CK; ty < Math.min(this.H, gy * CK + CK); ty++) for (let tx = gx * CK; tx < Math.min(this.W, gx * CK + CK); tx++) tiles.push([tx, ty]);
       // textures
-      tiles.forEach(([tx, ty]) => {
+      for (const [tx, ty] of tiles) { if (++__n % 32 === 0) yield; (() => {
         const ch = this.t[ty][tx], sx = (tx - gx * CK) * 16, sy = (ty - gy * CK) * 16;
         if (ch === '~' || ch === 'l' || ch === 'w' || ch === '=') return;
         const base = this.baseCh(tx, ty), v = Math.floor(U.hash(tx, ty, 5) * 8);
         x.drawImage(G.SPR.tile(base, v, this.groundStyle(base, tx, ty)), sx, sy, 16, 16);
-      });
+      })(); }
+      yield;
       // teinte continue à grande échelle (sur l'herbe et la roche) : calques basse définition agrandis en douceur
       {
         const N = CK * 8, mk = () => { const t = U.canvas(N, N); return [t, t.getContext('2d'), t.getContext('2d').createImageData(N, N)]; };
@@ -1070,24 +1094,44 @@ G.World = {
         x.restore();
       }
       // transitions douces : le sol « dominant » déborde sur son voisin
-      tiles.forEach(([tx, ty]) => {
+      for (const [tx, ty] of tiles) { if (++__n % 32 === 0) yield; (() => {
         const ch = this.t[ty][tx]; if (ch === '=') return;
         const sx = (tx - gx * CK) * 16, sy = (ty - gy * CK) * 16, base = this.baseCh(tx, ty), pb = G.SPR.prio(base);
         [[0, -1, 0], [1, 0, 1], [0, 1, 2], [-1, 0, 3]].forEach(([dx, dy, side]) => {
           const nb = this.baseCh(tx + dx, ty + dy);
           if (nb && nb !== base && G.SPR.prio(nb) > pb && !(G.SPR.prio(nb) === 7 && pb === 7)) x.drawImage(G.SPR.fringe(nb, side, (tx * 3 + ty) % 4), sx, sy, 16, 16);
         });
-      });
+      })(); }
       // petits décors
-      tiles.forEach(([tx, ty]) => {
+      for (const [tx, ty] of tiles) { if (++__n % 32 === 0) yield; (() => {
         const d = this.decalFor(tx, ty); if (!d) return;
         const sx = (tx - gx * CK) * 16 + (U.hash(tx, ty, 334) - 0.5) * 6, sy = (ty - gy * CK) * 16 + (U.hash(ty, tx, 334) - 0.5) * 4;
         x.drawImage(G.SPR.decal(d, Math.floor(U.hash(tx, ty, 335) * 6)), sx, sy, 16, 16);
-      });
+      })(); }
       return c;
-    })();
+    }
   },
   baseCh(x, y) { if (x < 0 || y < 0 || x >= this.W || y >= this.H) return null; const c = this.t[y][x]; return c === 'T' || c === '^' ? this.groundOf(this.z[y][x]) : c === '=' ? null : c; },
+  // motif animé : bloc de 4 x 4 cases aux variantes mélangées, aligné sur la carte
+  waterPattern(k, frame, cx, cy) {
+    const D = G.R.D, key = k + frame + '_' + D, P = this._wpat = this._wpat || {};
+    let e = P[key];
+    if (!e) {
+      const c = U.canvas(64 * D, 64 * D), x = c.getContext('2d'); x.imageSmoothingEnabled = true;
+      for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) x.drawImage(G.SPR.fit(G.SPR.animTile(k, Math.floor(U.hash(i, j, 77) * 4), frame)), i * 16 * D, j * 16 * D, 16 * D, 16 * D);
+      e = P[key] = { pat: G.R.lx.createPattern(c, 'repeat') };
+    }
+    if (e.cx !== cx || e.cy !== cy) { e.pat.setTransform(new DOMMatrix([1 / D, 0, 0, 1 / D, -cx, -cy])); e.cx = cx; e.cy = cy; }
+    return e.pat;
+  },
+  // arbre avec son ombre, à la densité du rendu (un seul dessin par arbre)
+  treeImg(kind) {
+    return G.SPR.get('ts_' + kind + '_' + G.R.D, () => {
+      const src = G.SPR.tree(kind), t = G.SPR.fit(src), lw = G.SPR.lw(src), lh = G.SPR.lh(src), c = U.canvas(t.width, t.height), x = c.getContext('2d');
+      x.scale(t.width / lw, t.height / lh); x.fillStyle = 'rgba(10,10,30,0.28)'; x.beginPath(); x.ellipse(lw / 2, lh - 4, 7, 3.15, 0, 0, Math.PI * 2); x.fill();
+      x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(t, 0, 0); c._d = t._d || 1; return c;
+    });
+  },
   // ombre au sol : ellipse pré-dessinée (bien moins coûteuse qu'un tracé à chaque image)
   shadow(x, y, r) {
     let S = this._shadowC; if (!S) { S = this._shadowC = U.canvas(64, 29); const c = S.getContext('2d'); c.fillStyle = 'rgba(10,10,30,0.28)'; c.beginPath(); c.ellipse(32, 14.5, 32, 14.4, 0, 0, Math.PI * 2); c.fill(); }
@@ -1096,7 +1140,7 @@ G.World = {
   drawCliff(tx, ty, sx, sy, zone) {
     const x = G.R.lx, volc = zone === 'volcan', v = Math.floor(U.hash(tx, ty, 6) * 4);
     const below = this.tile(tx, ty + 1) === '^', snow = !volc && ty < 7 && U.hash(tx, ty, 8) < 0.7;
-    x.drawImage(G.SPR.cliffTop(volc, v, snow), sx, sy - 8, 16, 16);
+    x.drawImage(G.SPR.fit(G.SPR.cliffTop(volc, v, snow)), sx, sy - 8, 16, 16);
     const bev = (x0, y0, w, h, c0, horiz, rev) => { const g = horiz ? x.createLinearGradient(x0, 0, x0 + w, 0) : x.createLinearGradient(0, y0, 0, y0 + h); g.addColorStop(rev ? 1 : 0, c0); g.addColorStop(rev ? 0 : 1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(x0, y0, w, h); };
     const L = this.tile(tx - 1, ty) !== '^', Rr = this.tile(tx + 1, ty) !== '^', T = this.tile(tx, ty - 1) !== '^';
     if (L) { bev(sx, sy - 8, 2.5, 16, volc ? 'rgba(150,110,100,0.45)' : 'rgba(255,255,250,0.45)', true); x.fillStyle = 'rgba(20,16,20,0.6)'; x.fillRect(sx, sy - 8, 0.5, 16); }
@@ -1104,7 +1148,7 @@ G.World = {
     if (T) { bev(sx, sy - 8, 16, 2.5, volc ? 'rgba(150,110,100,0.5)' : 'rgba(255,255,250,0.55)', false); x.fillStyle = 'rgba(20,16,20,0.6)'; x.fillRect(sx, sy - 8, 16, 0.5); }
     if (!below) bev(sx, sy + 5, 16, 3, 'rgba(0,0,0,0.3)', false, true);
     if (!below) {
-      x.drawImage(G.SPR.cliffFront(volc, v), sx, sy + 8, 16, 8);
+      x.drawImage(G.SPR.fit(G.SPR.cliffFront(volc, v)), sx, sy + 8, 16, 8);
       const g = x.createLinearGradient(0, sy + 16, 0, sy + 19); g.addColorStop(0, 'rgba(0,0,0,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)');
       x.fillStyle = g; x.fillRect(sx, sy + 16, 16, 3);
     }
@@ -1157,7 +1201,7 @@ G.World = {
         const E = G.ENEMIES[eid], img = G.SPR.enemy(E.spr, E.pal, E.e), bob = Math.sin(t * 2.5 + e.x) * 2;
         const sc = G.SPR.lw(img) <= 24 ? 1.5 : 1, w = G.SPR.lw(img) * sc, h = G.SPR.lh(img) * sc;
         this.shadow(sx + 8, sy + 15, Math.min(14, w * 0.35));
-        x.drawImage(img, Math.round(sx + 8 - w / 2), Math.round(sy + 16 - h + bob), w, h);
+        x.drawImage(G.SPR.fit(img, sc), Math.round(sx + 8 - w / 2), Math.round(sy + 16 - h + bob), w, h);
         x.fillStyle = '#ff3a4a'; x.font = 'bold 9px monospace'; x.fillText('☠', sx + 4, sy - h + 12 + bob + Math.sin(t * 5) * 1.5);
         lights.push({ x: sx + 8, y: sy + 4, r: 55, c: '#ff3a4a', a: 0.7 });
         if (Math.random() < 0.25) G.R.parts.push({ x: sx + 8 + U.rand(-10, 10), y: sy + 12, vx: 0, vy: -14, life: 1.2, max: 1.2, size: 1, c: '#ff5a6a', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });

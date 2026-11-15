@@ -202,13 +202,17 @@ G.onResize = () => {
   console.log('Monde généré en', G.World.genTime, 'ms');
   // pré-calcule les sprites de monstres (haute définition) pendant les temps morts, les grands d'abord
   const pre = Object.values(G.ENEMIES).sort((a, b) => G.SPR.ENEMY_SIZE[b.spr] - G.SPR.ENEMY_SIZE[a.spr]);
+  const treeKinds = [...new Set(['plain', 'birch', 'autumn', 'cherry', 'fruit', 'pine', 'forest', 'giant', 'willow', 'swamp', 'volcano', 'snowpine'].concat(...Object.values(G.SUBZONES || {}).flat().map(z => (z && z.trees) || [])))];
+  const heroes = []; Object.keys(G.CHARS).forEach(c => ['down', 'up', 'left', 'right'].forEach(d => [0, 1, 2].forEach(f => heroes.push([c, d, f]))));
   const tiles = []; ['~', 'w', 'l'].forEach(ch => { for (let v = 0; v < 4; v++) for (let f = 0; f < 8; f++) tiles.push([ch, v, f]); });
   // sans requestIdleCallback (Safari), on ne travaille qu'aux moments calmes : écran titre ou héros immobile hors combat
   const idle = f => window.requestIdleCallback ? requestIdleCallback(f, { timeout: 600 }) : setTimeout(f, 120);
   const calm = () => G.view === 'title' || (G.view !== 'battle' && G.World.P && !G.World.P.moving && !(G.World.path && G.World.path.length));
   const warm = () => {
     if (!calm()) return setTimeout(warm, 400);
-    const T = tiles.shift(); if (T) { G.SPR.animTile(...T); return idle(warm); }
+    const H = heroes.shift(); if (H) { G.SPR.fit(G.SPR.hero(H[0], G.CHARS[H[0]].pal, H[1], H[2], G.SPR.CHAR_EXTRA[H[0]])); return idle(warm); }
+    const K = treeKinds.shift(); if (K) { G.World.treeImg(K); return idle(warm); }
+    const T = tiles.shift(); if (T) { G.SPR.fit(G.SPR.animTile(...T)); return idle(warm); }
     const E = pre.shift(); if (!E) return; G.SPR.enemy(E.spr, E.pal, E.e); idle(warm);
   };
   setTimeout(warm, 300);

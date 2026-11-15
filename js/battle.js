@@ -665,10 +665,10 @@ G.Battle = {
       x.globalAlpha = u.alpha * (u.E && u.E.spr === 'ghost' ? 0.82 : 1);
       if (u.side === 'p' && !u.alive) {
         x.translate(u.hx, u.hy - 6); x.rotate(-Math.PI / 2); x.filter = 'grayscale(0.8)';
-        x.drawImage(img, -w / 2, -h / 2, w, h);
+        x.drawImage(G.SPR.fit(img, sc), -w / 2, -h / 2, w, h);
       } else {
-        x.drawImage(img, px, py, w, h);
-        if (u.flash > 0) x.drawImage(this.whiteOf(img), px, py, w, h);
+        x.drawImage(G.SPR.fit(img, sc), px, py, w, h);
+        if (u.flash > 0) x.drawImage(this.whiteOf(G.SPR.fit(img, sc)), px, py, w, h);
       }
       x.restore();
       if (u.side === 'e' && u.alive) {

@@ -8,7 +8,17 @@ SPR.get = (key, fn) => SPR.cache[key] || (SPR.cache[key] = fn());
 // taille logique d'un sprite (un canvas de densité 2 occupe la moitié de sa taille en pixels)
 SPR.lw = img => img.width / (img._d || 1);
 SPR.lh = img => img.height / (img._d || 1);
-SPR.draw = (ctx, img, x, y, sc = 1) => ctx.drawImage(img, x, y, SPR.lw(img) * sc, SPR.lh(img) * sc);
+// version réduite à la densité du tampon de rendu (préparée une fois, réductions successives par moitié) :
+// évite de rééchantillonner une image haute définition à chaque image en qualité réduite
+SPR.fit = (img, sc = 1) => {
+  const D = G.R.D * Math.max(1, sc), d = img._d || 1; if (!img || d <= D * 1.01 || img.width < 4) return img;
+  const m = img._mip || (img._mip = {}); if (m[D]) return m[D];
+  let src = img, cd = d;
+  while (cd / 2 >= D) { const h = U.canvas(Math.max(1, Math.round(src.width / 2)), Math.max(1, Math.round(src.height / 2))), hx = h.getContext('2d'); hx.imageSmoothingEnabled = true; hx.imageSmoothingQuality = 'high'; hx.drawImage(src, 0, 0, h.width, h.height); src = h; cd /= 2; }
+  if (cd > D * 1.01) { const h = U.canvas(Math.max(1, Math.round(img.width * D / d)), Math.max(1, Math.round(img.height * D / d))), hx = h.getContext('2d'); hx.imageSmoothingEnabled = true; hx.imageSmoothingQuality = 'high'; hx.drawImage(src, 0, 0, h.width, h.height); src = h; }
+  src._d = D; return (m[D] = src);
+};
+SPR.draw = (ctx, img, x, y, sc = 1) => ctx.drawImage(SPR.fit(img, sc), x, y, SPR.lw(img) * sc, SPR.lh(img) * sc);
 
 // ---------------- Héros / PNJ (32x32 pixels, 16x16 unités) ----------------
 const DEF_NPC_PAL = { S: '#f2c9a0', s: '#d39a78', E: '#1a1a2e', o: '#160e1a' };
@@ -1312,7 +1322,7 @@ SPR.animTile = (ch, v, f) => SPR.get(`a_${ch}_${v}_${f}`, () => {
   } else if (ch === 'w') {
     P.fill((x, y) => ramp(['#26443c', '#30544a', '#3a5e54', '#46685c'], tfbm(x + f * 4, y, 61)));
     P.each((x, y) => { const w = tn(x + f * 4, y * 2, 4, 63 + v); if (w > 0.88) P.dot(x, y, '#7a9a88', 0.5); });
-    if (v % 3 === 0) {
+    if (v === 0) {
       const cx = 10, cy = 10;
       for (let y = -4; y <= 4; y++) for (let x = -5; x <= 5; x++) { const r = x * x / 25 + y * y / 16; if (r < 1 && !(x > 0 && Math.abs(y) < 1)) P.set(cx + x, cy + y, r > 0.7 ? '#2e6a2a' : y < 0 ? '#5aa04a' : '#4a8a3a'); }
       P.set(cx - 1, cy - 1, '#ffb0d8'); P.set(cx, cy - 1, '#ff8ac8'); P.set(cx - 1, cy - 2, '#ffd0ea'); P.set(cx, cy, '#ffe080');
