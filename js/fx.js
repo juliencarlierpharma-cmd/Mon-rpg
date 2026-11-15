@@ -19,7 +19,8 @@ G.R = {
     this.qMode = q;
     const mobile = window.matchMedia && matchMedia('(pointer: coarse)').matches;
     this.qLevel = q === 'auto' ? (mobile ? 0 : 2) : { high: 2, medium: 1, low: 0 }[q] ?? 2;
-    this.qMax = 2; this.goodWin = 0;
+    // sur téléphone, le mode auto reste en Économie (les essais de montée en qualité provoquaient des à-coups)
+    this.qMax = q === 'auto' && mobile ? 0 : 2; this.goodWin = 0;
     this.ft = []; this.ftT = 0;
     window.addEventListener('resize', () => this.resize());
     this.resize();
