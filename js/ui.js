@@ -71,11 +71,14 @@ G.UI = {
     const night = W.dayLight().night;
     const zid = W.zoneAt(W.P.x, W.P.y), plv = Math.round(G.S.party.reduce((a, c) => a + G.S.chars[c].lvl, 0) / G.S.party.length);
     if (this.routeOpen == null) { try { this.routeOpen = localStorage.getItem('ee-route') !== '0'; } catch (e) { this.routeOpen = true; } }
-    const route = G.ZONE_ORDER.map((id, i) => {
-      const Z = G.ZONES[id], done = Z.boss && G.S.bosses[Z.boss], cur = id === zid;
-      const warn = !done && plv < Z.lmin ? 'low' : '';
-      return `<li class="${cur ? 'cur' : ''} ${done ? 'done' : ''} ${warn}"><span class="rn">${i + 1}</span><span class="rz">${esc(Z.n)}</span><span class="rl">${done ? '✔' : `${Z.lmin}–${Z.lmax}`}</span></li>`;
-    }).join('');
+    const S0 = G.S, nf = G.crystalsFreed(S0);
+    const rows = G.ZONE_ORDER.map(id => { const Z = G.ZONES[id], tk = Object.keys(G.TEMPLES).find(k => G.TEMPLES[k].zone === id && k !== 'tenebres'); return { n: Z.n, lmin: Z.lmin, lmax: Z.lmax, done: Z.boss && S0.bosses[Z.boss], cur: id === zid || (tk && zid === 't_' + tk) }; });
+    rows.push({ n: 'Temple des Ténèbres', lmin: 22, lmax: 25, done: S0.bosses.umbra, cur: zid === 't_tenebres', lock: nf < 4 });
+    rows.push({ n: S0.bosses.umbra ? 'Sanctuaire de Lumière' : '???', lmin: 26, lmax: 29, done: S0.bosses.creation, cur: zid === 't_lumiere', lock: !S0.bosses.umbra });
+    const route = rows.map((r, i) => {
+      const warn = !r.done && !r.lock && plv < r.lmin ? 'low' : '';
+      return `<li class="${r.cur ? 'cur' : ''} ${r.done ? 'done' : ''} ${warn} ${r.lock ? 'lock' : ''}"><span class="rn">${i + 1}</span><span class="rz">${esc(r.n)}</span><span class="rl">${r.done ? '✔' : r.lock ? '🔒' : `${r.lmin}–${r.lmax}`}</span></li>`;
+    }).join('') + `<li class="crys"><span class="rn">◆</span><span class="rz">Cristaux libérés</span><span class="rl">${nf}/4</span></li>`;
     const dp = W.depthAt(W.P.x, W.P.y), dl = dp < 0.33 ? 1 : dp < 0.66 ? 2 : 3;
     const zl = z.town ? z.lv : `Niv. conseillé ${z.lmin}–${z.lmax} · Profondeur ${'▮'.repeat(dl)}${'▯'.repeat(3 - dl)}`;
     this.hud.innerHTML = `<div class="hud-col"><div class="hud-l"><div class="zone">${esc(z.town ? z.n : (W.subInfo(W.P.x, W.P.y) || z).n)}</div><div class="sub">${z.town ? '' : esc(z.n) + ' · '}${esc(zl)} · Équipe niv. ${plv}</div><div class="sub">${night ? '🌙' : '☀️'} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} · 💰 ${U.fmt(G.S.gold)}</div></div>
@@ -137,7 +140,7 @@ G.UI = {
     });
   },
   // ---------------- Menu principal ----------------
-  TABS: [['equipe', '👥', 'Équipe'], ['armes', '⚔️', 'Armes'], ['competences', '📜', 'Compétences'], ['inventaire', '🎒', 'Sac'], ['artisanat', '🔨', 'Artisanat'], ['familiers', '🐾', 'Familiers'], ['succes', '🏆', 'Accompl.'], ['chasses', '🎯', 'Chasses'], ['havre', '🏘️', 'Havre'], ['quetes', '📖', 'Quêtes'], ['carte', '🗺️', 'Carte'], ['systeme', '⚙️', 'Système']],
+  TABS: [['equipe', '👥', 'Équipe'], ['armes', '⚔️', 'Armes'], ['competences', '📜', 'Compétences'], ['inventaire', '🎒', 'Sac'], ['artisanat', '🔨', 'Artisanat'], ['familiers', '🐾', 'Familiers'], ['succes', '🏆', 'Accompl.'], ['bestiaire', '📕', 'Bestiaire'], ['chasses', '🎯', 'Chasses'], ['havre', '🏘️', 'Havre'], ['quetes', '📖', 'Quêtes'], ['carte', '🗺️', 'Carte'], ['systeme', '⚙️', 'Système']],
   openMenu(tab) {
     if (this.menu) return;
     this.menuTab = tab || this.menuTab || 'equipe';
@@ -282,6 +285,29 @@ G.UI = {
     }).join('')}</div>`;
   },
   // ----- Accomplissements -----
+  // ----- Bestiaire -----
+  habitatOf(eid) {
+    const E = G.ENEMIES[eid];
+    if (E.temple) return 't_' + E.temple;
+    const T = Object.keys(G.TEMPLES).find(k => G.TEMPLES[k].boss === eid); if (T) return 'boss';
+    if (E.elite) return 'chasse';
+    return G.ZONE_ORDER.find(z => (G.ZONES[z].groups || []).some(g => g.includes(eid))) || 'autre';
+  },
+  tab_bestiaire() {
+    const S = G.S, B = S.bestiary || {}, seen = S.seen || {}, ids = Object.keys(G.ENEMIES).filter(id => id !== 'primordial');
+    const order = G.ZONE_ORDER.concat(Object.keys(G.TEMPLES).map(k => 't_' + k), ['boss', 'chasse']);
+    const title = h => G.ZONES[h] ? G.ZONES[h].n : h === 'boss' ? 'Gardiens des cristaux' : h === 'chasse' ? 'Cibles du tableau de chasse' : 'Autres';
+    const known = ids.filter(id => B[id]).length;
+    const card = id => {
+      const E = G.ENEMIES[id], k = B[id] || 0, s = seen[id] || k;
+      if (!s) return `<div class="bcard unk"><div class="bimg q">?</div><div><b>???</b><div class="small dim">Jamais rencontré</div></div></div>`;
+      const el = E.e ? G.ELEM[E.e].i : '◽';
+      const drops = k ? E.drops.map(([m]) => G.nameOf(m)).filter((v, i, a) => a.indexOf(v) === i).join(', ') : 'Butin : à découvrir';
+      return `<div class="bcard ${k ? '' : 'seen'}"><img class="bimg" src="${G.SPR.enemyURL(id)}"><div><b>${esc(E.n)}</b><div class="small">Niv. ${E.lvl} · ${el}${E.boss ? ' · ✦' : ''}</div><div class="small dim">${k ? `Vaincu ×${k}` : 'Aperçu'}</div><div class="small dim">${esc(drops)}</div></div></div>`;
+    };
+    const groups = order.map(h => { const L = ids.filter(id => this.habitatOf(id) === h); if (!L.length) return ''; const n = L.filter(id => B[id]).length; return `<h3>${esc(title(h))} <small>${n}/${L.length}</small></h3><div class="bgrid">${L.map(card).join('')}</div>`; }).join('');
+    return `<h2>Bestiaire <small>${known}/${ids.length} créatures recensées</small></h2><p class="dim small">Chaque créature vaincue est recensée avec son butin. Les temples abritent leur propre faune.</p>${groups}`;
+  },
   tab_succes() {
     const CW = 150, RH = 96, cols = Math.max(...G.ACH.map(a => a.col)) + 1, rows = Math.max(...G.ACH.map(a => a.row)) + 1;
     const pos = a => [a.col * CW + 12, a.row * RH + 10];
@@ -407,33 +433,35 @@ G.UI = {
     }).join('');
     const total = W.camps.length, found = W.camps.filter(c => W.canTravel(c.id)).length;
     return `<h2>Carte du monde</h2><div class="card"><h3>Voyage rapide <small>${found}/${total} camps découverts</small></h3>${groups}<div class="dim small">Approchez-vous d’un camp ⛺ pour le découvrir : vous pourrez vous y reposer et y revenir instantanément.</div></div>
-      <div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ★ Gardien · ⛺ Camp · ☠ Cible de chasse · ! PNJ à recruter · ▣ Coffre · Les zones inexplorées sont voilées.</p>`;
+      <div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ◆ Temple (rouge : cristal à libérer) · ⛺ Camp · ☠ Cible de chasse · ! PNJ à recruter · ▣ Coffre · Les zones inexplorées sont voilées.</p>`;
   },
   drawMap(cv) {
     const W = G.World, s = 2;
-    cv.width = W.W * s; cv.height = W.H * s;
-    const x = cv.getContext('2d'), img = x.createImageData(W.W, W.H), D = img.data;
+    cv.width = W.WW * s; cv.height = W.H * s;
+    const x = cv.getContext('2d'), img = x.createImageData(W.WW, W.H), D = img.data;
     const col = { '.': '#5aa03c', ',': '#62a844', '_': '#d8b878', 'f': '#3d7a32', 'T': '#2a5a26', 'r': '#8f877a', '^': '#5e584e', 'm': '#4f5a38', 'w': '#3a5e54', 'v': '#3d2c2a', 'l': '#e8501a', '~': '#2f6fc0', '=': '#8a5a32', 's': '#e6d39a', 'p': '#a39b8e', 'g': '#7cc256' };
     const rgb = {}; for (const k in col) rgb[k] = U.hex2rgb(col[k]);
     const zc = { plaines: '#9ad070', foret: '#2e7a3a', montagne: '#b0b4c0', marais: '#8a5ab8', volcan: '#ff5a1a', bourg: '#ffd86a', havre: '#7affd8' }, zrgb = {}; for (const k in zc) zrgb[k] = U.hex2rgb(zc[k]);
-    for (let yy = 0; yy < W.H; yy++) for (let xx = 0; xx < W.W; xx++) {
-      const i = (yy * W.W + xx) * 4, c = rgb[W.t[yy][xx]] || [0, 0, 0], z = W.z[yy][xx], zr = zrgb[z];
+    for (let yy = 0; yy < W.H; yy++) for (let xx = 0; xx < W.WW; xx++) {
+      const i = (yy * W.WW + xx) * 4, c = rgb[W.t[yy][xx]] || [0, 0, 0], z = W.z[yy][xx], zr = zrgb[z];
       let r = c[0] * 0.8 + zr[0] * 0.2, g = c[1] * 0.8 + zr[1] * 0.2, b = c[2] * 0.8 + zr[2] * 0.2;
       const SZ = G.SUBZONES[z] && G.SUBZONES[z][W.subAt(xx, yy)];
       if (SZ && W.t[yy][xx] !== '~' && W.t[yy][xx] !== 's') { const t = SZ.tint, a = t[3] * 1.3; r += (t[0] - r) * a; g += (t[1] - g) * a; b += (t[2] - b) * a; }
-      const edge = (xx + 1 < W.W && W.z[yy][xx + 1] !== z) || (yy + 1 < W.H && W.z[yy + 1][xx] !== z);
+      const edge = (xx + 1 < W.WW && W.z[yy][xx + 1] !== z) || (yy + 1 < W.H && W.z[yy + 1][xx] !== z);
       if (edge) { r = 255; g = 250; b = 235; }
-      else if (!z.match(/bourg|havre/) && xx + 1 < W.W && yy + 1 < W.H && ((W.subAt(xx + 1, yy) !== W.subAt(xx, yy) && W.z[yy][xx + 1] === z) || (W.subAt(xx, yy + 1) !== W.subAt(xx, yy) && W.z[yy + 1][xx] === z)) && ((xx + yy) % 3)) { r = r * 0.5 + 120; g = g * 0.5 + 120; b = b * 0.5 + 120; }
+      else if (!z.match(/bourg|havre/) && xx + 1 < W.WW && yy + 1 < W.H && ((W.subAt(xx + 1, yy) !== W.subAt(xx, yy) && W.z[yy][xx + 1] === z) || (W.subAt(xx, yy + 1) !== W.subAt(xx, yy) && W.z[yy + 1][xx] === z)) && ((xx + yy) % 3)) { r = r * 0.5 + 120; g = g * 0.5 + 120; b = b * 0.5 + 120; }
       if (!W.isExplored(xx, yy)) { const n = U.hash(xx >> 2, yy >> 2, 7) * 6; r = 14 + n; g = 16 + n; b = 34 + n; if (edge) { r += 10; g += 10; b += 14; } }
       D[i] = r; D[i + 1] = g; D[i + 2] = b; D[i + 3] = 255;
     }
-    const tmp = U.canvas(W.W, W.H); tmp.getContext('2d').putImageData(img, 0, 0);
+    const tmp = U.canvas(W.WW, W.H); tmp.getContext('2d').putImageData(img, 0, 0);
     x.imageSmoothingEnabled = false; x.drawImage(tmp, 0, 0, cv.width, cv.height);
     x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = 'bold 11px sans-serif';
     W.E.forEach(e => {
       if (!W.visible(e) || !W.isExplored(e.x, e.y)) return;
       const cx = e.x * s + s / 2, cy = e.y * s + s / 2;
-      if (e.k === 'boss') { x.fillStyle = '#ff4a6a'; x.fillText('★', cx, cy); }
+      if (e.x >= W.WW) return;
+      if (e.k === 'temple') { const T = G.TEMPLES[e.temple]; x.font = 'bold 15px sans-serif'; x.fillStyle = '#000'; x.fillText('◆', cx + 1, cy + 1); x.fillStyle = G.S.bosses[T.boss] ? T.col : '#ff4a6a'; x.fillText('◆', cx, cy); x.font = 'bold 11px sans-serif'; }
+      else if (e.k === 'crystal') { x.fillStyle = '#fff0a0'; x.fillText('◆', cx, cy); }
       else if (e.k === 'camp') { x.fillStyle = W.canTravel(e.id) ? '#ffd86a' : '#c8b088'; x.fillText('⛺', cx, cy); }
       else if (e.k === 'hunt') { x.fillStyle = '#ff3a4a'; x.fillText('☠', cx, cy); }
       else if (e.k === 'npc' && e.npc && !G.S.npcs[e.npc]) { x.fillStyle = '#ffe060'; x.fillText('!', cx, cy); }

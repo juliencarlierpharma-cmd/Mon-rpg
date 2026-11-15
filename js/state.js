@@ -27,7 +27,7 @@ G.newState = () => ({
   ach: {},
   flags: {},
   stats: { wins: 0, kills: 0, tags: {}, gathered: 0, crafted: 0, wcraft: 0, weak: 0, tech: 0, goldEarned: 0, steps: 0, battlesTotal: 0 },
-  bosses: {},
+  bosses: {}, bestiary: {}, seen: {},
   town: { founded: false, b: {}, store: {}, prog: 0 },
   npcs: {},
   quests: {},

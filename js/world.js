@@ -2,11 +2,12 @@
 // ============================================================
 //  Monde : carte, entités, déplacement, collecte, rencontres
 // ============================================================
-const WALKABLE = new Set(['.', ',', '_', 'f', 'r', 'm', 'w', 'v', 's', 'p', 'g', '=']);
+const WALKABLE = new Set(['.', ',', '_', 'f', 'r', 'm', 'w', 'v', 's', 'p', 'g', '=', 'k']);
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 G.World = {
-  W: 624, H: 464,
+  // WW : largeur de la carte du monde ; au-delà, une bande hors carte accueille les temples (intérieurs)
+  WW: 624, W: 704, H: 464,
   init() {
     const t0 = performance.now();
     this.gen();
@@ -27,7 +28,7 @@ G.World = {
   // Régions organiques : chaque case appartient au « foyer » le plus proche, après une
   // déformation par du bruit (frontières sinueuses et régions imbriquées).
   gen() {
-    const W = this.W, H = this.H;
+    const W = this.WW, H = this.H;
     const bx = Math.round(W * 0.4), by = Math.round(H * 0.58);
     this.BOURG = [bx, by]; this.HAVRE = [bx + 58, by + 22];
     const cx0 = bx + 4, cy0 = by + 4;
@@ -72,7 +73,7 @@ G.World = {
     const GC = SP, GW = Math.ceil(W / GC) + 1, GH = Math.ceil(H / GC) + 1, grid = Array.from({ length: GW * GH }, () => []);
     sites.forEach((st, i) => grid[Math.min(GH - 1, Math.floor(st.y / GC)) * GW + Math.min(GW - 1, Math.floor(st.x / GC))].push(i));
     for (let y = 0; y < H; y++) {
-      const tR = new Array(W), zr = new Array(W), sr = new Int16Array(W);
+      const tR = new Array(this.W).fill('X'), zr = new Array(this.W).fill('t_void'), sr = new Int16Array(this.W);
       for (let x = 0; x < W; x++) {
         const wx = x + (U.fbm(x / 50, y / 50, 401) - 0.5) * 95 + (U.noise(x / 14, y / 14, 403) - 0.5) * 16;
         const wy = y + (U.fbm(x / 50, y / 50, 402) - 0.5) * 95 + (U.noise(x / 14, y / 14, 404) - 0.5) * 16;
@@ -177,8 +178,44 @@ G.World = {
     // dégagement au cœur de chaque région
     sites.forEach(s => this.clearAround(s.x, s.y, 2));
     this.computeDepth();
+    this.genTemples();
   },
   edgeVolc(x, y) { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (this.zoneAt(x + dx, y + dy) !== 'volcan') return true; return false; },
+  // ---------------- Temples ----------------
+  // Chaque temple occupe une boîte dans la bande hors carte : salles reliées par des couloirs,
+  // entrée en bas, salle du gardien en haut (le cristal derrière le boss).
+  genTemples() {
+    this.temples = {};
+    const X0 = this.WW + 3;
+    Object.keys(G.TEMPLES).forEach(key => {
+      const T = G.TEMPLES[key], box = { x: X0, y: 4 + T.slot * 76, w: 74, h: 72 }, zone = 't_' + key, seed = 900 + T.slot * 37;
+      for (let y = box.y; y < box.y + box.h; y++) for (let x = box.x; x < box.x + box.w; x++) { this.t[y][x] = 'X'; this.z[y][x] = zone; }
+      const cw = box.w / 3, chh = box.h / 3, rooms = [];
+      for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
+        const boss = i === 1 && j === 0, entry = i === 1 && j === 2, hr = (k) => U.hash(i + k, j * 7 + k, seed);
+        const w = boss ? 19 : entry ? 11 : 9 + Math.floor(hr(1) * 8), h = boss ? 16 : entry ? 9 : 8 + Math.floor(hr(2) * 7);
+        const cx = Math.round(box.x + cw * (i + 0.5) + (boss || entry ? 0 : (hr(3) - 0.5) * (cw - w - 4))), cy = Math.round(box.y + chh * (j + 0.5) + (boss || entry ? (boss ? 1 : 0) : (hr(4) - 0.5) * (chh - h - 4)));
+        rooms.push({ i, j, x: cx - (w >> 1), y: cy - (h >> 1), w, h, cx, cy, boss, entry });
+      }
+      const at = (i, j) => rooms[j * 3 + i];
+      // arbre couvrant aléatoire, puis quelques liaisons en plus ; la salle du gardien n'a qu'une porte (par le centre)
+      const edges = [], par = rooms.map((_, i) => i), find = i => par[i] === i ? i : (par[i] = find(par[i]));
+      const cand = [];
+      for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) { if (i < 2) cand.push([at(i, j), at(i + 1, j)]); if (j < 2) cand.push([at(i, j), at(i, j + 1)]); }
+      const ok = ([a, b]) => !(a.boss || b.boss) || (a.i === 1 && b.i === 1);
+      cand.filter(ok).sort((p, q) => U.hash(p[0].i * 3 + p[0].j, q[1].i, seed + 5) - 0.5 + (U.hash(q[0].i + 4, p[1].j, seed + 6) - 0.5)).forEach(e => { const a = find(rooms.indexOf(e[0])), b = find(rooms.indexOf(e[1])); if (a !== b) { par[a] = b; edges.push(e); } else if (U.hash(rooms.indexOf(e[0]), rooms.indexOf(e[1]), seed + 7) < 0.3 && !e[0].boss && !e[1].boss) edges.push(e); });
+      const floor = (x, y) => { if (x > box.x && y > box.y && x < box.x + box.w - 1 && y < box.y + box.h - 1) this.t[y][x] = 'k'; };
+      rooms.forEach(r => { for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) floor(x, y); });
+      edges.forEach(([a, b]) => {
+        const hor = a.j === b.j, mid = hor ? Math.round((a.cx + b.cx) / 2) : Math.round((a.cy + b.cy) / 2);
+        // couloir en baïonnette, 3 cases de large
+        if (hor) { for (let x = a.cx; x <= mid; x++) for (let d = -1; d <= 1; d++) floor(x, a.cy + d); for (let y = Math.min(a.cy, b.cy) - 1; y <= Math.max(a.cy, b.cy) + 1; y++) for (let d = -1; d <= 1; d++) floor(mid + d, y); for (let x = mid; x <= b.cx; x++) for (let d = -1; d <= 1; d++) floor(x, b.cy + d); }
+        else { for (let y = a.cy; y <= mid; y++) for (let d = -1; d <= 1; d++) floor(a.cx + d, y); for (let x = Math.min(a.cx, b.cx) - 1; x <= Math.max(a.cx, b.cx) + 1; x++) for (let d = -1; d <= 1; d++) floor(x, mid + d); for (let y = mid; y <= b.cy; y++) for (let d = -1; d <= 1; d++) floor(b.cx + d, y); }
+      });
+      const entry = at(1, 2), boss = at(1, 0);
+      this.temples[key] = { key, box, zone, rooms, entry, boss, spawn: [entry.cx, entry.y + entry.h - 3], exitAt: [entry.cx, entry.y + entry.h - 1], crystal: [boss.cx, boss.y + 2], bossAt: [boss.cx, boss.y + 6] };
+    });
+  },
   // plus court chemin sur la grille (largeur), limité par une condition de passage
   bfsPath(a, b, ok) {
     const W = this.W, H = this.H, prev = new Int32Array(W * H).fill(-1), q = new Int32Array(W * H);
@@ -212,7 +249,9 @@ G.World = {
   },
   depthAt(x, y) { return this.depth && this.depth[y] ? this.depth[y][x] : 0; },
   rect(x0, y0, w, h, ch, zone) { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { this.t[y][x] = ch; if (zone) this.z[y][x] = zone; } },
-  groundOf(zone) { return { foret: 'f', montagne: 'r', marais: 'm', volcan: 'v', bourg: 'g', havre: 'g' }[zone] || '.'; },
+  groundOf(zone) { return zone && zone[0] === 't' && zone[1] === '_' ? 'k' : { foret: 'f', montagne: 'r', marais: 'm', volcan: 'v', bourg: 'g', havre: 'g' }[zone] || '.'; },
+  templeKey(x, y) { const z = this.zoneAt(x, y); return z.startsWith('t_') && z !== 't_void' ? z.slice(2) : null; },
+  templeAt(x, y) { const k = this.templeKey(x, y); return k ? this.temples[k] : null; },
   // creuse un chemin en L ; noVolcano : ne perce jamais la muraille du volcan
   carve(a, b, ch, noVolcano) {
     let [x, y] = a; const [x1, y1] = b;
@@ -269,7 +308,7 @@ G.World = {
   // case libre, accessible, hors chemin, entourée de cases praticables
   okSpot(x, y, w = 1, h = 1, ring = true) {
     const W = this.W, o = this.occGrid;
-    if (x < 3 || y < 3 || x + w >= this.W - 3 || y + h >= this.H - 3) return false;
+    if (x < 3 || y < 3 || x + w >= this.WW - 3 || y + h >= this.H - 3) return false;
     for (let yy = y - (ring ? 1 : 0); yy < y + h + (ring ? 1 : 0); yy++) for (let xx = x - (ring ? 1 : 0); xx < x + w + (ring ? 1 : 0); xx++) {
       const c = this.t[yy][xx], k = yy * W + xx, inside = xx >= x && xx < x + w && yy >= y && yy < y + h;
       if (o[k]) return false;
@@ -285,8 +324,8 @@ G.World = {
     for (let i = 0; i < tries; i++) {
       let x, y;
       if (near) { const r = 3 + (i / 40 | 0); x = near[0] + Math.round((U.hash(i, seed, 1) - 0.5) * 2 * r); y = near[1] + Math.round((U.hash(seed, i, 2) - 0.5) * 2 * r); }
-      else { x = 3 + Math.floor(U.hash(i, seed, 3) * (this.W - 6)); y = 3 + Math.floor(U.hash(seed, i, 4) * (this.H - 6)); }
-      if (x < 3 || y < 3 || x >= this.W - 3 || y >= this.H - 3) continue;
+      else { x = 3 + Math.floor(U.hash(i, seed, 3) * (this.WW - 6)); y = 3 + Math.floor(U.hash(seed, i, 4) * (this.H - 6)); }
+      if (x < 3 || y < 3 || x >= this.WW - 3 || y >= this.H - 3) continue;
       if (zone && this.z[y][x] !== zone) continue;
       if (sub != null && this.subAt(x, y) !== sub) continue;
       const d = this.depthAt(x, y); if (d < minD || d > maxD) continue;
@@ -353,12 +392,56 @@ G.World = {
     bossSite.wyverne = mo[Math.floor(mo.length / 2)]; bossSite.hydre = ma[Math.floor(ma.length / 2)];
     bossSite.ignar = this.sites.filter(s => s.type === 'volcan').sort((a, b) => dist(b) - dist(a))[0];
     const beside = (cx, cy, zone) => { for (let r = 1; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = cx + dx, y = cy + dy; if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; if (this.t[y][x] === '_' || this.occGrid[y * this.W + x] || !WALKABLE.has(this.t[y][x])) continue; if (!this.reach[y * this.W + x]) continue; if (zone && this.z[y][x] !== zone) continue; return [x, y]; } return null; };
-    Object.keys(bossSite).forEach(id => {
-      const s = bossSite[id]; if (!s) return;
-      const p = beside(s.x, s.y - 1, s.type) || [s.x, s.y - 1];
-      this.clearAround(p[0], p[1], 0);
-      add({ k: 'boss', id, x: p[0], y: p[1], show: () => !S().bosses[id], act: () => this.bossTalk(id) });
+    // --- entrées des temples (une par région) ---
+    const buildSpot = (cx, cy, zone) => {
+      for (let r = 0; r < 26; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const x = cx + dx, y = cy + dy;
+        if (zone && (this.z[y] || [])[x] !== zone) continue;
+        if (!this.okSpot(x, y, 3, 2)) continue;
+        const fx = x + 1, fy = y + 2; if (!WALKABLE.has(this.t[fy][fx]) || this.occGrid[fy * this.W + fx] === 1 || !this.reach[fy * this.W + fx]) continue;
+        return [x, y];
+      }
+      return null;
+    };
+    const siteOf = { terre: bossSite.sylvaros, vent: bossSite.wyverne, eau: bossSite.hydre, feu: bossSite.ignar };
+    this.entrances = {};
+    Object.keys(G.TEMPLES).forEach(key => {
+      if (key === 'lumiere') return;
+      const T = G.TEMPLES[key], st = siteOf[key];
+      let p = st ? buildSpot(st.x - 1, st.y - 2, T.zone) || buildSpot(st.x, st.y, null) : null;
+      if (key === 'tenebres') { const q = this.findSpot('plaines', 0, 1, 777, [bx + 4, by - 26]) || [bx + 4, by - 20]; p = buildSpot(q[0], q[1], 'plaines') || buildSpot(bx + 16, by - 4, null); }
+      if (!p) return;
+      const e = add({ k: 'temple', id: 'te_' + key, temple: key, x: p[0], y: p[1], w: 3, h: 2, door: [p[0] + 1, p[1] + 1], label: T.n, act: () => this.templeDoor(key) });
+      this.entrances[key] = e;
     });
+    // --- intérieurs : sortie, cristal, gardien, braseros, piliers, coffres ---
+    Object.keys(this.temples).forEach(key => {
+      const T = this.temples[key], D = G.TEMPLES[key], b = T.boss, en = T.entry;
+      add({ k: 'portal', id: 'tx_' + key, temple: key, x: T.exitAt[0], y: T.exitAt[1], act: () => this.templeExit(key) });
+      add({ k: 'crystal', id: 'cr_' + key, temple: key, x: T.crystal[0], y: T.crystal[1], act: () => this.crystalTalk(key) });
+      add({ k: 'boss', id: D.boss, x: T.bossAt[0], y: T.bossAt[1], show: () => !S().bosses[D.boss], act: () => this.bossTalk(D.boss) });
+      [[b.x + 1, b.y + 1], [b.x + b.w - 2, b.y + 1], [b.x + 1, b.y + b.h - 2], [b.x + b.w - 2, b.y + b.h - 2], [en.x + 1, en.y + 1], [en.x + en.w - 2, en.y + 1]].forEach(([x, y], i) => add({ k: 'brazier', id: `br_${key}_${i}`, temple: key, x, y }));
+      for (let i = 0; i < 3; i++) { const y = b.y + 4 + i * 4; if (y < b.y + b.h - 2) { add({ k: 'pillar', temple: key, x: b.x + 3, y }); add({ k: 'pillar', temple: key, x: b.x + b.w - 4, y }); } }
+      // piliers et braseros dans les autres grandes salles
+      T.rooms.forEach((r, ri) => {
+        if (r.boss || r.entry) return;
+        if (r.w >= 12 && r.h >= 10) [[r.x + 2, r.y + 2], [r.x + r.w - 3, r.y + 2], [r.x + 2, r.y + r.h - 3], [r.x + r.w - 3, r.y + r.h - 3]].forEach(([x, y]) => add({ k: 'pillar', temple: key, x, y }));
+        if (U.hash(ri, T.box.y, 41) < 0.6) add({ k: 'brazier', id: `br_${key}_r${ri}`, temple: key, x: r.cx, y: r.y + 1 });
+      });
+      // coffres dans les salles reculées
+      const lvl = G.ZONES[T.zone].lmax, TL = G.TEMPLE_LOOT[key];
+      T.rooms.filter(r => !r.boss && !r.entry).sort((p, q) => U.hash(p.i, p.j, 51 + T.box.y) - U.hash(q.i, q.j, 51 + T.box.y)).slice(0, 3).forEach((r, n) => {
+        const x = U.hash(n, T.box.y, 52) < 0.5 ? r.x + 1 : r.x + r.w - 2, y = r.y + r.h - 2;
+        if (this.t[y][x] !== 'k' || this.occGrid[y * this.W + x] === 1) return;
+        const loot = { g: Math.round(lvl * 40 * (1 + n * 0.5)), items: { [TL.items[n % TL.items.length][0]]: TL.items[n % TL.items.length][1] }, mats: { [TL.mats[n % TL.mats.length][0]]: TL.mats[n % TL.mats.length][1] } };
+        if (n === 2) loot.mats.echo = 1;
+        add({ k: 'chest', id: `tc_${key}_${n}`, x, y, loot, deep: n === 2, act: () => this.openChest(`tc_${key}_${n}`) });
+      });
+    });
+    // --- cristal de Lumière : apparaît au Havre après la destruction du cristal des Ténèbres ---
+    { const q = buildSpot(hx + 14, hy + 2, null) || [hx + 14, hy + 2];
+      add({ k: 'crystal', id: 'cr_havre', temple: 'lumiere', big: true, x: q[0] + 1, y: q[1], show: () => !!S().bosses.umbra, act: () => this.lightCrystalTalk() }); }
     this.sites.forEach((s, i) => {
       if (Math.hypot(s.x - bx - 4, s.y - by - 4) < 30) return;
       if (!this.reach[s.y * this.W + s.x] && s.type !== 'volcan') return;
@@ -449,7 +532,7 @@ G.World = {
     Object.keys(wild).forEach(zone => {
       const [arch, n] = wild[zone]; let placed = 0;
       for (let i = 0; i < 6000 && placed < n; i++) {
-        const x = 3 + Math.floor(U.hash(i, 909, zone.length) * (this.W - 8)), y = 3 + Math.floor(U.hash(909, i, zone.length) * (this.H - 8));
+        const x = 3 + Math.floor(U.hash(i, 909, zone.length) * (this.WW - 8)), y = 3 + Math.floor(U.hash(909, i, zone.length) * (this.H - 8));
         if (this.z[y][x] !== zone || this.z[y + 1][x + 2] !== zone || !this.isNear(x + 1, y + 2, '_', 3)) continue;
         if (this.E.some(e => e.arch === arch && Math.abs(e.x - x) + Math.abs(e.y - y) < 30)) continue;
         if (tryAdd({ k: 'house', id: `${arch}${placed}`, x, y, w: 3, h: 2, door: [x + 1, y + 1], arch, aopt: {}, label: label[arch], act: () => G.UI.say([{ who: '', t: text[arch] }]) })) placed++;
@@ -479,7 +562,7 @@ G.World = {
   connect() {
     const W = this.W;
     this.computeReach();
-    const targets = this.E.filter(e => !['node', 'lamp', 'wall', 'gate', 'prop'].includes(e.k));
+    const targets = this.E.filter(e => !['node', 'lamp', 'wall', 'gate', 'prop'].includes(e.k) && e.x < this.WW);
     for (const e of targets) {
       const fronts = e.door ? [[e.door[0], e.door[1] + 1]] : Object.values(DIRS).map(([dx, dy]) => [e.x + dx, e.y + dy]);
       if (fronts.some(([x, y]) => this.reach[y * W + x])) continue;
@@ -525,8 +608,10 @@ G.World = {
   },
   snapCam() { const c = this.camTarget(); this.cam.x = c.x; this.cam.y = c.y; },
   camTarget() {
-    const R = G.R, P = this.P;
-    return { x: U.clamp(P.px + 8 - R.W / 2, 0, Math.max(0, this.W * 16 - R.W)), y: U.clamp(P.py + 8 - R.H / 2, 0, Math.max(0, this.H * 16 - R.H)) };
+    const R = G.R, P = this.P, T = P.x >= this.WW ? this.templeAt(P.x, P.y) : null;
+    if (T) { const b = T.box, x0 = b.x * 16, y0 = b.y * 16, x1 = (b.x + b.w) * 16, y1 = (b.y + b.h) * 16; const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      return { x: x1 - x0 > R.W ? U.clamp(P.px + 8 - R.W / 2, x0, x1 - R.W) : cx - R.W / 2, y: y1 - y0 > R.H ? U.clamp(P.py + 8 - R.H / 2, y0, y1 - R.H) : cy - R.H / 2 }; }
+    return { x: U.clamp(P.px + 8 - R.W / 2, 0, Math.max(0, this.WW * 16 - R.W)), y: U.clamp(P.py + 8 - R.H / 2, 0, Math.max(0, this.H * 16 - R.H)) };
   },
   // ---------------- Mise à jour ----------------
   // construit en arrière-plan le prochain bloc de sol proche du joueur (un à la fois)
@@ -713,7 +798,8 @@ G.World = {
   },
   // brouillard de la carte : cases de 8x8 explorées
   explore(px, py) {
-    const S = G.S, CW = Math.ceil(this.W / 8), CH = Math.ceil(this.H / 8);
+    if (px >= this.WW) return;
+    const S = G.S, CW = Math.ceil(this.WW / 8), CH = Math.ceil(this.H / 8);
     if (!S.explored || S.explored.length !== CW * CH) S.explored = '0'.repeat(CW * CH);
     let arr = null;
     for (let y = Math.floor(py / 8) - 2; y <= Math.floor(py / 8) + 2; y++) for (let x = Math.floor(px / 8) - 3; x <= Math.floor(px / 8) + 3; x++) {
@@ -723,7 +809,7 @@ G.World = {
     }
     if (arr) S.explored = arr.join('');
   },
-  isExplored(x, y) { const S = G.S, CW = Math.ceil(this.W / 8); if (S.flags.demo && this.zoneAt(x, y) !== 'volcan') return true; return S.explored && S.explored[Math.floor(y / 8) * CW + Math.floor(x / 8)] === '1'; },
+  isExplored(x, y) { const S = G.S, CW = Math.ceil(this.WW / 8); if (S.flags.demo && this.zoneAt(x, y) !== 'volcan') return true; return S.explored && S.explored[Math.floor(y / 8) * CW + Math.floor(x / 8)] === '1'; },
   musicFor() { const z = this.zoneAt(this.P.x, this.P.y); return G.ZONES[z].town ? 'town' : 'field'; },
   // ---------------- Interactions ----------------
   facing() { const [dx, dy] = DIRS[this.P.dir]; return [this.P.x + dx, this.P.y + dy]; },
@@ -752,12 +838,12 @@ G.World = {
     if (!S.flags.elder) {
       S.flags.elder = true;
       await G.UI.say([
-        { who, t: 'Kael, Lyra… Vous voilà enfin. Les Échos élémentaires sont corrompus.' },
-        { who, t: 'Ignar, le Dragon des Cendres, a souillé les quatre Gardiens : Sylvaros dans la forêt, la Wyverne sur les cimes, l’Hydre dans le marais. La carte (menu) t’aidera à les trouver.' },
-        { who, t: 'Purifiez les trois Gardiens et la barrière du Volcan cédera. Alors seulement vous pourrez affronter Ignar.' },
+        { who, t: 'Kael, Lyra… Vous voilà enfin. Les cristaux élémentaires sont en grand péril.' },
+        { who, t: 'Terre, Vent, Eau, Feu : chaque région abrite son cristal dans un temple. Le Cristal des Ténèbres s’est éveillé et a corrompu leurs gardiens.' },
+        { who, t: 'Sylvaros garde le Temple de Terre dans la forêt, la Wyverne celui du Vent sur les cimes, l’Hydre celui de l’Eau dans le marais. Libérez ces trois cristaux et la barrière du Volcan cédera : Ignar y garde le Cristal de Feu.' },
+        { who, t: 'Quand les quatre cristaux brilleront de nouveau, le sceau du Temple des Ténèbres, ici même dans les plaines, se brisera.' },
         { who, t: 'Les réfugiés affluent… Juste au sud-est s’étend une terre fertile : le site du Havre. Votre ami Bran vous y attend pour bâtir une ville.' },
-        { who, t: 'Recrutez des habitants, construisez forge et ateliers. Ici, nulle boutique ne vend d’armes : tout doit se forger !' },
-        { who, t: 'Prenez ceci, et que les Échos vous guident.' },
+        { who, t: 'Prenez ceci, et que les cristaux vous guident.' },
       ]);
       G.give('potion', 2); G.give('bois', 3); G.UI.toast('Obtenu : ' + G.gotText('potion', 2) + ', ' + G.gotText('bois', 3));
       return;
@@ -765,9 +851,11 @@ G.World = {
     const left = ['sylvaros', 'wyverne', 'hydre'].filter(b => !S.bosses[b]);
     let tip;
     if (!S.town.founded) tip = 'Rends-toi au sud-est, au site du Havre. Bran t’y attend.';
-    else if (S.bosses.ignar) tip = 'Tu as sauvé notre monde. Le Havre grandira grâce à toi.';
-    else if (left.length) tip = `Il reste ${left.length} Gardien(s) corrompu(s). ${left.includes('sylvaros') ? 'Sylvaros, au cœur de la Forêt de Sylve, est le plus faible.' : left.includes('wyverne') ? 'La Wyverne t’attend dans les hauteurs des Monts Grisés.' : 'L’Hydre se cache au fond du Marais Brumeux.'}`;
-    else tip = 'La barrière du Volcan est tombée ! Ignar t’attend au cœur des cendres. Forge tes meilleures armes avant d’y aller.';
+    else if (S.bosses.creation) tip = 'La lumière et l’ombre sont de nouveau en équilibre. Le Havre grandira grâce à toi.';
+    else if (S.bosses.umbra) tip = 'Le Cristal de Lumière est apparu au Havre… Méfie-toi : ce qui t’y attend est plus ancien que le monde.';
+    else if (S.bosses.ignar) tip = 'Les quatre cristaux sont libres ! Le sceau du Temple des Ténèbres, dans les plaines, est brisé. Détruis le Cristal des Ténèbres.';
+    else if (left.length) tip = `Il reste ${left.length} temple(s) à libérer. ${left.includes('sylvaros') ? 'Le Temple de Terre, au cœur de la Forêt de Sylve, est le plus accessible.' : left.includes('wyverne') ? 'Le Temple du Vent t’attend dans les hauteurs des Monts Grisés.' : 'Le Temple de l’Eau se cache au fond du Marais Brumeux.'}`;
+    else tip = 'La barrière du Volcan est tombée ! Le Temple du Feu et Ignar t’attendent au cœur des cendres.';
     await G.UI.say([{ who, t: tip }, { who, t: 'N’oublie pas : chaque arme change complètement ton style. Expérimente !' }]);
   },
   async recruitTalk(id) {
@@ -812,15 +900,87 @@ G.World = {
   async bossTalk(id) {
     const E = G.ENEMIES[id];
     const lines = {
-      sylvaros: 'Un arbre gigantesque se dresse… ses yeux s’embrasent d’une lueur violette !',
-      wyverne: 'La foudre crépite. La Wyverne Tempête déploie ses ailes au-dessus des cimes !',
-      hydre: 'Les brumes s’écartent. Trois têtes émergent des eaux noires…',
-      ignar: 'La chaleur est insoutenable. IGNAR, le Dragon des Cendres, ouvre les yeux.',
+      sylvaros: 'Devant le Cristal de Terre se dresse un arbre gigantesque… ses yeux s’embrasent d’une lueur violette !',
+      wyverne: 'La foudre crépite autour du Cristal de Vent. La Wyverne Tempête déploie ses ailes !',
+      hydre: 'L’eau sombre bouillonne au pied du Cristal d’Eau. Trois têtes émergent…',
+      ignar: 'La chaleur est insoutenable. Lové autour du Cristal de Feu, IGNAR, le Dragon des Cendres, ouvre les yeux.',
+      umbra: 'Le Cristal des Ténèbres pulse comme un cœur. Une silhouette de néant s’en détache : UMBRA.',
+      creation: 'Une lumière aveuglante remplit le sanctuaire. Ce qui fut avant toute chose s’éveille : la CRÉATION ORIGINELLE.',
     };
     await G.UI.say([{ who: '', t: lines[id] }]);
+    if (id === 'creation') await G.UI.say([{ who: 'Création originelle', t: 'Vous avez éteint les ténèbres… Mais la lumière ne connaît pas de limite. Je referai ce monde, sans ombre et sans vous.' }, { who: 'Lyra', t: 'Une lumière sans ombre n’est qu’un autre aveuglement. On ne te laissera pas faire !' }]);
     const r = await G.UI.ask(`Affronter ${E.n} (niv. ${E.lvl}) ?`, ['Combattre !', 'Se préparer']);
     if (r !== 0) return;
-    G.Battle.start([id], { bg: { sylvaros: 'forest', wyverne: 'mountain', hydre: 'swamp', ignar: 'volcano' }[id], boss: true, zone: this.zoneAt(this.P.x, this.P.y) });
+    const zone = this.zoneAt(this.P.x, this.P.y);
+    G.Battle.start([id], { bg: G.ZONES[zone] && G.ZONES[zone].bg || 'plains', boss: true, zone });
+  },
+  // ---------------- Temples ----------------
+  async templeDoor(key) {
+    const S = G.S, T = G.TEMPLES[key];
+    if (key === 'tenebres' && G.crystalsFreed(S) < 4) {
+      await G.UI.say([{ who: '', t: `Un sceau d’ombre scelle les portes du ${T.n}. Il ne cédera qu’à la lumière des quatre cristaux libérés (${G.crystalsFreed(S)}/4).` }]);
+      return;
+    }
+    const done = S.bosses[T.boss];
+    const r = await G.UI.ask(`${T.n}${done ? ' (cristal libéré)' : ''}. ${G.ZONES['t_' + key].lv}. Entrer ?`, ['Entrer', 'Plus tard']);
+    if (r !== 0) return;
+    this.enterTemple(key);
+  },
+  enterTemple(key) {
+    const T = this.temples[key];
+    G.scene = 'trans';
+    G.Audio.sfx('ok');
+    G.R.transition('fadeout', 0.4, () => {
+      this.placePlayer(T.spawn[0], T.spawn[1], 'up'); this.sinceBattle = -8; G.R.parts = [];
+      G.S.flags.temples = G.S.flags.temples || {}; G.S.flags.temples[key] = true;
+      G.UI.zoneBanner(G.ZONES[T.zone], true);
+      G.scene = 'world'; G.R.transition('fadein', 0.4);
+    });
+  },
+  templeExit(key) {
+    const e = this.entrances[key];
+    G.scene = 'trans';
+    G.R.transition('fadeout', 0.35, () => {
+      if (e) this.placePlayer(e.door[0], e.door[1] + 1, 'down');
+      else { const [hx, hy] = this.HAVRE, c = this.E.find(x => x.id === 'cr_havre'); this.placePlayer(c ? c.x : hx + 5, c ? c.y + 1 : hy + 4, 'down'); }
+      this.sinceBattle = 0; G.R.parts = [];
+      G.UI.zoneBanner(G.ZONES[this.zoneAt(this.P.x, this.P.y)]);
+      G.scene = 'world'; G.R.transition('fadein', 0.4);
+    });
+  },
+  async crystalTalk(key) {
+    const S = G.S, T = G.TEMPLES[key], free = S.bosses[T.boss];
+    if (key === 'tenebres') { await G.UI.say([{ who: '', t: free ? 'Il ne reste du Cristal des Ténèbres que des éclats éteints. Un silence apaisé règne sur le temple.' : 'Le Cristal des Ténèbres aspire la lumière alentour. Son gardien veille.' }]); return; }
+    if (key === 'lumiere') { await G.UI.say([{ who: '', t: free ? 'Le Cristal de Lumière brille doucement, apaisé. Il éclaire désormais le monde sans l’aveugler.' : 'Le Cristal de Lumière irradie une clarté insoutenable.' }]); return; }
+    await G.UI.say([{ who: '', t: free ? `Le ${T.cn} brille d’une lumière pure. Sa force veille de nouveau sur le monde. (${G.crystalsFreed(S)}/4 cristaux libérés)` : `Le ${T.cn} est voilé de corruption. Son gardien doit être purifié pour le libérer.` }]);
+    if (free) { G.healAll(); G.R.burst(this.P.px - this.cam.x + 8, this.P.py - this.cam.y, { n: 20, c: [T.col, '#ffffff'], spd: 20, vy: -30, life: 1 }); G.Audio.sfx('heal'); G.UI.toast('Le cristal restaure les forces de l’équipe.'); }
+  },
+  async lightCrystalTalk() {
+    const S = G.S;
+    if (S.bosses.creation) { await G.UI.say([{ who: '', t: 'Le Cristal de Lumière veille sur le Havre, apaisé.' }]); const r = await G.UI.ask('Retourner au Sanctuaire ?', ['Entrer', 'Rester']); if (r === 0) this.enterTemple('lumiere'); return; }
+    await G.UI.say([{ who: '', t: 'Le Cristal de Lumière vibre d’une clarté sans fin. Au-delà, un sanctuaire hors du monde attend.' }]);
+    const r = await G.UI.ask(`Entrer dans le Sanctuaire du Cristal de Lumière ? (${G.ZONES.t_lumiere.lv})`, ['Entrer', 'Se préparer']);
+    if (r === 0) this.enterTemple('lumiere');
+  },
+  // cinématique : le cristal de Lumière surgit au Havre
+  async lightCutscene() {
+    const S = G.S, c = this.E.find(e => e.id === 'cr_havre');
+    await new Promise(res => { G.scene = 'trans'; G.R.transition('fadeout', 0.6, () => { this.placePlayer(c.x, c.y + 3, 'up'); G.scene = 'world'; G.R.transition('fadein', 0.6, res); }); });
+    this.cutscene = { t: 0, x: c.x, y: c.y };
+    this.hideLight = true;
+    await G.UI.say([{ who: 'Bran', t: 'On est… au Havre ? Le temple s’est effondré et une lumière nous a portés jusqu’ici…' }, { who: 'Lyra', t: 'Regardez le ciel ! La lumière se concentre au-dessus de la ville !' }]);
+    G.Audio.sfx('achieve'); G.R.shake(3, 1.2);
+    for (let i = 0; i < 6; i++) { G.R.flash('#fff6c8', 0.25 + i * 0.08); G.R.burst(c.x * 16 - this.cam.x + 8, c.y * 16 - this.cam.y - 10, { n: 24, c: ['#fff6c8', '#ffe080', '#ffffff'], spd: 50 + i * 10, life: 1 }); await U.wait(320); }
+    this.hideLight = false; G.R.flash('#ffffff', 1); G.R.shake(5, 0.6);
+    await U.wait(600);
+    await G.UI.say([
+      { who: '', t: 'Un immense cristal de lumière s’est posé au cœur du Havre.' },
+      { who: 'Kael', t: 'Le Cristal de Lumière… Les anciens disaient qu’il était à l’origine de tous les autres.' },
+      { who: '???', t: 'Enfants de l’Aube… Vous avez brisé l’ombre. Venez à moi. Que l’Origine juge ce monde.' },
+      { who: 'Lyra', t: 'Cette voix… Ce n’était pas Ignar ni Umbra qui menaçaient le monde. C’est ce qui se cache derrière ce cristal.' },
+      { who: '', t: 'Le Cristal de Lumière ouvre la voie du Sanctuaire. Préparez-vous avant d’y entrer.' },
+    ]);
+    this.cutscene = null; G.save();
   },
   async huntTalk(id) {
     const S = G.S, h = id === 'inf' ? G.HUNT_INF : G.HUNTS.find(x => x.id === id);
@@ -832,7 +992,7 @@ G.World = {
   },
   async barrierTalk() {
     const n = ['sylvaros', 'wyverne', 'hydre'].filter(b => G.S.bosses[b]).length;
-    await G.UI.say([{ who: '', t: `Une muraille de flammes éternelles bloque le passage. ${n}/3 Échos purifiés résonnent en vous.` }]);
+    await G.UI.say([{ who: '', t: `Une muraille de flammes éternelles bloque le passage. ${n}/3 cristaux libérés (Terre, Vent, Eau) résonnent en vous.` }]);
   },
   async openChest(id) {
     const S = G.S, e = this.E.find(x => x.id === id);
@@ -915,6 +1075,8 @@ G.World = {
     this.emitT = 0.12;
     const x = Math.random() * R.W, y = Math.random() * R.H;
     const P = (o) => R.parts.push(Object.assign({ x, y, vx: 0, vy: 0, life: 4, max: 4, size: 1, c: '#fff', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 }, o));
+    const TK = this.templeKey(this.P.x, this.P.y);
+    if (TK) { if (Math.random() < 0.5) P({ vx: U.rand(-3, 3), vy: U.rand(-6, -1), c: TK === 'tenebres' ? '#b06aff' : G.TEMPLES[TK].col, size: 0.6, life: 4, max: 4 }); return; }
     if (zone === 'foret') { if (Math.random() < 0.5) P({ y: -4, vx: U.rand(-8, 8), vy: U.rand(8, 16), c: U.pick(['#6a9a3a', '#a8a040', '#4a7a2a']), glow: false, type: 'leaf', size: 1.4, life: 6, max: 6 }); }
     else if (zone === 'montagne' && this.subAt(this.P.x, this.P.y) === 1) { P({ y: -4, vx: U.rand(-16, -6), vy: U.rand(14, 26), c: '#ffffff', glow: false, size: 1.1, life: 6, max: 6 }); P({ y: -4, vx: U.rand(-16, -6), vy: U.rand(14, 26), c: '#ffffff', glow: false, size: 0.8, life: 6, max: 6 }); }
     else if (zone === 'montagne') P({ y: -4, vx: U.rand(-12, -4), vy: U.rand(10, 20), c: '#ffffff', glow: false, size: 0.8, life: 6, max: 6 });
@@ -1004,8 +1166,10 @@ G.World = {
         x.fillStyle = '#ffffff'; x.fillRect(Math.round(P.px - cx + 7), Math.round(P.py - cy - 7 + bob), 2, 3); x.fillRect(Math.round(P.px - cx + 7), Math.round(P.py - cy - 3 + bob), 2, 1);
       }
     }
-    if (day.night) lights.push({ x: P.px - cx + 8, y: P.py - cy + 8, r: 75, c: '#ffcf80', a: 0.9 });
-    const zone = this.zoneAt(P.x, P.y);
+    const zone = this.zoneAt(P.x, P.y), TK = this.templeKey(P.x, P.y);
+    if (day.night || TK) lights.push({ x: P.px - cx + 8, y: P.py - cy + 8, r: TK ? 64 : 75, c: TK ? '#ffe8c0' : '#ffcf80', a: 0.9 });
+    if (this.cutscene) { const C = this.cutscene, bx = C.x * 16 - cx + 8; x.save(); x.globalCompositeOperation = 'lighter'; const g = x.createLinearGradient(bx - 14, 0, bx + 14, 0); g.addColorStop(0, 'rgba(255,240,180,0)'); g.addColorStop(0.5, 'rgba(255,248,210,0.55)'); g.addColorStop(1, 'rgba(255,240,180,0)'); x.fillStyle = g; x.fillRect(bx - 14, 0, 28, C.y * 16 - cy + 8); x.restore(); lights.push({ x: bx, y: C.y * 16 - cy, r: 140, c: '#fff4c0', a: 1 }); }
+    if (TK) { const T = G.TEMPLES[TK]; R.present({ dof: 0.6, focusTop: 0.3, focusBot: 0.75, bloom: 0.28, dark: TK === 'lumiere' ? 0.18 : 0.5, darkCol: T.dark, lights, grade: TK === 'lumiere' ? 'rgba(255,240,200,0.15)' : null, vignette: 0.6 }); return; }
     const grade = day.grade || { foret: 'rgba(60,140,60,0.18)', marais: 'rgba(110,80,140,0.22)', volcan: 'rgba(255,90,40,0.2)', montagne: 'rgba(120,150,200,0.14)' }[zone] || 'rgba(255,220,160,0.1)';
     R.present({ dof: 0.85, focusTop: 0.3, focusBot: 0.75, bloom: 0.2, dark: Math.max(day.dark, zone === 'marais' ? 0.12 : 0, zone === 'volcan' ? 0.2 : 0), darkCol: zone === 'volcan' ? '#300808' : day.col, lights, grade, vignette: 0.5, rays: zone === 'foret' && !day.night ? 1 : zone === 'plaines' && !day.night ? 0.35 : 0 });
   },
@@ -1023,6 +1187,7 @@ G.World = {
   },
   // style d'herbe selon de grandes plaques de bruit
   groundStyle(ch, tx, ty) {
+    if (ch === 'k') return this.templeKey(tx, ty) || 'tenebres';
     if (ch === 'f') return U.fbm(tx / 6, ty / 6, 51) > 0.55 ? 'moss' : 'fern';
     if (ch !== '.' && ch !== ',') return '';
     const n = U.fbm(tx / 9, ty / 9, 52), m = U.fbm(tx / 4, ty / 4, 53);
@@ -1032,7 +1197,8 @@ G.World = {
   },
   decalFor(tx, ty) {
     const ch = this.t[ty][tx], zone = this.z[ty][tx], h = U.hash(tx, ty, 333);
-    if (ch === '_' || ch === 'p' || ch === '=' || ch === '~' || ch === 'l' || ch === 'w' || ch === 'T' || ch === '^') return null;
+    if (ch === '_' || ch === 'p' || ch === '=' || ch === '~' || ch === 'l' || ch === 'w' || ch === 'T' || ch === '^' || ch === 'X') return null;
+    if (ch === 'k') { const r = [[0.025, 'pebbles'], [0.04, 'crack'], [0.05, 'bones']].find(q => h < q[0]); return r ? r[1] : null; }
     const L = {
       plaines: [[0.07, 'flowers'], [0.13, 'tuft'], [0.16, 'pebbles'], [0.18, 'bush'], [0.19, 'stump']],
       bourg: [[0.12, 'flowers'], [0.16, 'tuft']], havre: [[0.1, 'flowers'], [0.14, 'tuft']],
@@ -1066,9 +1232,18 @@ G.World = {
       for (const [tx, ty] of tiles) { if (++__n % 32 === 0) yield; (() => {
         const ch = this.t[ty][tx], sx = (tx - gx * CK) * 16, sy = (ty - gy * CK) * 16;
         if (ch === '~' || ch === 'l' || ch === 'w' || ch === '=') return;
+        if (ch === 'X') { const TK = this.templeKey(tx, ty) || 'tenebres'; x.drawImage(G.SPR.templeWall(TK, Math.floor(U.hash(tx, ty, 5) * 4), this.tile(tx, ty + 1) === 'k'), sx, sy, 16, 16); return; }
         const base = this.baseCh(tx, ty), v = Math.floor(U.hash(tx, ty, 5) * 8);
         x.drawImage(G.SPR.tile(base, v, this.groundStyle(base, tx, ty)), sx, sy, 16, 16);
       })(); }
+      // ombre portée des murs de temple sur le sol
+      for (const [tx, ty] of tiles) {
+        if (this.t[ty][tx] !== 'k') continue;
+        const sx = (tx - gx * CK) * 16, sy = (ty - gy * CK) * 16;
+        if (this.tile(tx, ty - 1) === 'X') { const g = x.createLinearGradient(0, sy, 0, sy + 7); g.addColorStop(0, 'rgba(0,0,0,0.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(sx, sy, 16, 7); }
+        if (this.tile(tx - 1, ty) === 'X') { const g = x.createLinearGradient(sx, 0, sx + 5, 0); g.addColorStop(0, 'rgba(0,0,0,0.4)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(sx, sy, 5, 16); }
+        if (this.tile(tx + 1, ty) === 'X') { const g = x.createLinearGradient(sx + 16, 0, sx + 12, 0); g.addColorStop(0, 'rgba(0,0,0,0.3)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(sx + 12, sy, 4, 16); }
+      }
       yield;
       // teinte continue à grande échelle (sur l'herbe et la roche) : calques basse définition agrandis en douceur
       {
@@ -1095,7 +1270,7 @@ G.World = {
       }
       // transitions douces : le sol « dominant » déborde sur son voisin
       for (const [tx, ty] of tiles) { if (++__n % 32 === 0) yield; (() => {
-        const ch = this.t[ty][tx]; if (ch === '=') return;
+        const ch = this.t[ty][tx]; if (ch === '=' || ch === 'X') return;
         const sx = (tx - gx * CK) * 16, sy = (ty - gy * CK) * 16, base = this.baseCh(tx, ty), pb = G.SPR.prio(base);
         [[0, -1, 0], [1, 0, 1], [0, 1, 2], [-1, 0, 3]].forEach(([dx, dy, side]) => {
           const nb = this.baseCh(tx + dx, ty + dy);
@@ -1161,6 +1336,47 @@ G.World = {
         if (e.aopt && e.aopt.inn) lights.push({ x: sx + 24, y: sy + 32 - 15, r: day.night ? 34 : 14, c: '#ffd060', a: 0.8 });
         G.SPR.draw(x, img, sx, sy + e.h * 16 - G.SPR.lh(img));
         if (day.night) lights.push({ x: sx + e.w * 8, y: sy + 14, r: 34, c: '#ffcf70', a: 0.6 });
+        break;
+      }
+      case 'temple': {
+        const T = G.TEMPLES[e.temple], sealed = e.temple === 'tenebres' && G.crystalsFreed(G.S) < 4, img = G.SPR.templeFacade(e.temple, sealed);
+        G.SPR.draw(x, img, sx, sy + e.h * 16 - G.SPR.lh(img));
+        lights.push({ x: sx + 24, y: sy - 10, r: 46, c: sealed ? '#8a4aff' : T.col, a: 0.75 + Math.sin(t * 2) * 0.15 });
+        if (Math.random() < 0.06) G.R.parts.push({ x: sx + 24 + U.rand(-10, 10), y: sy, vx: 0, vy: -10, life: 2, max: 2, size: 0.8, c: sealed ? '#b06aff' : T.col, glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
+        break;
+      }
+      case 'crystal': {
+        if (e.id === 'cr_havre' && this.hideLight) break;
+        const T = G.TEMPLES[e.temple], S = G.S, free = !!S.bosses[T.boss];
+        const state = e.temple === 'tenebres' ? (free ? 'broken' : 'dark') : e.temple === 'lumiere' ? 'pure' : free ? 'pure' : 'corrupt';
+        const img = G.SPR.crystal(e.temple, state), bob = state === 'broken' ? 0 : Math.sin(t * 1.6) * 1.5;
+        this.shadow(sx + 8, sy + 14, 9);
+        G.SPR.draw(x, img, Math.round(sx + 8 - G.SPR.lw(img) / 2), Math.round(sy + 16 - G.SPR.lh(img) - 3 + bob));
+        const c = state === 'corrupt' || state === 'dark' ? '#9a4aff' : T.col;
+        if (state !== 'broken') lights.push({ x: sx + 8, y: sy - 12, r: e.big ? 110 : 80, c, a: 0.9 + Math.sin(t * 3) * 0.1 });
+        if (state !== 'broken' && Math.random() < 0.2) G.R.parts.push({ x: sx + 8 + U.rand(-8, 8), y: sy - 4 + U.rand(-16, 6), vx: U.rand(-3, 3), vy: -8, life: 1.6, max: 1.6, size: 0.9, c, glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
+        break;
+      }
+      case 'brazier': {
+        const T = G.TEMPLES[e.temple];
+        this.shadow(sx + 8, sy + 14, 5);
+        G.SPR.draw(x, G.SPR.brazier(e.temple), sx, sy + 16 - 20);
+        const f = Math.sin(t * 9 + e.x) * 0.5 + Math.sin(t * 13 + e.y) * 0.5;
+        x.save(); x.globalCompositeOperation = 'lighter';
+        x.drawImage(G.R.glow(T.col), sx + 8 - 5 - f, sy - 12 - f * 1.5, 10 + f * 2, 14 + f * 3);
+        x.drawImage(G.R.glow('#fff4d0'), sx + 8 - 2.5, sy - 7, 5, 6);
+        x.restore();
+        lights.push({ x: sx + 8, y: sy - 6, r: 52 + f * 4, c: T.col, a: 0.85 });
+        if (Math.random() < 0.12) G.R.parts.push({ x: sx + 8 + U.rand(-2, 2), y: sy - 8, vx: U.rand(-2, 2), vy: -14, life: 0.8, max: 0.8, size: 0.6, c: T.col, glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
+        break;
+      }
+      case 'pillar': { this.shadow(sx + 8, sy + 14, 6); const img = G.SPR.pillar(e.temple); G.SPR.draw(x, img, sx, sy + 16 - G.SPR.lh(img)); break; }
+      case 'portal': {
+        const T = G.TEMPLES[e.temple];
+        G.SPR.draw(x, G.SPR.portal(e.temple), sx - 4, sy - 2);
+        x.save(); x.globalCompositeOperation = 'lighter'; x.globalAlpha = 0.5 + Math.sin(t * 3) * 0.25; x.drawImage(G.R.glow(T.col), sx - 4, sy - 2, 24, 20); x.restore();
+        lights.push({ x: sx + 8, y: sy + 8, r: 40, c: T.col, a: 0.6 });
+        if (Math.random() < 0.15) G.R.parts.push({ x: sx + 8 + U.rand(-6, 6), y: sy + 10, vx: 0, vy: -16, life: 1.2, max: 1.2, size: 0.7, c: T.col, glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
         break;
       }
       case 'plot': {
@@ -1260,7 +1476,7 @@ G.World = {
         const E = G.ENEMIES[e.id], img = G.SPR.enemy(E.spr, E.pal, E.e), bob = Math.sin(t * 2) * 2;
         this.shadow(sx + 8, sy + 15, 14);
         G.SPR.draw(x, img, Math.round(sx + 8 - G.SPR.lw(img) / 2), Math.round(sy + 16 - G.SPR.lh(img) + bob));
-        lights.push({ x: sx + 8, y: sy, r: 60, c: G.ELEM[E.e].c, a: 0.8 });
+        lights.push({ x: sx + 8, y: sy, r: 60, c: E.e ? G.ELEM[E.e].c : e.id === 'creation' ? '#fff4c0' : '#b06aff', a: 0.8 });
         if (Math.random() < 0.25) G.R.parts.push({ x: sx + 8 + U.rand(-16, 16), y: sy + 12, vx: 0, vy: -14, life: 1.4, max: 1.4, size: 1, c: '#c86aff', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
         break;
       }

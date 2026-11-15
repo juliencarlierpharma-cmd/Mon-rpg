@@ -10,7 +10,7 @@ G.MATS = {
   pierre: { n: 'Pierre', i: '🪨', p: 8, d: 'Rochers. Pioche en bois requise.' },
   minerai: { n: 'Minerai de fer', i: '⛏️', p: 20, d: 'Filons de fer. Pioche en pierre requise.' },
   lingot: { n: 'Lingot de fer', i: '🔩', p: 45, d: 'Raffiné à partir de minerai. Base de toute forge.' },
-  cristal: { n: 'Cristal brut', i: '💎', p: 150, d: 'Gisements cristallins. Pioche en fer requise.' },
+  cristal: { n: 'Quartz brut', i: '💎', p: 150, d: 'Gisements de quartz. Pioche en fer requise.' },
   mithril: { n: 'Mithril', i: '✨', p: 400, d: 'Métal légendaire du volcan. Pioche en fer requise.' },
   herbe: { n: 'Herbe médicinale', i: '🌿', p: 10, d: 'Buissons d’herbes des plaines et marais.' },
   fibre: { n: 'Fibre', i: '🌾', p: 5, d: 'Hautes herbes. Se tisse en fil.' },
@@ -30,11 +30,13 @@ G.MATS = {
   essence_eau: { n: 'Essence d’eau', i: '🔵', p: 120, d: 'Créatures d’eau. Améliore les armes.' },
   essence_vent: { n: 'Essence de vent', i: '🟢', p: 120, d: 'Créatures de vent. Améliore les armes.' },
   essence_terre: { n: 'Essence de terre', i: '🟤', p: 120, d: 'Créatures de terre. Améliore les armes.' },
-  echo: { n: 'Fragment d’Écho', i: '🔮', p: 0, d: 'Laissé par les Gardiens et certains accomplissements. Indispensable aux armes de rang 4 et 5.' },
+  echo: { n: 'Éclat de cristal', i: '🔮', p: 0, d: 'Éclat d’un cristal élémentaire, laissé par les Gardiens et certains accomplissements. Indispensable aux armes de rang 4 et 5.' },
   coeur_sylve: { n: 'Cœur de Sylve', i: '💚', p: 0, d: 'Cœur palpitant de l’Ent corrompu.' },
   plume_tempete: { n: 'Plume de Tempête', i: '⚡', p: 0, d: 'Plume crépitante de la Wyverne.' },
   larme_hydre: { n: 'Larme d’Hydre', i: '💧', p: 0, d: 'Perle d’eau éternelle.' },
   ecaille_ignar: { n: 'Écaille d’Ignar', i: '🐉', p: 0, d: 'Écaille brûlante du Dragon des Cendres.' },
+  coeur_tenebres: { n: 'Cœur des Ténèbres', i: '🖤', p: 0, d: 'Fragment éteint du cristal des Ténèbres.' },
+  larme_origine: { n: 'Larme de l’Origine', i: '🌟', p: 0, d: 'Dernière lueur de la Création originelle.' },
   plume_aurore: { n: 'Plume d’aurore', i: '🌅', p: 0, legend: true, d: 'Légendaire. Butin exclusif de la chasse premium des Plaines. Éveil légendaire des armes de Vent.' },
   seve_eternelle: { n: 'Sève éternelle', i: '🌿', p: 0, legend: true, d: 'Légendaire. Butin exclusif de la chasse premium de la Forêt. Requise pour tout éveil légendaire.' },
   coeur_cristal: { n: 'Cœur de cristal', i: '💠', p: 0, legend: true, d: 'Légendaire. Butin exclusif de la chasse premium des Monts. Éveil légendaire des armes de Terre.' },
@@ -194,6 +196,16 @@ G.SKILLS = {
   e_inferno: { n: 'Inferno', t: 'enemies', dmg: { s: 'mag', p: 1.65, e: 'feu' }, st: [['burn', 0.35, 3, 't']] },
   e_dclaw: { n: 'Griffes de cendre', t: 'enemy', dmg: { s: 'atk', p: 2.3, e: 'feu' } },
   e_roar: { n: 'Rugissement', t: 'enemies', st: [['defDown', 0.8, 3, 't'], ['atkDown', 0.5, 3, 't']] },
+  e_pinch: { n: 'Pince', t: 'enemy', dmg: { s: 'atk', p: 0.8, h: 2 } },
+  e_sting: { n: 'Dard paralysant', t: 'enemy', dmg: { s: 'mag', p: 1.0, e: 'eau' }, st: [['stun', 0.2, 1, 't']] },
+  e_gaze: { n: 'Regard pétrifiant', t: 'enemy', dmg: { s: 'mag', p: 0.9 }, st: [['stun', 0.3, 1, 't']] },
+  e_stoneskin: { n: 'Peau de pierre', t: 'self', st: [['defUp', 1, 3, 's']] },
+  e_shadow: { n: 'Lame d’ombre', t: 'enemy', dmg: { s: 'atk', p: 1.45, ig: 0.3 } },
+  e_ray: { n: 'Rayon sacré', t: 'enemy', dmg: { s: 'mag', p: 1.5, ig: 0.3 } },
+  e_void: { n: 'Étreinte du néant', t: 'enemies', dmg: { s: 'mag', p: 1.35, ig: 0.4 }, st: [['atkDown', 0.4, 3, 't']] },
+  e_eclipse: { n: 'Éclipse', t: 'enemies', st: [['resDown', 0.8, 3, 't'], ['spdDown', 0.5, 3, 't']] },
+  e_judgment: { n: 'Jugement originel', t: 'enemies', dmg: { s: 'mag', p: 1.5, ig: 0.5 } },
+  e_genesis: { n: 'Genèse', t: 'self', heal: { s: 'mag', p: 5 }, st: [['regen', 1, 3, 's'], ['defUp', 1, 3, 's']] },
   e_meteor: { n: 'Pluie de cendres', t: 'enemies', dmg: { s: 'mag', p: 0.75, e: 'feu', h: 4, rnd: true } },
 };
 
@@ -470,7 +482,9 @@ G.ENEMIES = {
   sylvaros: { n: 'Sylvaros, Ent corrompu', spr: 'ent', pal: '#5a7a3a', e: 'terre', lvl: 8, hp: 950, atk: 29, mag: 24, def: 18, res: 14, spd: 8, exp: 320, gold: 400, boss: true, dmgMul: 1.2, drops: [_D('coeur_sylve', 1), _D('echo', 1, 2), _D('boisancien', 1, 3)], sk: ['e_roots', 'e_crush', 'e_crush', 'e_regrow'] },
   wyverne: { n: 'Wyverne Tempête', spr: 'wyvern', pal: '#4a8aa8', e: 'vent', lvl: 12, hp: 2100, atk: 41, mag: 38, def: 24, res: 22, spd: 19, exp: 650, gold: 800, boss: true, dmgMul: 1.3, drops: [_D('plume_tempete', 1), _D('echo', 1, 2), _D('essence_vent', 1, 3)], sk: ['e_cyclone', 'e_dive', 'e_dive', 'e_shriek'] },
   hydre: { n: 'Hydre des Brumes', spr: 'hydra', pal: '#3a7a8a', e: 'eau', lvl: 15, hp: 3200, atk: 45, mag: 47, def: 28, res: 30, spd: 15, exp: 950, gold: 1200, boss: true, dmgMul: 1.35, drops: [_D('larme_hydre', 1), _D('echo', 1, 2), _D('essence_eau', 1, 3)], sk: ['e_tidal', 'e_hvenom', 'e_hbite', 'e_hbite'] },
-  ignar: { n: 'Ignar, Dragon des Cendres', spr: 'dragon', pal: '#a82a1a', e: 'feu', lvl: 21, hp: 6200, atk: 63, mag: 62, def: 38, res: 36, spd: 21, exp: 3200, gold: 5000, boss: true, dmgMul: 1.4, drops: [_D('ecaille_ignar', 1), _D('echo', 1, 3)], sk: ['e_inferno', 'e_dclaw', 'e_dclaw', 'e_roar', 'e_meteor'] },
+  umbra: { n: 'Umbra, Cœur des Ténèbres', spr: 'umbra', pal: '#3a1a5a', e: null, lvl: 26, hp: 9800, atk: 74, mag: 80, def: 44, res: 46, spd: 22, exp: 5200, gold: 7000, boss: true, dmgMul: 1.45, enrage: 'Umbra se fissure : le néant se déchaîne !', drops: [_D('coeur_tenebres', 1), _D('echo', 1, 4)], sk: ['e_void', 'e_shadow', 'e_shadow', 'e_eclipse', 'e_drain'] },
+  creation: { n: 'La Création originelle', spr: 'creation', pal: '#fff0b0', e: null, lvl: 31, hp: 16500, atk: 86, mag: 94, def: 50, res: 56, spd: 24, exp: 9000, gold: 12000, boss: true, dmgMul: 1.5, enrage: 'La Création originelle révèle sa forme véritable !', drops: [_D('larme_origine', 1), _D('echo', 1, 6)], sk: ['e_judgment', 'e_ray', 'e_ray', 'e_genesis', 'e_eclipse', 'e_meteor'] },
+  ignar: { n: 'Ignar, Dragon des Cendres', spr: 'dragon', pal: '#a82a1a', e: 'feu', lvl: 21, hp: 6200, atk: 63, mag: 62, def: 38, res: 36, spd: 21, exp: 3200, gold: 5000, boss: true, dmgMul: 1.4, drops: [_D('ecaille_ignar', 1), _D('echo', 1, 3)], sk: ['e_inferno', 'e_dclaw', 'e_dclaw', 'e_roar', 'e_meteor'], enrage: 'Ignar entre dans une rage incandescente !' },
 };
 
 
@@ -514,6 +528,52 @@ Object.assign(G.ENEMIES, {
   seigneur_demon: _H(26, 'mage', 0, { n: '★ Seigneur diablotin', spr: 'imp', pal: '#8a1a3a', e: 'feu', drops: [_D('braise', 1, 5, 7), _D('essence_feu', 1, 2, 4)], sk: ['e_inferno', 'e_fire', 'e_meteor', 'e_curse'] }),
   chevalier_noir: _H(27, 'brute', 0, { n: '★ Chevalier sans nom', spr: 'knight', pal: '#1a1a2a', e: null, drops: [_D('mithril', 1, 2, 3), _D('lingot', 1, 4, 6)], sk: ['e_slash', 'e_smash', 'e_dclaw', 'e_roar'] }),
   dragon_noir: _H(29, 'brute', 1, { n: '♛ Dragon d’obsidienne', spr: 'dragon', pal: '#2a1a3a', e: 'feu', big: false, drops: [_D('echo', 1, 2, 3), _D('mithril', 1, 2, 4)], sk: ['e_inferno', 'e_dclaw', 'e_meteor', 'e_roar', 'e_dclaw'] }),
+});
+// ---------------- Faune des temples ----------------
+// statistiques de monstre ordinaire calculées depuis le niveau et le rôle (un peu plus coriaces qu'en extérieur)
+G.monStats = (lvl, role) => {
+  const R = { tank: [1.3, 0.9, 0.7, 1.45, 1.0, 0.8], fast: [0.85, 1.05, 0.85, 0.85, 0.9, 1.35], mage: [0.85, 0.7, 1.3, 0.8, 1.35, 1.0], brute: [1.05, 1.2, 0.8, 1.0, 0.9, 0.95] }[role];
+  return { lvl, hp: Math.round(23 * Math.pow(lvl, 1.07) * R[0]), atk: Math.round(3.1 * lvl * R[1]), mag: Math.round(3.1 * lvl * R[2]), def: Math.round(2.05 * lvl * R[3]), res: Math.round(1.8 * lvl * R[4]), spd: Math.round((8 + lvl * 0.5) * R[5]), exp: Math.round(2.6 * Math.pow(lvl, 1.45)), gold: Math.round(1.7 * Math.pow(lvl, 1.45)) };
+};
+const _T = (temple, lvl, role, o) => Object.assign(G.monStats(lvl, role), { temple }, o);
+Object.assign(G.ENEMIES, {
+  // Temple de Terre
+  scarabee: _T('terre', 7, 'tank', { n: 'Scarabée de jade', spr: 'beetle', pal: '#3a9a6a', e: 'terre', drops: [_D('pierre', 0.5, 1, 2), _D('essence_terre', 0.1)], sk: ['e_tackle', 'e_rock', 'e_stoneskin'] }),
+  gelee_mousse: _T('terre', 7, 'tank', { n: 'Gelée moussue', spr: 'slime', pal: '#6ab84a', e: 'terre', drops: [_D('gelee', 0.6), _D('herbe', 0.4)], sk: ['e_tackle', 'e_spores'] }),
+  champi_garde: _T('terre', 8, 'mage', { n: 'Champignon gardien', spr: 'mushroom', pal: '#c8a040', e: 'terre', drops: [_D('spore', 0.6, 1, 2)], sk: ['e_spores', 'e_heal', 'e_tackle'] }),
+  liane_sacree: _T('terre', 8, 'brute', { n: 'Liane sacrée', spr: 'plant', pal: '#7ad84a', e: 'terre', drops: [_D('seve', 0.6), _D('fibre', 0.5, 1, 3)], sk: ['e_vine', 'e_bite'] }),
+  golem_racine: _T('terre', 9, 'tank', { n: 'Golem de racines', spr: 'golem', pal: '#6a8a3a', e: 'terre', drops: [_D('boisancien', 0.3), _D('pierre', 0.6, 1, 3), _D('essence_terre', 0.12)], sk: ['e_rock', 'e_smash', 'e_stoneskin'] }),
+  // Temple du Vent
+  harpie_cimes: _T('vent', 10, 'fast', { n: 'Harpie des cimes', spr: 'bird', pal: '#e8d8a0', e: 'vent', drops: [_D('plume', 0.6, 1, 2), _D('essence_vent', 0.1)], sk: ['e_claw', 'e_gust', 'e_dive'] }),
+  chauve_orage: _T('vent', 10, 'fast', { n: 'Chauve-souris d’orage', spr: 'bat', pal: '#4a5aa8', e: 'vent', drops: [_D('aile', 0.6)], sk: ['e_bite', 'e_drain', 'e_gust'] }),
+  gargouille: _T('vent', 11, 'tank', { n: 'Gargouille', spr: 'gargoyle', pal: '#8a94a8', e: 'vent', drops: [_D('pierre', 0.6, 1, 2), _D('essence_vent', 0.12)], sk: ['e_claw', 'e_dive', 'e_stoneskin'] }),
+  follet_celeste: _T('vent', 11, 'mage', { n: 'Follet céleste', spr: 'wisp', pal: '#c8f0ff', e: 'vent', drops: [_D('essence_vent', 0.18)], sk: ['e_gust', 'e_gust', 'e_drain'] }),
+  golem_quartz: _T('vent', 12, 'tank', { n: 'Golem de quartz', spr: 'golem', pal: '#b8d8f0', e: 'vent', drops: [_D('cristal', 0.3), _D('pierre', 0.6, 1, 2)], sk: ['e_rock', 'e_smash', 'e_gust'] }),
+  // Temple de l'Eau
+  crabe: _T('eau', 13, 'tank', { n: 'Crabe des abysses', spr: 'crab', pal: '#3a7ab8', e: 'eau', drops: [_D('ecaille', 0.5), _D('essence_eau', 0.1)], sk: ['e_pinch', 'e_water', 'e_stoneskin'] }),
+  gelee_abysse: _T('eau', 13, 'tank', { n: 'Gelée abyssale', spr: 'slime', pal: '#1a6a9a', e: 'eau', drops: [_D('gelee', 0.6, 1, 2)], sk: ['e_toxic', 'e_water', 'e_heal'] }),
+  meduse: _T('eau', 14, 'mage', { n: 'Méduse spectrale', spr: 'jelly', pal: '#8ad8ff', e: 'eau', drops: [_D('gelee', 0.5), _D('ectoplasme', 0.3)], sk: ['e_sting', 'e_water', 'e_drain'] }),
+  noye: _T('eau', 14, 'mage', { n: 'Noyé', spr: 'ghost', pal: '#7ab8b0', e: 'eau', drops: [_D('ectoplasme', 0.6)], sk: ['e_curse', 'e_drain', 'e_water'] }),
+  serpent_abysse: _T('eau', 15, 'brute', { n: 'Serpent des abysses', spr: 'snake', pal: '#1a4a8a', e: 'eau', drops: [_D('ecaille', 0.6, 1, 2), _D('essence_eau', 0.12)], sk: ['e_venom', 'e_bite', 'e_water'] }),
+  // Temple du Feu
+  crabe_lave: _T('feu', 18, 'tank', { n: 'Crabe de lave', spr: 'crab', pal: '#c83a1a', e: 'feu', drops: [_D('braise', 0.5, 1, 2), _D('minerai', 0.4)], sk: ['e_pinch', 'e_fire', 'e_stoneskin'] }),
+  diablotin_garde: _T('feu', 18, 'fast', { n: 'Diablotin gardien', spr: 'imp', pal: '#ff6a1a', e: 'feu', drops: [_D('braise', 0.6)], sk: ['e_fire', 'e_claw', 'e_flames'] }),
+  salamandre_ard: _T('feu', 19, 'brute', { n: 'Salamandre ardente', spr: 'lizard', pal: '#ffa030', e: 'feu', drops: [_D('braise', 0.5), _D('ecaille', 0.4), _D('essence_feu', 0.12)], sk: ['e_bite', 'e_breath'] }),
+  follet_infernal: _T('feu', 19, 'mage', { n: 'Follet infernal', spr: 'wisp', pal: '#ff3a2a', e: 'feu', drops: [_D('essence_feu', 0.18)], sk: ['e_fire', 'e_flames'] }),
+  gargouille_basalte: _T('feu', 20, 'tank', { n: 'Gargouille de basalte', spr: 'gargoyle', pal: '#5a2a24', e: 'feu', drops: [_D('pierre', 0.6, 1, 3), _D('mithril', 0.05)], sk: ['e_claw', 'e_dive', 'e_flames'] }),
+  // Temple des Ténèbres
+  ombre: _T('tenebres', 22, 'fast', { n: 'Ombre rampante', spr: 'shade', pal: '#2a1a3a', e: null, drops: [_D('ectoplasme', 0.6, 1, 2)], sk: ['e_shadow', 'e_claw'] }),
+  oeil_neant: _T('tenebres', 23, 'mage', { n: 'Œil du néant', spr: 'eye', pal: '#a84aff', e: null, drops: [_D('ectoplasme', 0.4), _D('cristal', 0.2)], sk: ['e_gaze', 'e_drain', 'e_curse'] }),
+  squelette_maudit: _T('tenebres', 23, 'brute', { n: 'Squelette maudit', spr: 'skeleton', pal: '#9a8ab8', e: null, drops: [_D('os', 0.6, 1, 2), _D('lingot', 0.3)], sk: ['e_slash', 'e_curse', 'e_shadow'] }),
+  gargouille_onyx: _T('tenebres', 24, 'tank', { n: 'Gargouille d’onyx', spr: 'gargoyle', pal: '#2a2a3a', e: null, drops: [_D('cristal', 0.3), _D('pierre', 0.5, 2, 3)], sk: ['e_claw', 'e_gaze', 'e_stoneskin'] }),
+  chevalier_ombre: _T('tenebres', 25, 'brute', { n: 'Chevalier d’ombre', spr: 'knight', pal: '#2a1a4a', e: null, drops: [_D('lingot', 0.4, 1, 2), _D('mithril', 0.1)], sk: ['e_slash', 'e_shadow', 'e_smash'] }),
+  // Sanctuaire de Lumière
+  oeil_aurore: _T('lumiere', 26, 'mage', { n: 'Œil d’aurore', spr: 'eye', pal: '#ffd860', e: null, drops: [_D('cristal', 0.3)], sk: ['e_gaze', 'e_ray'] }),
+  gelee_prisme: _T('lumiere', 26, 'tank', { n: 'Gelée prismatique', spr: 'slime', pal: '#e8c8ff', e: null, drops: [_D('gelee', 0.6, 2, 3), _D('cristal', 0.2)], sk: ['e_tackle', 'e_heal', 'e_ray'] }),
+  seraphin: _T('lumiere', 27, 'mage', { n: 'Séraphin', spr: 'seraph', pal: '#fff0c0', e: null, drops: [_D('essence_vent', 0.15), _D('essence_feu', 0.15)], sk: ['e_ray', 'e_heal', 'e_judgment'] }),
+  follet_solaire: _T('lumiere', 27, 'mage', { n: 'Follet solaire', spr: 'wisp', pal: '#ffe060', e: 'feu', drops: [_D('essence_feu', 0.2)], sk: ['e_fire', 'e_ray'] }),
+  golem_albatre: _T('lumiere', 28, 'tank', { n: 'Golem d’albâtre', spr: 'golem', pal: '#f0e8d8', e: 'terre', drops: [_D('mithril', 0.12), _D('cristal', 0.3)], sk: ['e_rock', 'e_smash', 'e_stoneskin'] }),
+  chevalier_aube: _T('lumiere', 29, 'brute', { n: 'Chevalier de l’aube', spr: 'knight', pal: '#d8d0b0', e: null, drops: [_D('mithril', 0.15), _D('lingot', 0.5, 1, 2)], sk: ['e_slash', 'e_ray', 'e_smash'] }),
 });
 // Traque infinie : un primordial dont la puissance augmente à chaque victoire
 G.makeInfinite = n => {
@@ -573,11 +633,36 @@ G.ZONES = {
   montagne: { n: 'Monts Grisés', lv: 'Niv. 7 à 11', lmin: 7, lmax: 11, boss: 'wyverne', rate: 0.062, bg: 'mountain', mus: 'field', groups: [['chauve', 'chauve'], ['golem'], ['squelette', 'chauve'], ['salamandre'], ['squelette', 'squelette'], ['golem', 'salamandre'], ['chauve', 'salamandre', 'chauve']] },
   marais: { n: 'Marais Brumeux', lv: 'Niv. 10 à 14', lmin: 10, lmax: 14, boss: 'hydre', rate: 0.065, bg: 'swamp', mus: 'field', groups: [['geleet', 'geleet'], ['crapaud'], ['spectre', 'geleet'], ['serpent', 'crapaud'], ['spectre', 'spectre'], ['serpent', 'geleet', 'spectre']] },
   volcan: { n: 'Volcan Cendreux', lv: 'Niv. 14 à 18', lmin: 14, lmax: 18, boss: 'ignar', rate: 0.07, bg: 'volcano', mus: 'field', groups: [['diablotin', 'diablotin'], ['drake'], ['golemm'], ['chevalier', 'diablotin'], ['drake', 'diablotin'], ['chevalier', 'golemm']] },
+  t_terre: { n: 'Temple du Cristal de Terre', lv: 'Niv. 7 à 9', lmin: 7, lmax: 9, temple: 'terre', rate: 0.075, bg: 't_terre', mus: 'field', groups: [['scarabee', 'gelee_mousse'], ['champi_garde', 'liane_sacree'], ['golem_racine'], ['scarabee', 'scarabee'], ['liane_sacree', 'gelee_mousse', 'champi_garde'], ['golem_racine', 'champi_garde']] },
+  t_vent: { n: 'Temple du Cristal de Vent', lv: 'Niv. 10 à 12', lmin: 10, lmax: 12, temple: 'vent', rate: 0.075, bg: 't_vent', mus: 'field', groups: [['harpie_cimes', 'chauve_orage'], ['gargouille'], ['follet_celeste', 'follet_celeste'], ['golem_quartz', 'follet_celeste'], ['chauve_orage', 'chauve_orage', 'harpie_cimes'], ['gargouille', 'harpie_cimes']] },
+  t_eau: { n: 'Temple du Cristal d’Eau', lv: 'Niv. 13 à 15', lmin: 13, lmax: 15, temple: 'eau', rate: 0.075, bg: 't_eau', mus: 'field', groups: [['crabe', 'gelee_abysse'], ['meduse', 'meduse'], ['noye', 'meduse'], ['serpent_abysse'], ['crabe', 'serpent_abysse'], ['gelee_abysse', 'noye', 'meduse']] },
+  t_feu: { n: 'Temple du Cristal de Feu', lv: 'Niv. 18 à 20', lmin: 18, lmax: 20, temple: 'feu', rate: 0.075, bg: 't_feu', mus: 'field', groups: [['crabe_lave', 'diablotin_garde'], ['salamandre_ard'], ['follet_infernal', 'follet_infernal'], ['gargouille_basalte', 'diablotin_garde'], ['salamandre_ard', 'follet_infernal'], ['crabe_lave', 'crabe_lave', 'diablotin_garde']] },
+  t_tenebres: { n: 'Temple du Cristal des Ténèbres', lv: 'Niv. 22 à 25', lmin: 22, lmax: 25, temple: 'tenebres', rate: 0.08, bg: 't_tenebres', mus: 'field', groups: [['ombre', 'ombre'], ['oeil_neant', 'ombre'], ['squelette_maudit', 'oeil_neant'], ['gargouille_onyx'], ['chevalier_ombre', 'ombre'], ['squelette_maudit', 'squelette_maudit', 'oeil_neant']] },
+  t_lumiere: { n: 'Sanctuaire du Cristal de Lumière', lv: 'Niv. 26 à 29', lmin: 26, lmax: 29, temple: 'lumiere', rate: 0.08, bg: 't_lumiere', mus: 'field', groups: [['oeil_aurore', 'gelee_prisme'], ['seraphin'], ['follet_solaire', 'oeil_aurore'], ['golem_albatre', 'follet_solaire'], ['chevalier_aube', 'seraphin'], ['gelee_prisme', 'gelee_prisme', 'oeil_aurore']] },
   bourg: { n: 'Bourg-Aube', lv: 'Village', rate: 0, town: true },
   havre: { n: 'Havre', lv: 'Votre ville', rate: 0, town: true },
 };
 
 G.ZONE_ORDER = ['plaines', 'foret', 'montagne', 'marais', 'volcan'];
+// Temples : un cristal par région, gardé par le boss de la région (placés hors de la carte, reliés par leur entrée)
+G.TEMPLES = {
+  terre: { n: 'Temple du Cristal de Terre', cn: 'Cristal de Terre', zone: 'foret', boss: 'sylvaros', col: '#7ad84a', dark: '#1a2a12', slot: 0 },
+  vent: { n: 'Temple du Cristal de Vent', cn: 'Cristal de Vent', zone: 'montagne', boss: 'wyverne', col: '#9ae8ff', dark: '#1a2433', slot: 1 },
+  eau: { n: 'Temple du Cristal d’Eau', cn: 'Cristal d’Eau', zone: 'marais', boss: 'hydre', col: '#43a8ff', dark: '#0e1e33', slot: 2 },
+  feu: { n: 'Temple du Cristal de Feu', cn: 'Cristal de Feu', zone: 'volcan', boss: 'ignar', col: '#ff6a2a', dark: '#2a0e08', slot: 3 },
+  tenebres: { n: 'Temple du Cristal des Ténèbres', cn: 'Cristal des Ténèbres', zone: 'plaines', boss: 'umbra', col: '#b06aff', dark: '#120a1e', slot: 4 },
+  lumiere: { n: 'Sanctuaire du Cristal de Lumière', cn: 'Cristal de Lumière', zone: 'havre', boss: 'creation', col: '#ffe9a0', dark: '#2a2618', slot: 5 },
+};
+G.CRYSTAL4 = ['terre', 'vent', 'eau', 'feu'];
+G.TEMPLE_LOOT = {
+  terre: { items: [['hipotion', 2], ['ether', 1], ['remede', 2]], mats: [['boisancien', 3], ['essence_terre', 2], ['cristal', 1]] },
+  vent: { items: [['hipotion', 2], ['ether', 2], ['phenix', 1]], mats: [['essence_vent', 2], ['cristal', 2], ['plume', 5]] },
+  eau: { items: [['hipotion', 3], ['ether', 2], ['phenix', 1]], mats: [['essence_eau', 3], ['ecaille', 4], ['cristal', 2]] },
+  feu: { items: [['hipotion', 3], ['ether', 3], ['phenix', 2]], mats: [['essence_feu', 3], ['mithril', 1], ['cristal', 3]] },
+  tenebres: { items: [['festin', 1], ['ether', 3], ['phenix', 2]], mats: [['mithril', 2], ['cristal', 3], ['ectoplasme', 5]] },
+  lumiere: { items: [['megalixir', 1], ['festin', 2], ['phenix', 3]], mats: [['mithril', 3], ['cristal', 4], ['essence_feu', 3]] },
+};
+G.crystalsFreed = S => G.CRYSTAL4.filter(k => S.bosses[G.TEMPLES[k].boss]).length;
 // matériaux typiques gagnés en combat dans chaque région (chance croissante avec la profondeur)
 G.ZONE_LOOT = {
   plaines: [['fibre', 2, 4], ['herbe', 1, 3], ['cuir', 1, 2], ['plume', 1, 2]],
@@ -683,10 +768,12 @@ G.NPCS = {
 
 // ---------------- Quêtes ----------------
 G.QUESTS = {
-  q_sylve: { n: 'Le cœur de Sylve', type: 'main', d: 'Purifier Sylvaros, l’Ent corrompu, au cœur de la Forêt de Sylve.', cond: S => [S.bosses.sylvaros ? 1 : 0, 1] },
-  q_wyverne: { n: 'La tempête des cimes', type: 'main', d: 'Abattre la Wyverne Tempête dans les hauteurs des Monts Grisés.', cond: S => [S.bosses.wyverne ? 1 : 0, 1] },
-  q_hydre: { n: 'Les brumes du marais', type: 'main', d: 'Vaincre l’Hydre des Brumes au fond du Marais Brumeux.', cond: S => [S.bosses.hydre ? 1 : 0, 1] },
-  q_ignar: { n: 'Les cendres d’Ignar', type: 'main', d: 'Une fois les trois Gardiens purifiés, franchir la barrière du Volcan Cendreux et terrasser Ignar.', cond: S => [S.bosses.ignar ? 1 : 0, 1] },
+  q_sylve: { n: 'Le Temple de Terre', type: 'main', d: 'Traverser le Temple du Cristal de Terre, dans la Forêt de Sylve, et purifier son gardien Sylvaros.', cond: S => [S.bosses.sylvaros ? 1 : 0, 1] },
+  q_wyverne: { n: 'Le Temple du Vent', type: 'main', d: 'Gravir le Temple du Cristal de Vent, dans les Monts Grisés, et abattre la Wyverne Tempête.', cond: S => [S.bosses.wyverne ? 1 : 0, 1] },
+  q_hydre: { n: 'Le Temple de l’Eau', type: 'main', d: 'Plonger dans le Temple du Cristal d’Eau, au fond du Marais Brumeux, et vaincre l’Hydre des Brumes.', cond: S => [S.bosses.hydre ? 1 : 0, 1] },
+  q_ignar: { n: 'Le Temple du Feu', type: 'main', d: 'Une fois les cristaux de Terre, de Vent et d’Eau libérés, franchir la barrière du Volcan et terrasser Ignar dans le Temple du Cristal de Feu.', cond: S => [S.bosses.ignar ? 1 : 0, 1] },
+  q_tenebres: { n: 'Le Cristal des Ténèbres', type: 'main', d: 'Libérer les quatre cristaux pour briser le sceau du Temple des Ténèbres, dans les Plaines, puis détruire le Cristal des Ténèbres.', cond: S => [S.bosses.umbra ? 1 : 0, 1] },
+  q_lumiere: { n: 'La Création originelle', type: 'main', d: 'Entrer dans le Sanctuaire par le Cristal de Lumière apparu au Havre et affronter la Création originelle.', cond: S => [S.bosses.creation ? 1 : 0, 1] },
   q_havre: { n: 'Un refuge pour tous', type: 'main', d: 'Rejoindre le site du Havre, au sud-est de Bourg-Aube, pour y fonder une ville.', cond: S => [S.town.founded ? 1 : 0, 1] },
 };
 Object.keys(G.NPCS).forEach(id => {
@@ -721,6 +808,9 @@ G.ACH = [
   { id: 'a_master', col: 4, row: 4, req: ['a_tools'], n: 'Maître d’armes', d: 'Forger les 4 armes d’un même personnage.', c: S => [G.maxWeaponsOneChar(), 4], rw: { armor: 'insigne' } },
 
   { id: 'a_ignar', col: 5, row: 0, req: ['a_hydre'], n: 'Tueur de dragon', d: 'Terrasser Ignar.', c: S => [S.bosses.ignar ? 1 : 0, 1], rw: { armor: 'couronne', mats: { echo: 2 } } },
+  { id: 'a_umbra', col: 6, row: 0, req: ['a_ignar'], n: 'Briseur de ténèbres', d: 'Détruire le Cristal des Ténèbres.', c: S => [S.bosses.umbra ? 1 : 0, 1], rw: { mats: { echo: 3, mithril: 4 }, items: { megalixir: 1 } } },
+  { id: 'a_creation', col: 7, row: 0, req: ['a_umbra'], n: 'Au-delà de l’Origine', d: 'Vaincre la Création originelle.', c: S => [S.bosses.creation ? 1 : 0, 1], rw: { mats: { echo: 5 }, items: { megalixir: 2 } } },
+  { id: 'a_bestiary', col: 6, row: 2, req: ['a_rich'], n: 'Naturaliste', d: 'Recenser 60 créatures du bestiaire.', c: S => [Object.keys(S.bestiary || {}).length, 60], rw: { mats: { echo: 2, cristal: 4 }, items: { festin: 3 } } },
   { id: 'a_lvl25', col: 5, row: 1, req: ['a_kills'], n: 'Légende vivante', d: 'Atteindre le niveau 25.', c: S => [G.maxLevel(), 25], rw: { items: { elixir: 3 }, mats: { mithril: 4 } } },
   { id: 'a_rich', col: 5, row: 2, req: ['a_town8'], n: 'Magnat', d: 'Gagner 8 000 pièces d’or au total.', c: S => [S.stats.goldEarned, 8000], rw: { mats: { echo: 1, cristal: 4 } } },
   { id: 'a_bond100', col: 5, row: 3, req: ['a_synergy'], n: 'Âmes sœurs', d: 'Atteindre 100 d’affinité.', c: S => [G.maxAffinity(), 100], rw: { items: { festin: 5 }, mats: { echo: 1 } } },

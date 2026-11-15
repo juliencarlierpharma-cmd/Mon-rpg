@@ -592,6 +592,14 @@ const MON = {
     g.poly(pts, c);
     tips.forEach((p, i) => { if (i === tips.length - 1) return; const m = [root[0] + (p[0] - root[0]) * 0.5, root[1] + (p[1] - root[1]) * 0.5 - bw]; g.stroke([root, m, p], bw, bw * 0.3, bone); });
   },
+  // aile de plumes : éventail de plumes effilées depuis l'épaule (dir : -1 vers la gauche, 1 vers la droite)
+  featherWing(g, x, y, dir, len, n, a0, a1, c, w = 0.9) {
+    for (let i = n - 1; i >= 0; i--) {
+      const f = i / Math.max(1, n - 1), a = a0 + (a1 - a0) * f, L = len * (0.55 + 0.45 * Math.sin(Math.PI * (0.25 + f * 0.6)));
+      const ex = x + Math.cos(a) * L * dir, ey = y + Math.sin(a) * L, mx = x + Math.cos(a - 0.12 * dir) * L * 0.55 * dir, my = y + Math.sin(a - 0.12) * L * 0.55;
+      g.part(t => t.stroke([[x, y], [mx, my], [ex, ey]], w, 0.08, c), MON.dk(c[1], 0.45));
+    }
+  },
   // flamme en couches (couleurs du bord vers le cœur)
   flame(g, cx, by, w, h, cols, seed = 1) {
     cols.forEach((c, j) => {
@@ -1035,6 +1043,157 @@ SPR.DRAW = {
     g.part(t => MON.membrane(t, [25, 28], [[16.4, 20.6], [21.4, 19], [28.4, 21], [34, 17.4]], wingF, bone, 0.65));
   },
 };
+// ---------------- Nouvelles espèces (temples) ----------------
+Object.assign(SPR.ENEMY_SIZE, { beetle: 20, crab: 24, gargoyle: 24, jelly: 20, eye: 20, shade: 24, seraph: 24, umbra: 56, creation: 56 });
+Object.assign(SPR.DRAW, {
+  beetle(g, P, C) {
+    const D = MON.sh(MON.dk(C, 0.45)), shell = MON.sh(C, 0.6, 0.55);
+    [[6, 13.5], [9.5, 14.2], [13, 14]].forEach(([x, y]) => g.part(t => t.stroke([[x, y], [x - 1.6, y + 2.4], [x - 2.2, y + 4.4]], 0.34, 0.16, D)));
+    g.part(t => { t.ell(16.4, 13.2, 2.6, 2.2, D); t.stroke([[17.6, 12], [18.6, 8.6], [17.8, 5.6], [16.4, 4.6]], 0.6, 0.12, MON.HORN); t.stroke([[18.4, 14], [19.6, 15.4]], 0.24, 0.06, MON.HORN); });
+    g.part(t => { t.blob([[9.6, 11.6, 7.4, 4.8], [10, 9.4, 5.6, 3.4]], shell, 9.6, 10.6, 8, 5.6); t.ell(10, 15.4, 6.6, 1.2, D); });
+    g.inside(t => t.stroke([[3, 11], [6, 8.2], [10, 7], [14.4, 8], [17, 10.8]], 0.14, 0.1, MON.dk(C, 0.6)));
+    g.blendEll(8, 10, 4, 3, U.mix(C, '#7affff', 0.5), 0.3, 1); g.blendEll(12.5, 12, 3, 2, U.mix(C, '#ff8aff', 0.4), 0.22, 1);
+    MON.spec(g, 7.4, 8.2, 3.2, 1.4, 0.75); MON.spec(g, 13.6, 9.4, 1.2, 0.6, 0.6);
+    [[7, 14.6], [10.6, 15], [14.2, 14.6]].forEach(([x, y]) => g.part(t => t.stroke([[x, y], [x + 0.6, y + 2.2], [x + 1.6, y + 3.9]], 0.36, 0.16, D)));
+    MON.eye(g, 17.4, 12.6, 0.42, '#ffe060', { glow: true });
+  },
+  crab(g, P, C) {
+    const D = MON.sh(MON.dk(C, 0.3)), L = MON.sh(MON.lt(C, 0.2));
+    for (let i = 0; i < 3; i++) { const x = 6 + i * 2.6; g.part(t => t.stroke([[x, 16], [x - 2.4, 18.6], [x - 3, 22.4]], 0.5, 0.16, D)); }
+    g.part(t => { t.stroke([[7, 14], [3.6, 12], [2.4, 9]], 0.75, 0.6, D); t.poly([[0.8, 9.4], [2.2, 5.6], [4, 8.2]], D); t.poly([[2.2, 9.6], [4.8, 7.4], [3.6, 10.4]], D); });
+    g.part(t => {
+      t.blob([[12, 15.2, 8, 4.6], [12, 13, 6.4, 3.4]], P, 12, 13.6, 8.6, 5.4);
+      t.ell(10, 9.6, 0.5, 2.4, D); t.ell(14, 9.4, 0.5, 2.6, D);
+    });
+    [[7.6, 13], [10.4, 11.8], [13.4, 11.8], [16.4, 13]].forEach(([x, y]) => g.inside(t => t.ell(x, y, 0.9, 0.6, L)));
+    MON.speckle(g, 5, 11, 20, 19, 18, [MON.dk(C, 0.35), MON.lt(C, 0.4)], 61, 0.1, 0.22);
+    MON.spec(g, 9, 12, 3, 1.2, 0.5);
+    MON.eye(g, 10, 7.4, 0.62, '#1a1020'); MON.eye(g, 14, 7.2, 0.62, '#1a1020');
+    g.stroke([[10.8, 17.2], [12, 17.6], [13.2, 17.2]], 0.1, 0.1, MON.dk(C, 0.6));
+    for (let i = 0; i < 3; i++) { const x = 13.5 + i * 2.4; g.part(t => t.stroke([[x, 16.4], [x + 2.4, 19], [x + 2.8, 22.6]], 0.5, 0.16, P)); }
+    g.part(t => {
+      t.stroke([[17.6, 13.6], [20, 11.4], [20.6, 8.6]], 0.95, 0.8, P);
+      t.blob([[21, 7, 2.6, 2.4]], P, 21, 6.4, 3, 2.8);
+      t.poly([[21.4, 5.2], [23.8, 1.4], [23.6, 5.8]], P); t.poly([[22.4, 7.8], [24, 5.4], [23.2, 8.8]], D);
+    });
+    g.stroke([[22.4, 3.4], [23.2, 2.4]], 0.08, 0.05, '#ffffff');
+  },
+  gargoyle(g, P, C) {
+    const D = MON.sh(MON.dk(C, 0.35)), wing = MON.sh(MON.dk(C, 0.2), 0.55, 0.3), bone = MON.dk(C, 0.55);
+    g.part(t => MON.membrane(t, [10.4, 8.6], [[1.2, 1.4], [0.6, 6.4], [2, 11], [5.4, 13]], wing, bone, 0.32));
+    g.part(t => { t.stroke([[7, 18], [3.4, 19.6], [1.4, 17.6]], 0.6, 0.24, D); t.poly([[0.4, 16.6], [2.2, 15.6], [1.8, 18.4]], D); });
+    g.part(t => { t.stroke([[9.4, 16.4], [8, 19.6], [9.4, 22]], 1.1, 0.8, D); t.ell(10.2, 22.4, 1.5, 0.6, D); });
+    g.part(t => t.blob([[11.6, 14.4, 4.6, 5.2], [13.4, 9.6, 3.6, 3.4]], P, 12, 12.6, 5.4, 6.6));
+    g.part(t => {
+      t.blob([[16, 7.6, 3.2, 2.8], [18.6, 8.8, 2, 1.4]], P, 16.4, 7.4, 3.8, 3.4);
+      t.stroke([[14.6, 5.6], [13.4, 2.6], [14.4, 0.8]], 0.5, 0.1, MON.HORN); t.stroke([[16.6, 5.2], [17, 2.2], [18.4, 0.8]], 0.45, 0.1, MON.HORN);
+    });
+    MON.speckle(g, 6, 0, 24, 24, 120, [MON.dk(C, 0.35), MON.lt(C, 0.35)], 63, 0.08, 0.2);
+    [[[11, 10], [12, 13], [11.4, 15.6]], [[14, 15], [15.4, 17.6]]].forEach(c => g.inside(t => t.stroke(c, 0.1, 0.06, MON.dk(C, 0.6))));
+    MON.eye(g, 17.4, 7.2, 0.5, '#ff4a3a', { glow: true });
+    g.stroke([[17.6, 9.6], [19.6, 9.4]], 0.1, 0.08, '#140c1c'); MON.tooth(g, 18.6, 9.5, 0.4, 0.6);
+    g.part(t => { t.stroke([[14.6, 13], [17, 16.2], [18.2, 19.6]], 0.85, 0.62, P); t.stroke([[13.6, 17], [14.2, 20.6], [15.4, 22]], 1.1, 0.8, P); t.ell(16.2, 22.4, 1.6, 0.6, P); });
+    [[18.4, 20], [19, 19.6], [16.8, 22.6], [17.6, 22.5]].forEach(([x, y]) => MON.claw(g, x, y, 0.6, 0.6));
+    g.part(t => MON.membrane(t, [12.4, 9.6], [[6.2, 2.6], [5.4, 7.8], [7, 12], [10, 13.4]], MON.sh(C, 0.55, 0.35), bone, 0.3));
+  },
+  jelly(g, P, C) {
+    const L = MON.lt(C, 0.5);
+    for (let i = 0; i < 6; i++) { const x = 5 + i * 2, w = Math.sin(i * 1.7); g.part(t => t.stroke([[x, 11], [x + w, 13.6], [x - w * 0.6, 16.2], [x + w * 0.4, 19.4]], 0.32, 0.08, MON.sh(L, 0.4, 0.5))); }
+    g.part(t => { t.blob([[10, 8.4, 7.4, 6]], P, 10, 7, 8, 6.6); t.inside(u => u.rect(0, 11, 20, 4, MON.sh(MON.dk(C, 0.2)))); });
+    for (let i = 0; i < 7; i++) g.part(t => t.ell(3.4 + i * 2.2, 11.6, 1.3, 0.9, MON.sh(L, 0.35, 0.5)));
+    g.blendEll(10, 7.4, 4.6, 3.6, '#ffffff', 0.32, 1);
+    g.blendEll(10, 8.6, 2.6, 2.2, MON.lt(C, 0.8), 0.55, 1);
+    MON.spec(g, 6.6, 4.8, 2.2, 1.2, 0.85); MON.spec(g, 13.8, 5, 0.8, 0.5, 0.6);
+    MON.eye(g, 9, 8.6, 0.72, '#1a2a4a'); MON.eye(g, 12.2, 8.6, 0.7, '#1a2a4a');
+    g.stroke([[9.8, 10.4], [10.6, 10.8], [11.4, 10.4]], 0.08, 0.08, MON.dk(C, 0.6));
+  },
+  eye(g, P, C) {
+    const W = MON.sh(MON.dk(C, 0.25), 0.5, 0.35), bone = MON.dk(C, 0.55);
+    g.part(t => MON.membrane(t, [5, 9], [[0.4, 3], [0.4, 8], [1.6, 12]], W, bone, 0.22));
+    for (let i = 0; i < 4; i++) { const x = 7 + i * 2, w = Math.sin(i * 2.1); g.part(t => t.stroke([[x, 14], [x + w, 16.4], [x - w, 18.6], [x + w * 0.5, 19.6]], 0.45, 0.1, W)); }
+    g.part(t => t.ell(10, 9.6, 6.4, 6, ['#a89ab8', '#ece6f0', '#ffffff']));
+    for (let i = 0; i < 7; i++) { const a = i / 7 * 6.28; g.inside(t => t.stroke([[10 + Math.cos(a) * 6, 9.6 + Math.sin(a) * 5.6], [10 + Math.cos(a + 0.3) * 4.6, 9.6 + Math.sin(a + 0.3) * 4.2], [10 + Math.cos(a) * 3.4, 9.6 + Math.sin(a) * 3]], 0.08, 0.03, '#d04a5a')); }
+    g.ell(12.4, 9.6, 3.2, 3.4, MON.sh(C, 0.6, 0.6));
+    g.ell(13, 9.6, 1.2, 2.6, '#0c0614');
+    g._disc(11.4, 8.2, 0.8, '#ffffff'); g._disc(14.2, 11, 0.35, '#e8f0ff');
+    g.part(t => t.poly([[3.8, 6.4], [10, 3.2], [16.2, 6.4], [10, 5]], W));
+    g.part(t => MON.membrane(t, [15, 9], [[19.6, 3], [19.6, 8], [18.4, 12]], W, bone, 0.22));
+    g.blendEll(10, 9.6, 8, 7.6, C, 0.12, 1);
+  },
+  shade(g, P, C) {
+    const cloak = MON.sh(MON.dk(C, 0.2), 0.55, 0.3), glow = U.mix(C, '#c88aff', 0.7);
+    const hem = []; for (let i = 0; i <= 8; i++) hem.push([17 - i * 1.4, 21.4 + Math.sin(i * 1.9) * 1.6 - (i > 5 ? (i - 5) * 0.9 : 0)]);
+    g.part(t => t.stroke([[8, 12], [5, 14.6], [3, 17.4]], 0.9, 0.3, cloak));
+    g.part(t => { t.poly([[8.4, 7.6], [16, 7.6], [17.4, 21].concat()].concat(hem).concat([[6, 18]]), cloak); });
+    g.part(t => { t.blob([[12.4, 6.4, 4, 4.2]], cloak, 12, 5.6, 4.4, 4.6); t.poly([[9, 4], [10.6, -0.4], [13.4, 2.6]], cloak); });
+    g.ell(13.4, 7, 2.6, 2.8, ['#000000', '#08040c', '#140a1e']);
+    MON.eye(g, 12.8, 6.8, 0.42, glow, { glow: true }); MON.eye(g, 14.6, 6.8, 0.4, glow, { glow: true });
+    for (let i = 0; i < 4; i++) g.inside(t => t.stroke([[10 + i * 1.6, 10], [9.6 + i * 1.7, 20]], 0.12, 0.06, MON.lt(C, 0.15)));
+    g.part(t => { t.stroke([[15, 11], [18.4, 13.4], [20.4, 13]], 0.8, 0.45, cloak); });
+    [[20.4, 12.6, -0.6], [20.8, 13.2, 0], [20.4, 13.8, 0.6]].forEach(([x, y, a]) => MON.claw(g, x, y, 1.6, a, '#d8c8f0'));
+    for (let i = 0; i < 5; i++) g.blendEll(6 + i * 2.6, 21 + (i % 2), 2, 1.4, glow, 0.25, 1);
+  },
+  seraph(g, P, C) {
+    const W = MON.sh('#fffaf0', 0.3, 0.6), robe = MON.sh(C, 0.4, 0.55), gold = MON.sh('#e8c050', 0.5, 0.6);
+    const wing = (cx, cy, dir, s) => MON.featherWing(g, cx, cy, dir, 9 * s, 8, -1.3, 0.35, W, 1.15 * s);
+    wing(10.4, 10, -1, 1.05); wing(9.6, 13, -1, 0.75);
+    g.part(t => { t.poly([[9, 9], [15, 9], [17.4, 22], [6.6, 22]], robe); t.ell(12, 21.6, 5.4, 1.4, robe); });
+    for (let i = 0; i < 4; i++) g.inside(t => t.stroke([[10 + i * 1.3, 10], [8.6 + i * 2.1, 21.6]], 0.08, 0.05, MON.dk(C, 0.25)));
+    g.inside(t => { t.rect(8, 13.4, 9, 1, gold); t.stroke([[12, 9.4], [12, 21]], 0.2, 0.2, gold); });
+    g.part(t => { t.ell(12.4, 6, 2.8, 3, ['#d8c8a8', '#fff4e0', '#ffffff']); t.poly([[9.8, 4.2], [12.6, 2.2], [15.4, 4.4], [15.2, 7], [13.4, 5.6], [11, 5.8]], MON.sh('#f0d890', 0.4, 0.6)); });
+    g._disc(13.6, 6.4, 0.32, '#5a4a8a');
+    g.stroke([[8.6, 1.6], [12.4, 0.8], [16.2, 1.6], [12.4, 2.4], [8.6, 1.6]], 0.3, 0.3, '#ffe060');
+    g.blendEll(12.4, 1.6, 4.6, 1.8, '#fff4a0', 0.5, 1);
+    wing(14, 9.4, 1, 1.2);
+    g.part(t => { t.stroke([[14.6, 10.6], [17, 12.6], [18.6, 11.4]], 0.6, 0.45, robe); t.ell(19, 11, 0.7, 0.7, ['#d8c8a8', '#fff4e0', '#ffffff']); });
+    g.blendEll(19.4, 10.4, 2.6, 2.6, '#fff4a0', 0.6, 1);
+  },
+  umbra(g, P, C) {
+    const body = MON.sh('#1e1230', 0.5, 0.35), arm = MON.sh('#2a1840', 0.5, 0.35), crys = MON.sh('#a84aff', 0.5, 0.65), smoke = MON.sh('#140c20', 0.4, 0.3);
+    // fumée inférieure
+    for (let i = 0; i < 9; i++) { const x = 14 + i * 3.6, y = 48 + Math.sin(i * 1.7) * 2; g.part(t => t.ell(x, y, 4.6, 3.4, smoke)); }
+    // bras arrière
+    g.part(t => { t.stroke([[18, 20], [9, 26], [5, 34]], 3.2, 2.0, arm); [[5, 34, 2.4], [3.6, 33.4, 3], [6.4, 34.8, 3.6]].forEach(([x, y, a]) => MON.claw(t, x, y, 3.4, a, '#c8b0e8')); });
+    // corps
+    g.part(t => { t.blob([[28, 30, 12, 15], [28, 18, 10, 7], [28, 42, 10, 6]], body, 28, 26, 13, 18); });
+    for (let i = 0; i < 7; i++) g.inside(t => t.stroke([[18 + i * 3.2, 14], [17 + i * 3.4, 46]], 0.2, 0.1, '#3a2850'));
+    // cœur de cristal
+    g.blendEll(28, 28, 8, 8, '#a84aff', 0.5, 1);
+    g.part(t => { t.poly([[28, 20], [32.6, 27], [28, 36], [23.4, 27]], crys); t.stroke([[28, 20], [28, 36]], 0.2, 0.2, '#f0d8ff'); });
+    [[[24, 30], [20, 34], [17, 33]], [[32, 30], [36, 35], [39, 34]], [[28, 36], [27, 41]]].forEach(c => g.inside(t => t.stroke(c, 0.3, 0.12, '#c88aff')));
+    // tête et couronne de cornes
+    g.part(t => { t.blob([[30, 10, 6.4, 5.8]], body, 29.6, 9, 7, 6.4); [[25, 6, 21, 0.6], [28, 4.6, 27, -0.4], [32, 4.6, 34, -0.4], [35, 6, 39.6, 0.8]].forEach(([a, b, c, d]) => t.stroke([[a, b], [c, d]], 1.0, 0.12, MON.HORN)); });
+    [[27, 9.6, 0.7], [31.4, 9.4, 0.8], [29.2, 12, 0.5], [34, 11, 0.45]].forEach(([x, y, r]) => MON.eye(g, x, y, r, '#d070ff', { glow: true }));
+    // bras avant
+    g.part(t => { t.stroke([[38, 20], [46, 26], [51, 34]], 3.2, 2.0, arm); [[51, 34, 1.0], [52.6, 33.2, 0.4], [50, 35, 1.6]].forEach(([x, y, a]) => MON.claw(t, x, y, 3.6, a, '#c8b0e8')); });
+    g.blendEll(51, 36, 6, 6, '#a84aff', 0.35, 1);
+    [[10, 14, 1.6], [46, 12, 1.4], [8, 40, 1.2], [50, 44, 1.5]].forEach(([x, y, r]) => g.part(t => t.poly([[x, y - r * 2.4], [x + r, y], [x, y + r * 2.4], [x - r, y]], crys)));
+  },
+  creation(g, P, C) {
+    const gold = MON.sh('#e8c050', 0.5, 0.6), light = MON.sh('#fff4d0', 0.3, 0.6), robe = MON.sh('#f6eedc', 0.35, 0.6), wingC = MON.sh('#fff8e8', 0.25, 0.6);
+    // ailes de lumière (trois paires)
+    [-1, 1].forEach(dir => { MON.featherWing(g, 28 + dir * 4, 18, dir, 24, 10, -1.25, -0.35, wingC, 2.3); MON.featherWing(g, 28 + dir * 4, 24, dir, 19, 9, -0.35, 0.45, wingC, 2.0); MON.featherWing(g, 28 + dir * 3, 32, dir, 13, 7, 0.4, 1.1, wingC, 1.7); });
+    g.blendEll(28, 24, 26, 22, '#fff4c0', 0.18, 1);
+    // anneaux
+    const ring = (rx, ry, rot, w) => { const pts = []; for (let a = 0; a <= 6.3; a += 0.12) { const x = Math.cos(a) * rx, y = Math.sin(a) * ry; pts.push([28 + x * Math.cos(rot) - y * Math.sin(rot), 26 + x * Math.sin(rot) + y * Math.cos(rot)]); } g.part(t => t.stroke(pts, w, w, gold)); };
+    ring(17, 5, 0.25, 0.55);
+    // corps : silhouette de cristal vêtue
+    g.part(t => { t.poly([[28, 8], [36, 20], [33, 44], [28, 50], [23, 44], [20, 20]], robe); t.poly([[28, 8], [28, 50], [23, 44], [20, 20]], MON.sh('#e6dcc4', 0.35, 0.55)); });
+    for (let i = 0; i < 5; i++) g.inside(t => t.stroke([[22 + i * 3, 22], [24 + i * 2, 48]], 0.14, 0.08, '#c8b890'));
+    g.inside(t => { t.rect(18, 30, 20, 1.4, gold); t.poly([[28, 22], [30.4, 27], [28, 32], [25.6, 27]], MON.sh('#ffe9a0', 0.4, 0.65)); });
+    g.blendEll(28, 27, 6, 6, '#ffffff', 0.5, 1);
+    // tête : masque sans visage, œil unique, couronne
+    g.part(t => { t.blob([[28, 10, 5, 5.6]], light, 27.6, 9, 5.6, 6); [[23, 6, 20, 0], [25.6, 4.6, 24.6, -1], [28, 4, 28, -1.6], [30.4, 4.6, 31.4, -1], [33, 6, 36, 0]].forEach(([a, b, c, d]) => t.stroke([[a, b], [c, d]], 0.7, 0.12, gold)); });
+    g.ell(28.6, 10.4, 1.8, 1.2, ['#7a5a10', '#ffd860', '#fff8d0']); g.ell(28.8, 10.4, 0.5, 1.0, '#2a1a0a'); g._disc(28.2, 10, 0.3, '#ffffff');
+    ring(10, 3, -0.3, 0.45);
+    // bras
+    g.part(t => { t.stroke([[34, 20], [42, 24], [47, 20]], 1.4, 1.0, robe); t.ell(47.6, 19.4, 1.4, 1.4, light); });
+    g.blendEll(48, 19, 5, 5, '#fff4a0', 0.6, 1);
+    g.part(t => { t.stroke([[22, 20], [14, 25], [9, 22]], 1.4, 1.0, robe); t.ell(8.4, 21.6, 1.4, 1.4, light); });
+    // éclats flottants
+    [[6, 40, 1.4], [50, 40, 1.6], [12, 8, 1.1], [45, 7, 1.2], [28, 54, 1.3]].forEach(([x, y, r]) => g.part(t => t.poly([[x, y - r * 2.4], [x + r, y], [x, y + r * 2.4], [x - r, y]], MON.sh('#ffe9a0', 0.4, 0.65))));
+  },
+});
 SPR.enemy = (spr, color, elem) => SPR.get(`e_${spr}_${color}`, () => {
   const s = SPR.ENEMY_SIZE[spr], g = new G.Pix(s, s, 16); g.smooth = true;
   const P = MON.sh(color);
@@ -1410,6 +1569,128 @@ SPR.cliffFront = (volc, v) => SPR.get(`cf_${volc ? 1 : 0}_${v}`, () => {
   return c;
 });
 
+// ---------------- Temples : sols, murs, façades, cristaux, mobilier ----------------
+// pierre [sombre..clair], joint, accent
+SPR.TPAL = {
+  terre: { st: ['#33402a', '#46573a', '#5a6e48', '#708656', '#86a064'], j: '#1e2618', acc: '#7ad84a' },
+  vent: { st: ['#56607a', '#6c7892', '#8592aa', '#a0acc2', '#bcc6d8'], j: '#363c4e', acc: '#9ae8ff' },
+  eau: { st: ['#1c3448', '#26465e', '#305874', '#3c6a88', '#4a7e9c'], j: '#0e1c28', acc: '#43a8ff' },
+  feu: { st: ['#24120e', '#341a14', '#46241a', '#5a3022', '#6e3c2a'], j: '#120806', acc: '#ff6a2a' },
+  tenebres: { st: ['#160e20', '#20162e', '#2c1e3e', '#3a2850', '#4a3462'], j: '#0a0610', acc: '#b06aff' },
+  lumiere: { st: ['#a89e86', '#bfb59c', '#d4cbb2', '#e6dec8', '#f6f0de'], j: '#7a705a', acc: '#ffd860' },
+};
+TILE_PAINT.temple = (P, v, ch, style) => {
+  const T = SPR.TPAL[style] || SPR.TPAL.tenebres, st = T.st;
+  // dalles de 16 x 16 (2 x 2 par case), joints, nuances par dalle
+  P.fill((x, y) => {
+    const bx = Math.floor(x / 16), by = Math.floor(y / 16), lx = x - bx * 16, ly = y - by * 16;
+    if (lx < 0.6 || ly < 0.6) return U.hex2rgb(T.j);
+    const base = 0.35 + U.hash(bx + v * 2, by, 61) * 0.3, edge = lx < 1.6 || ly < 1.6 ? 0.18 : lx > 15 || ly > 15 ? -0.15 : 0;
+    return rampQ(st, base + edge + tfbm(x, y, 63) * 0.25 - 0.12 + (gr(x, y, v + 64) - 0.5) * 0.1);
+  });
+  fineGrain(P, v, st[4], st[0], 50, 65);
+  // fissures
+  if (v % 3 === 0) { let cx = 3 + U.hash(v, 1, 66) * 24, cy = 3 + U.hash(v, 2, 66) * 24; for (let i = 0; i < 10; i++) { P.dot(cx, cy, T.j, 0.9); P.dot(cx + 0.5, cy, st[0], 0.6); cx += U.hash(i, v, 67) < 0.5 ? 0.5 : -0.5; cy += 0.5; } }
+  // incrustation de l'élément
+  if (v === 1 || v === 5) { const cx = 16, cy = 16; for (let a = 0; a < 4; a++) for (let r = 0; r < 4; r += 0.5) { const ang = a * Math.PI / 2; P.dot(cx + Math.cos(ang) * r, cy + Math.sin(ang) * r, T.acc, 0.55 - r * 0.1); } P.dot(cx, cy, '#ffffff', 0.6); }
+  if (style === 'terre' && v % 2 === 0) for (let k = 0; k < 10; k++) { const x = U.hash(k, v, 68) * TS, y = U.hash(v, k, 68) * TS; P.wset(x, y, '#5a9a3a', 0.8); P.dot(x + 0.5, y, '#8ad860', 0.6); }
+  if (style === 'feu' && v % 2 === 1) { let cx = U.hash(v, 3, 69) * TS, cy = 2; for (let i = 0; i < 24; i++) { P.dot(cx, cy, i % 3 ? '#ff6a1a' : '#ffd060', 0.85); cx += U.hash(i, v, 70) < 0.5 ? 0.5 : -0.5; cy += 1; } }
+  if (style === 'eau' && v % 3 === 1) { const cx = 10 + v, cy = 20; for (let y = -3; y <= 3; y += 0.5) for (let x = -6; x <= 6; x += 0.5) if (x * x / 36 + y * y / 9 < 1) P.dot(cx + x, cy + y, y < -1 ? '#7ac8e8' : '#3a7aa8', 0.45); }
+  if (style === 'lumiere' && v % 2 === 0) for (let k = 0; k < 12; k++) P.dot(U.hash(k, v, 71) * TS, U.hash(v, k, 71) * TS, '#ffe890', 0.7);
+  if (style === 'tenebres' && v % 2 === 0) for (let k = 0; k < 8; k++) P.dot(U.hash(k, v, 72) * TS, U.hash(v, k, 72) * TS, '#c88aff', 0.7);
+};
+TILE_KIND.k = 'temple'; TILE_PRIO.k = 4;
+// mur de temple vu de dessus ; front : la face visible (le sol est juste en dessous)
+SPR.templeWall = (key, v, front) => SPR.get(`tw_${key}_${v}_${front ? 1 : 0}`, () => {
+  const T = SPR.TPAL[key], st = T.st, P = Painter();
+  P.fill((x, y) => {
+    if (front && y >= 18) {
+      // face avant : briques plus sombres
+      const row = Math.floor((y - 18) / 5), off = row % 2 ? 6 : 0, lx = (x + off) % 12, ly = (y - 18) % 5;
+      if (y < 19) return U.hex2rgb(st[3]);
+      if (lx < 0.6 || ly < 0.6) return U.hex2rgb(T.j);
+      return rampQ(st, 0.3 + U.hash(Math.floor((x + off) / 12), row + v, 81) * 0.25 + (1 - (y - 18) / 14) * 0.2 + (ly < 1.4 ? 0.12 : 0) + (gr(x, y, 82) - 0.5) * 0.08);
+    }
+    // dessus : grands blocs
+    const row = Math.floor(y / 8), off = row % 2 ? 8 : 0, lx = (x + off) % 16, ly = y % 8;
+    if (lx < 0.6 || ly < 0.6) return U.hex2rgb(T.j);
+    const b = 0.06 + U.hash(Math.floor((x + off) / 16) + v * 3, row, 83) * 0.16 + (ly < 1.5 ? 0.1 : ly > 7 ? -0.05 : 0);
+    const rgb = rampQ(st, b + (gr(x, y, 84) - 0.5) * 0.06 + tfbm(x, y, 85) * 0.1 - 0.05);
+    return [rgb[0] * 0.62, rgb[1] * 0.62, rgb[2] * 0.62];
+  });
+  if (front) { for (let x = 0; x < TS; x += 0.5) { P.dot(x, 17.5, st[4], 0.8); P.dot(x, 31.5, '#000000', 0.35); } }
+  if (key === 'terre' && v % 2 === 0) for (let k = 0; k < 8; k++) { const x = U.hash(k, v, 86) * TS, y = U.hash(v, k, 86) * 14; P.wset(x, y, '#4a8a2a', 0.85); P.dot(x + 0.5, y + 0.5, '#7ac84a', 0.6); }
+  if (key === 'tenebres' && front && v === 1) for (let y = 20; y < 30; y += 0.5) P.dot(16, y, '#b06aff', 0.5);
+  return P.done();
+});
+// façade de temple (3 cases de large) : marches, colonnes, fronton, emblème du cristal
+SPR.templeFacade = (key, sealed) => SPR.get(`tf_${key}_${sealed ? 1 : 0}`, () => {
+  const T = SPR.TPAL[key], st = T.st, S3 = [st[1], st[2], st[4]], D3 = [st[0], st[1], st[3]], g = new G.Pix(48, 58, ENV_K), B = 57, acc = G.TEMPLES[key].col;
+  g.rect(1, B - 4, 46, 4, S3); g.rect(4, B - 7, 40, 3, S3); g.rect(7, B - 9, 34, 2, S3);
+  g.rect(8, 20, 32, B - 29, D3);
+  for (let r = 0; r < 7; r++) g.hline(8, 22 + r * 4, 40, 22 + r * 4, T.j);
+  g.poly([[18, B - 9], [18, 33], [24, 28], [30, 33], [30, B - 9]], ['#05030a', '#0c0814', '#1a1424']);
+  [[7, 'L'], [15.5, 'L'], [32.5, 'R'], [41, 'R']].forEach(([cx]) => { g.rect(cx - 2, 18, 4, B - 27, S3); g.rect(cx - 2.8, 16.5, 5.6, 2, S3); g.rect(cx - 2.8, B - 10.5, 5.6, 1.6, S3); g.hline(cx - 0.6, 19, cx - 0.6, B - 11, st[4]); g.hline(cx + 1, 19, cx + 1, B - 11, st[0]); });
+  g.poly([[3, 17], [24, 3], [45, 17]], [st[2], st[3], st[4]]); g.rect(2, 15.5, 44, 2.5, S3);
+  g.poly([[9, 15.5], [24, 6.5], [39, 15.5]], D3);
+  // emblème : losange du cristal
+  g.poly([[24, 7.5], [27, 11], [24, 15], [21, 11]], MON.sh(sealed ? '#6a3a9a' : acc, 0.5, 0.55));
+  g.hline(24, 8.5, 24, 14, '#ffffff');
+  if (key === 'terre') { [[4, 30], [44, 40], [10, 50]].forEach(([x, y]) => g.ell(x, y, 2.5, 1.5, U.shades('#4a8a2a'))); }
+  if (key === 'feu') { [[12, B - 8], [36, B - 8]].forEach(([x, y]) => g.hline(x, y, x + 3, y, '#ff6a1a')); }
+  if (sealed) { g.line(17, 34, 31, B - 11, '#8a6aa8', 0.6); g.line(31, 34, 17, B - 11, '#8a6aa8', 0.6); g.ell(24, 40.5, 3.2, 3.2, MON.sh('#6a2a9a', 0.5, 0.5)); g.ell(24, 40.5, 1.6, 1.6, '#e0b0ff'); }
+  g.outline('#140c1c').outline('#140c1c').polish(0.02, 41);
+  return g.toCanvas();
+});
+// cristal flottant : pur, corrompu, ténébreux, brisé
+SPR.crystal = (key, state) => SPR.get(`cr_${key}_${state}`, () => {
+  const g = new G.Pix(20, 36, 8); g.smooth = true;
+  const base = state === 'corrupt' ? '#5a2a7a' : state === 'dark' ? '#2a1240' : G.TEMPLES[key].col, P = MON.sh(base, 0.55, 0.6), L = MON.lt(base, 0.6), Dk = MON.dk(base, 0.5);
+  if (state === 'broken') {
+    [[5, 33, -0.4], [10, 34, 0.2], [15, 33, 0.5], [8, 31, -0.1], [13, 31, 0.3]].forEach(([x, y, a], i) => g.poly([[x - 1.6, y + 1], [x + Math.sin(a) * 3, y - 3 - i % 3], [x + 1.6, y + 1]], MON.sh('#3a2050', 0.5, 0.4)));
+    g.outline('#140c1c').outline('#140c1c'); return g.toCanvas(2);
+  }
+  // facettes
+  g.poly([[10, 1], [17, 12], [14, 30], [10, 34], [6, 30], [3, 12]], P);
+  g.poly([[10, 1], [10, 34], [6, 30], [3, 12]], MON.sh(MON.lt(base, 0.2), 0.45, 0.6));
+  g.poly([[10, 1], [17, 12], [10, 15]], MON.sh(L, 0.35, 0.6));
+  g.poly([[10, 15], [17, 12], [14, 30], [10, 34]], MON.sh(Dk, 0.4, 0.4));
+  [[10, 1, 10, 34], [3, 12, 10, 15], [17, 12, 10, 15], [6, 30, 10, 15], [14, 30, 10, 15]].forEach(([a, b, c, d]) => g.stroke([[a, b], [c, d]], 0.12, 0.12, MON.lt(base, 0.7)));
+  g.blendEll(9, 12, 4, 7, '#ffffff', state === 'pure' ? 0.55 : 0.2, 1);
+  g.stroke([[7.5, 6], [6, 13]], 0.3, 0.15, '#ffffff');
+  if (state === 'corrupt' || state === 'dark') { [[[9, 5], [11, 11], [8, 17], [12, 24]], [[14, 14], [12, 20]], [[6, 18], [8, 26]]].forEach(c => g.inside(t => t.stroke(c, 0.25, 0.15, state === 'dark' ? '#c88aff' : '#120818'))); }
+  // éclats en orbite
+  [[1.5, 20, 1.2], [18.5, 22, 1]].forEach(([x, y, r]) => g.poly([[x, y - r * 2], [x + r, y], [x, y + r * 2], [x - r, y]], P));
+  g.outline('#140c1c').outline('#140c1c').outline('#140c1c').polish(0, 5);
+  return g.toCanvas(2);
+});
+SPR.brazier = key => SPR.get('bz_' + key, () => {
+  const T = SPR.TPAL[key], g = new G.Pix(16, 20, ENV_K), st = T.st;
+  g.rect(6.5, 9, 3, 9, [st[1], st[2], st[4]]); g.rect(5, 17.5, 6, 2, [st[0], st[2], st[3]]);
+  g.ell(8, 8.5, 5.5, 2.2, [st[0], st[2], st[4]]); g.ell(8, 8, 4.4, 1.4, ['#1a0e08', '#3a1e10', '#5a2e18']);
+  g.ell(8, 7.6, 3, 0.9, MON.sh(G.TEMPLES[key].col, 0.4, 0.6));
+  g.outline('#140c1c').outline('#140c1c').polish(0.02, 43);
+  return g.toCanvas();
+});
+SPR.pillar = key => SPR.get('pl_' + key, () => {
+  const T = SPR.TPAL[key], st = T.st, g = new G.Pix(16, 40, ENV_K), S3 = [st[1], st[3], st[4]];
+  g.rect(2.5, 35, 11, 4.5, S3); g.rect(4, 6, 8, 29, S3); g.rect(2.5, 3, 11, 3.5, S3); g.rect(1.5, 1, 13, 2.2, [st[2], st[3], st[4]]);
+  for (let i = 0; i < 3; i++) g.hline(5.5 + i * 2.3, 7, 5.5 + i * 2.3, 34, st[1]);
+  g.hline(4.8, 7, 4.8, 34, st[4]);
+  g.ell(8, 4.5, 1.2, 1, MON.sh(G.TEMPLES[key].col, 0.4, 0.6));
+  if (key === 'terre') { g.ell(5, 30, 2.4, 3.5, U.shades('#4a8a2a')); g.ell(11, 14, 1.4, 2.2, U.shades('#4a8a2a')); }
+  g.outline('#140c1c').outline('#140c1c').polish(0.02, 45);
+  return g.toCanvas();
+});
+SPR.portal = key => SPR.get('pt_' + key, () => {
+  const c = U.canvas(24 * 4, 20 * 4), x = c.getContext('2d'), col = G.TEMPLES[key].col; x.scale(4, 4);
+  x.fillStyle = 'rgba(10,8,20,0.55)'; x.beginPath(); x.ellipse(12, 10, 11, 7, 0, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = col; x.lineWidth = 0.8; x.beginPath(); x.ellipse(12, 10, 10, 6.4, 0, 0, Math.PI * 2); x.stroke();
+  x.lineWidth = 0.4; x.beginPath(); x.ellipse(12, 10, 7, 4.4, 0, 0, Math.PI * 2); x.stroke();
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; x.fillStyle = col; x.fillRect(12 + Math.cos(a) * 8.5 - 0.5, 10 + Math.sin(a) * 5.4 - 0.5, 1, 1); }
+  x.beginPath(); x.moveTo(12, 6.6); x.lineTo(14, 10); x.lineTo(12, 13.4); x.lineTo(10, 10); x.closePath(); x.fillStyle = col; x.globalAlpha = 0.6; x.fill();
+  c._d = 4; return c;
+});
 // ---------------- Objets du décor (arbres, rochers, noeuds…) ----------------
 // feuillage en touffes : donne du volume aux houppiers
 function foliage(g, cx, cy, rx, ry, base, seed, n) {

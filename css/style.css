@@ -316,3 +316,13 @@ body:has(.menu-wrap) #touch { display: none; }
 #touch .dpad { display: none !important; }
 #touch .abtns { pointer-events: none; }
 #touch .abtns button { pointer-events: auto; }
+
+/* Bestiaire */
+.bgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; margin-bottom: 10px; }
+.bcard { display: flex; gap: 8px; align-items: center; padding: 6px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
+.bcard .bimg { width: 56px; height: 56px; object-fit: contain; flex: none; }
+.bcard .bimg.q { display: flex; align-items: center; justify-content: center; font-size: 26px; color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.25); border-radius: 6px; }
+.bcard.seen .bimg { filter: grayscale(0.7) brightness(0.8); }
+.bcard.unk { opacity: 0.6; }
+.route li.lock { opacity: 0.5; }
+.route li.crys .rn, .route li.crys .rl { color: #9ae8ff; }

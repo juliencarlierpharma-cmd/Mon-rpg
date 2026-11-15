@@ -95,7 +95,7 @@ G.showTitle = () => {
   G.World.placePlayer(G.World.start[0], G.World.start[1] - 2, 'down');
   G.titleCam = 0;
   const T = document.getElementById('title');
-  T.innerHTML = `<div class="logo"><div class="l1">Les Échos</div><div class="l2">ÉLÉMENTAIRES</div><div class="l3">Un RPG HD-2D au tour par tour</div></div>
+  T.innerHTML = `<div class="logo"><div class="l1">Les Cristaux</div><div class="l2">ÉLÉMENTAIRES</div><div class="l3">Un RPG HD-2D au tour par tour</div></div>
     <div class="tmenu">${G.hasSave() ? '<button class="btn gold" id="tContinue">Continuer</button>' : ''}<button class="btn" id="tNew">Nouvelle partie</button><button class="btn demo" id="tDemo">✦ Démo rapide <small>niveau 15, tout débloqué</small></button></div>
     <div class="tfoot">Toucher / clic pour se déplacer et agir · Glisser = joystick · Flèches / ZQSD · Entrée · Échap = menu</div>`;
   T.classList.add('show');
@@ -116,7 +116,8 @@ G.showTitle = () => {
     G.Audio.music('town');
     G.R.transition('fadein', 0.8);
     await G.UI.say([
-      { who: 'Démo', t: 'Bienvenue au Havre ! L’équipe est au niveau 15. Sylvaros est déjà purifié et la ville est en construction.' },
+      { who: 'Démo', t: 'Bienvenue au Havre ! L’équipe est au niveau 15. Le Cristal de Terre est déjà libéré et la ville est en construction.' },
+      { who: 'Démo', t: 'Chaque région cache un temple ◆ (Menu › Carte) : un donjon avec sa propre faune, au fond duquel un gardien protège le cristal. Le Temple du Vent (Monts Grisés) et celui de l’Eau (Marais Brumeux) vous attendent.' },
       { who: 'Démo', t: 'Menu (☰ / Échap) › Armes : 4 armes par héros. Forgez celles qui manquent, améliorez-les, et comparez les styles de jeu.' },
       { who: 'Démo', t: 'Menu › Accomplissements : deux récompenses attendent d’être réclamées. Menu › Havre : construisez et améliorez les bâtiments.' },
       { who: 'Démo', t: 'Les familiers sont liés et leur énergie est pleine dès le début de chaque combat : essayez la commande « Familier » !' },
@@ -139,8 +140,8 @@ G.showTitle = () => {
     G.Audio.music('town');
     G.R.transition('fadein', 0.8);
     await G.UI.say([
-      { who: '', t: 'Le monde d’Aube vit au rythme des quatre Échos élémentaires : Feu, Eau, Vent et Terre.' },
-      { who: '', t: 'Mais depuis le réveil d’Ignar, le Dragon des Cendres, les Gardiens des Échos ont sombré dans la corruption…' },
+      { who: '', t: 'Le monde d’Aube repose sur quatre cristaux élémentaires : Terre, Vent, Eau et Feu. Chacun dort dans un temple, veillé par un gardien.' },
+      { who: '', t: 'Mais le Cristal des Ténèbres s’est éveillé. Son ombre a corrompu les gardiens, et la lumière des cristaux faiblit…' },
       { who: 'Lyra', t: 'Kael, l’Ancien Théo nous attend. Sa maison est juste là, au sud-est de la place.' },
       { who: 'Kael', t: 'Allons-y. Et gardons les yeux ouverts : les monstres rôdent jusqu’aux portes du bourg.' },
     ]);
@@ -171,6 +172,8 @@ G.demoState = () => {
   S.mats = { bois: 40, pierre: 40, minerai: 14, lingot: 30, cristal: 8, mithril: 3, herbe: 20, fibre: 25, fil: 12, gelee: 12, cuir: 14, croc: 12, plume: 10, spore: 8, seve: 6, braise: 12, aile: 4, os: 4, ecaille: 8, ectoplasme: 2, essence_feu: 6, essence_eau: 6, essence_vent: 6, essence_terre: 6, echo: 3, boisancien: 10, coeur_sylve: 1 };
   S.tools = { pick: 2, axe: 2 };
   S.bosses = { sylvaros: true };
+  S.bestiary = { gelee: 22, lapin: 14, corbeau: 12, loup: 18, champi: 10, liane: 8, follet: 9, loupb: 11, sylvaros: 1, roi_gelee: 1, lievre_titan: 1, croc_blanc: 1, scarabee: 4, golem_racine: 2 };
+  S.seen = Object.assign({ chauve: 1, salamandre: 1, golem: 1 }, S.bestiary);
   S.stats = Object.assign(S.stats, { wins: 48, kills: 121, tags: { loup: 9 }, gathered: 64, crafted: 9, wcraft: 7, weak: 31, tech: 5, goldEarned: 7400, steps: 900 });
   S.town = { founded: true, b: { forge: 2, atelier: 1, marche: 1, menagerie: 2, herboristerie: 1 }, store: { potion: 2, herbe: 4, _gold: 0 }, prog: 6 };
   S.npcs = { dorn: true, mira: true, pell: true, yuna: true, fen: true };

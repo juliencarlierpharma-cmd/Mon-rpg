@@ -10,6 +10,7 @@ G.Battle = {
     if (G.scene === 'battle' || G.scene === 'trans') return;
     this.opts = opts; this.over = false; this.result = null; this.tweens = []; this.time = 0;
     this.bg = opts.bg || 'plains';
+    G.S.seen = G.S.seen || {}; enemyIds.forEach(id => { G.S.seen[id] = 1; });
     this.units = [];
     G.S.party.forEach((cid, i) => this.units.push(this.mkParty(cid, i)));
     const counts = {};
@@ -125,9 +126,9 @@ G.Battle = {
       await U.wait(600); this.endTurn(u, 1); return;
     }
     if (u.airborne) { await this.land(u); this.endTurn(u, 1); return; }
-    if (u.boss && u.eid === 'ignar' && !u.enraged && u.hp < u.maxhp * 0.5) {
-      u.enraged = true; this.log('Ignar entre dans une rage incandescente !'); G.R.flash('#ff6a2a', 0.6); G.R.shake(4, 0.6);
-      G.FX.elem('feu', u.hx, u.hy - 40, true); await U.wait(700);
+    if (u.boss && u.E.enrage && !u.enraged && u.hp < u.maxhp * 0.5) {
+      u.enraged = true; this.log(u.E.enrage); G.R.flash(u.eid === 'creation' ? '#fff4c0' : u.eid === 'umbra' ? '#8a4aff' : '#ff6a2a', 0.6); G.R.shake(4, 0.6);
+      G.FX.elem(u.E.e || 'feu', u.hx, u.hy - 40, true); await U.wait(700);
     }
     let act;
     if (u.side === 'p') act = await G.UI.battleCommand(u);
@@ -136,7 +137,7 @@ G.Battle = {
     const mul = await this.exec(u, act);
     if (this.over || !this.alive('e').length || !this.alive('p').length) { this.endTurn(u, mul); return; }
     if (u.side === 'p' && u.alive && act.type !== 'tech') await this.famAssist(u);
-    if (u.boss && u.enraged && Math.random() < 0.35 && this.alive('p').length) { this.log('Ignar enchaîne !'); await U.wait(250); await this.exec(u, this.ai(u)); }
+    if (u.boss && u.enraged && Math.random() < 0.35 && this.alive('p').length) { this.log(`${u.name} enchaîne !`); await U.wait(250); await this.exec(u, this.ai(u)); }
     this.endTurn(u, mul);
   },
   endTurn(u, mul = 1) {
@@ -211,7 +212,7 @@ G.Battle = {
     return 1;
   },
   h(u) { return u.side === 'p' ? 40 : (G.SPR.ENEMY_SIZE[u.E.spr] * this.escale(u)) * 0.8; },
-  escale(u) { const s = G.SPR.ENEMY_SIZE[u.E.spr]; if (u.E.big && s < 48) return G.R.W < 300 ? 2 : 3; return s >= 48 ? (G.R.W < 300 ? 1.5 : 2) : 2; },
+  escale(u) { const s = G.SPR.ENEMY_SIZE[u.E.spr]; if (u.E.big && s < 48) return G.R.W < 300 ? 2 : 3; return s >= 56 ? (G.R.W < 300 ? 1.2 : 1.6) : s >= 48 ? (G.R.W < 300 ? 1.5 : 2) : 2; },
   center(u) { return [u.hx + u.ox, u.hy + u.oy - this.h(u) * 0.55]; },
   async lunge(u, t) {
     const dir = u.side === 'p' ? -1 : 1;
@@ -538,6 +539,7 @@ G.Battle = {
         (u.E.tags || []).forEach(t => S.stats.tags[t] = (S.stats.tags[t] || 0) + 1);
         u.E.drops.forEach(([id, ch, a, b]) => { if (Math.random() < Math.min(1, ch * HB.drop * (1 + dep * 0.5))) { const q = U.randi(a, b); drops[id] = (drops[id] || 0) + q; } });
         if (u.boss && !u.E.elite) S.bosses[u.eid] = true;
+        S.bestiary = S.bestiary || {}; S.bestiary[u.eid] = (S.bestiary[u.eid] || 0) + 1;
       });
       // matériau typique de la région
       const ZL = G.ZONE_LOOT[this.opts.zone];
@@ -597,16 +599,20 @@ G.Battle = {
   async bossAftermath(id) {
     const S = G.S;
     const txt = {
-      sylvaros: [{ who: '', t: 'L’écorce noire se fend… Sylvaros retrouve sa sérénité millénaire.' }, { who: 'Sylvaros', t: 'Merci, enfants de l’Aube… Prenez mon Écho. La forêt veillera sur votre Havre.' }],
-      wyverne: [{ who: '', t: 'Les nuages se dissipent. La Wyverne se pose, apaisée.' }, { who: 'Wyverne', t: 'Le ciel est à nouveau libre… Mon Écho est vôtre.' }],
-      hydre: [{ who: '', t: 'Les brumes se lèvent sur le marais. L’Hydre plonge dans les eaux redevenues claires.' }],
-      ignar: [{ who: 'Ignar', t: 'Impossible… Les Échos… s’unissent contre moi…' }, { who: '', t: 'Le Dragon des Cendres s’effondre. Une pluie de lumière tombe sur le monde.' }, { who: 'Lyra', t: 'C’est fini… Les Échos élémentaires sont libres.' }, { who: 'Bran', t: 'Rentrons au Havre. Il y a encore tant à construire !' }, { who: '', t: '✦ FÉLICITATIONS ✦ Vous avez terminé l’histoire principale. Continuez à développer le Havre, à forger et à compléter l’arbre des accomplissements !' }],
+      sylvaros: [{ who: '', t: 'L’écorce noire se fend… Sylvaros retrouve sa sérénité millénaire.' }, { who: 'Sylvaros', t: 'Merci, enfants de l’Aube… Le Cristal de Terre est libre. La forêt veillera sur votre Havre.' }, { who: '', t: '◆ Le Cristal de Terre est libéré ! Il brille désormais d’une lumière verte et pure.' }],
+      wyverne: [{ who: '', t: 'Les nuages se dissipent. La Wyverne se pose, apaisée.' }, { who: 'Wyverne', t: 'Le ciel est à nouveau libre… Le Cristal de Vent chante de nouveau.' }, { who: '', t: '◆ Le Cristal de Vent est libéré !' }],
+      hydre: [{ who: '', t: 'Les brumes se lèvent. L’Hydre plonge dans les eaux redevenues claires.' }, { who: '', t: '◆ Le Cristal d’Eau est libéré !' }],
+      ignar: [{ who: 'Ignar', t: 'Impossible… Les cristaux… s’unissent contre moi… Mais ce n’est pas moi… qui ai réveillé l’ombre…' }, { who: '', t: 'Le Dragon des Cendres s’effondre. ◆ Le Cristal de Feu est libéré !' }],
+      umbra: [{ who: 'Umbra', t: 'Vous… brisez l’ombre… et réveillez ce qui dormait derrière elle… Insensés…' }, { who: '', t: 'Le Cristal des Ténèbres se fissure, puis vole en éclats dans un silence absolu.' }],
+      creation: [{ who: 'Création originelle', t: 'Une lumière… qui accepte l’ombre… Je n’avais jamais… envisagé cela…' }, { who: '', t: 'La lumière aveuglante se résorbe. Le Cristal de Lumière retrouve une clarté douce, en équilibre avec l’ombre.' }, { who: 'Lyra', t: 'C’est fini. Les cristaux sont libres… et le monde n’appartient qu’à lui-même.' }, { who: 'Bran', t: 'Rentrons au Havre. Il y a encore tant à construire !' }, { who: '', t: '✦ FÉLICITATIONS ✦ Vous avez vaincu la Création originelle et terminé l’histoire principale. Continuez à développer le Havre, à remplir le bestiaire et à compléter l’arbre des accomplissements !' }],
     }[id];
-    await G.UI.say(txt);
+    if (txt) await G.UI.say(txt);
     const n = ['sylvaros', 'wyverne', 'hydre'].filter(b => S.bosses[b]).length;
-    if (id !== 'ignar' && n === 3) await G.UI.say([{ who: '', t: 'Les trois Échos résonnent à l’unisson… Au loin, la barrière de flammes du Volcan s’éteint !' }]);
-    if (id === 'ignar') S.flags.cleared = true;
+    if (['sylvaros', 'wyverne', 'hydre'].includes(id) && n === 3) await G.UI.say([{ who: '', t: 'Les trois cristaux résonnent à l’unisson… Au loin, la barrière de flammes du Volcan s’éteint !' }]);
+    if (G.CRYSTAL4.includes(Object.keys(G.TEMPLES).find(k => G.TEMPLES[k].boss === id)) && G.crystalsFreed(S) === 4) await G.UI.say([{ who: '', t: 'Les quatre cristaux brillent ensemble. Dans les Plaines d’Aube, au nord de Bourg-Aube, le sceau du Temple des Ténèbres se brise dans un grondement sourd !' }]);
     G.World.refresh();
+    if (id === 'umbra') await G.World.lightCutscene();
+    if (id === 'creation') { S.flags.cleared = true; G.save(); }
   },
   log(t) { this.lastLog = t; G.UI.battleLog(t); },
   // ---------------- Animation ----------------
@@ -709,7 +715,14 @@ G.Battle = {
         mountain: { sky: ['#5a7ab0', '#d8e4f0'], far: '#8a94a8', mid: '#6a6a74', ground: ['#8f877a', '#5e584e'] },
         swamp: { sky: ['#2a2a40', '#6a7a6a'], far: '#3a4a40', mid: '#2a3a2a', ground: ['#4f5a38', '#2e3622'] },
         volcano: { sky: ['#1a0a0a', '#8a2a1a'], far: '#3a1a14', mid: '#2a1210', ground: ['#3d2c2a', '#1e1412'] },
+        t_terre: { sky: ['#0e140a', '#2a3a1e'], far: '#1e2a16', mid: '#2a3a20', ground: ['#5a6e48', '#2e3a24'] },
+        t_vent: { sky: ['#1a2030', '#4a5670'], far: '#3a4458', mid: '#4a566c', ground: ['#8592aa', '#4a5468'] },
+        t_eau: { sky: ['#060e18', '#163248'], far: '#0e2232', mid: '#14304a', ground: ['#305874', '#14283a'] },
+        t_feu: { sky: ['#0e0404', '#3a120a'], far: '#200a06', mid: '#2e100a', ground: ['#46241a', '#1c0c08'] },
+        t_tenebres: { sky: ['#050208', '#1a0e2a'], far: '#120a1e', mid: '#1a1028', ground: ['#2c1e3e', '#0e0816'] },
+        t_lumiere: { sky: ['#e8dcc0', '#fff8e8'], far: '#d4cbb2', mid: '#c8bea4', ground: ['#e6dec8', '#a89e86'] },
       }[b];
+      const temple = b.startsWith('t_'), TP = temple ? G.SPR.TPAL[b.slice(2)] : null;
       const hz = Math.round(BH * 0.42);
       let g = x.createLinearGradient(0, 0, 0, hz);
       g.addColorStop(0, pal.sky[0]); g.addColorStop(1, pal.sky[1]); x.fillStyle = g; x.fillRect(0, 0, W, hz + 2);
@@ -729,15 +742,22 @@ G.Battle = {
         const px = U.hash(i, 1, 4) * W, py = hz + Math.pow(U.hash(i, 2, 4), 0.7) * (H - hz), s = 1 + (py - hz) / (H - hz) * 2;
         x.fillStyle = U.hash(i, 3, 4) < 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.08)'; x.fillRect(px, py, s, Math.max(1, s * 0.5));
       }
+      // temples : colonnes au fond, dallage et lueurs de l'élément
+      if (temple) {
+        for (let i = 0; i < 7; i++) { const cx = (i + 0.5) * W / 7, w = 10; const g2 = x.createLinearGradient(cx - w, 0, cx + w, 0); g2.addColorStop(0, TP.st[0]); g2.addColorStop(0.4, TP.st[3]); g2.addColorStop(1, TP.st[1]); x.fillStyle = g2; x.fillRect(cx - w / 2, 0, w, hz + 4); x.fillStyle = TP.st[4]; x.fillRect(cx - w / 2 - 2, hz - 2, w + 4, 6); x.fillRect(cx - w / 2 - 2, 0, w + 4, 6); }
+        for (let r = 0; r < 9; r++) { const y = hz + Math.pow(r / 9, 1.6) * (H - hz); x.fillStyle = 'rgba(0,0,0,0.18)'; x.fillRect(0, Math.round(y), W, 1); }
+        for (let c = -8; c <= 8; c++) { x.strokeStyle = 'rgba(0,0,0,0.14)'; x.lineWidth = 1; x.beginPath(); x.moveTo(W / 2 + c * 18, hz); x.lineTo(W / 2 + c * 90, H); x.stroke(); }
+        const acc = G.TEMPLES[b.slice(2)].col; for (let i = 0; i < 3; i++) { const gx2 = W * (0.2 + i * 0.3), rg = x.createRadialGradient(gx2, hz + 6, 0, gx2, hz + 6, 60); rg.addColorStop(0, U.rgba(acc, 0.35)); rg.addColorStop(1, U.rgba(acc, 0)); x.fillStyle = rg; x.fillRect(gx2 - 60, hz - 54, 120, 120); }
+      }
       // décor de premier plan
       if (b === 'forest') { for (let i = 0; i < 6; i++) { const tx = U.hash(i, 9, 1) * W; x.fillStyle = '#1a2e16'; x.fillRect(tx, 0, 6 + i % 3 * 3, hz + 6); } }
       if (b === 'swamp') { x.fillStyle = 'rgba(60,100,90,0.5)'; for (let i = 0; i < 5; i++) { x.beginPath(); x.ellipse(U.hash(i, 4, 2) * W, hz + 10 + U.hash(i, 5, 2) * (BH - hz), 30, 5, 0, 0, Math.PI * 2); x.fill(); } }
       if (b === 'volcano') { x.fillStyle = '#ff5a1a'; for (let i = 0; i < 6; i++) { const y = hz + 6 + U.hash(i, 3, 3) * (BH - hz); x.fillRect(U.hash(i, 2, 3) * W, y, 14 + i * 3, 1); } }
       // touffes et cailloux en perspective (plus grands au premier plan)
-      const tuft = { plains: ['#3f7d2c', '#72ba48', '#9ad860'], forest: ['#25502a', '#4a8440', '#6aa858'], mountain: ['#5e584e', '#8f877a', '#b5ae9f'], swamp: ['#323a24', '#56623c', '#7a8a5a'], volcano: ['#1e1514', '#5a4440', '#ff7a2a'] }[b];
+      const tuft = temple ? [TP.st[0], TP.st[2], TP.st[4]] : { plains: ['#3f7d2c', '#72ba48', '#9ad860'], forest: ['#25502a', '#4a8440', '#6aa858'], mountain: ['#5e584e', '#8f877a', '#b5ae9f'], swamp: ['#323a24', '#56623c', '#7a8a5a'], volcano: ['#1e1514', '#5a4440', '#ff7a2a'] }[b];
       for (let i = 0; i < 160; i++) {
         const py = hz + 4 + Math.pow(U.hash(i, 7, 9), 0.8) * (H - hz), d = (py - hz) / (H - hz), px = U.hash(i, 8, 9) * W, sz = 0.6 + d * 2.4;
-        if (U.hash(i, 9, 9) < 0.7) { for (let k = 0; k < 4; k++) { x.fillStyle = tuft[k % 2 ? 1 : 0]; x.fillRect(px + k * sz * 0.6, py - sz * (1.5 + (k % 2)), sz * 0.35, sz * (1.5 + (k % 2))); } x.fillStyle = tuft[2]; x.fillRect(px + sz * 0.6, py - sz * 2.5, sz * 0.3, sz * 0.5); }
+        if (!temple && U.hash(i, 9, 9) < 0.7) { for (let k = 0; k < 4; k++) { x.fillStyle = tuft[k % 2 ? 1 : 0]; x.fillRect(px + k * sz * 0.6, py - sz * (1.5 + (k % 2)), sz * 0.35, sz * (1.5 + (k % 2))); } x.fillStyle = tuft[2]; x.fillRect(px + sz * 0.6, py - sz * 2.5, sz * 0.3, sz * 0.5); }
         else { x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(px, py + sz * 0.3, sz * 1.4, sz * 0.5, 0, 0, Math.PI * 2); x.fill(); x.fillStyle = tuft[1]; x.beginPath(); x.ellipse(px, py, sz * 1.2, sz * 0.8, 0, 0, Math.PI * 2); x.fill(); x.fillStyle = tuft[2]; x.fillRect(px - sz * 0.6, py - sz * 0.5, sz * 0.6, sz * 0.3); }
       }
       // zone d'interface (bas de l'écran)

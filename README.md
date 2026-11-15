@@ -1,4 +1,4 @@
-# Les Échos Élémentaires — RPG HD-2D au tour par tour
+# Les Cristaux Élémentaires — RPG HD-2D au tour par tour
 
 RPG jouable dans le navigateur, inspiré de Final Fantasy et Dragon Quest.
 Pixel art généré par le code, avec un rendu « HD-2D » : profondeur de champ, bloom, éclairage dynamique, cycle jour/nuit, rayons de lumière et particules.
@@ -41,7 +41,7 @@ La partie est sauvegardée dans le navigateur : automatiquement, à l’auberge 
   - **Bran** : Moine à enchaînements (gantelets), Vampire des abysses (trident), Chevalier dragon (lance), Barbare brise-armure (hache).
   - En combat, changer d’arme coûte un demi-tour.
 - **Compétences actives et passives** débloquées avec les niveaux (et le rang de l’arme), plus des talents innés propres à chaque héros.
-- **Arbre des accomplissements** (inspiré de Chained Echoes) : 23 exploits reliés (boss vaincus, collecte, artisanat, ville, affinité…). Chacun débloque un équipement unique, un familier ou des matériaux rares.
+- **Arbre des accomplissements** (inspiré de Chained Echoes) : 26 exploits reliés (boss vaincus, collecte, artisanat, ville, affinité…). Chacun débloque un équipement unique, un familier ou des matériaux rares.
 - **Familiers** (5) : ils gagnent des niveaux et ont une affinité avec chaque héros.
   - Lien I : bonus passif.
   - Lien II : technique liée (attaque combinée).
@@ -68,7 +68,12 @@ La partie est sauvegardée dans le navigateur : automatiquement, à l’auberge 
   - 1 chasse premium ♛ par région, qui n’apparaît qu’une fois les 3 primes standard de la région touchées. Elle est répétable et donne le seul matériau légendaire de la région : Plume d’aurore, Sève éternelle, Cœur de cristal, Perle abyssale, Flamme primordiale.
   - Ces matériaux permettent l’éveil légendaire des armes au rang 7 (rang maximum, Forge niv. 4) et la fabrication de 5 armures et accessoires légendaires (Atelier niv. 3).
   - Au rang S, la Traque infinie est répétable et monte de 3 niveaux à chaque victoire.
-- **Histoire** : 4 Gardiens corrompus à purifier, une barrière à briser, puis le dragon Ignar.
+- **Histoire** : le monde d’Aube repose sur quatre cristaux élémentaires (Terre, Vent, Eau, Feu), chacun gardé dans un temple. Le Cristal des Ténèbres s’est éveillé et a corrompu leurs gardiens.
+  - Libérez les cristaux de Terre (Sylvaros, Forêt de Sylve), de Vent (la Wyverne, Monts Grisés) et d’Eau (l’Hydre, Marais Brumeux) : la barrière du Volcan cède et donne accès au Temple du Feu (Ignar).
+  - Les quatre cristaux libérés brisent le sceau du Temple des Ténèbres, dans les Plaines au nord de Bourg-Aube. Son gardien, Umbra, protège le Cristal des Ténèbres.
+  - Sa destruction déclenche une cinématique : le Cristal de Lumière apparaît au Havre. Il ouvre le Sanctuaire où attend le véritable boss de fin, la Création originelle.
+- **Temples** (donjons) : un par région, marqués ◆ sur la carte. Chacun est un intérieur à part entière : salles reliées par des couloirs, piliers, braseros, coffres, éclairage d’ambiance, portail de sortie, et le cristal au fond de la salle du gardien. Chaque temple a sa propre faune (5 espèces) et son niveau : Terre 7–9, Vent 10–12, Eau 13–15, Feu 18–20, Ténèbres 22–25, Lumière 26–29.
+- **Bestiaire** (Menu › Bestiaire) : 77 créatures (plafond fixé à 200), classées par habitat. Les créatures vaincues sont recensées avec leur butin, celles seulement croisées restent en aperçu. Nouvelles espèces : scarabée de jade, crabes des abysses et de lave, gargouilles, méduse spectrale, œils du néant et d’aurore, ombre rampante, séraphin, ainsi que les boss Umbra et la Création originelle.
 
 ## Structure
 
