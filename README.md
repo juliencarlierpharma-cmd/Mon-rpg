@@ -18,7 +18,8 @@ Vous pouvez aussi le servir en local (`python3 -m http.server`) ou l’héberger
 
 | Action | Clavier | Tactile |
 |---|---|---|
-| Se déplacer | Flèches / ZQSD / WASD | Croix directionnelle |
+| Se déplacer | Flèches / ZQSD / WASD, ou clic sur une case | Toucher une case (chemin le plus court), ou glisser le doigt (joystick flottant) |
+| Aller parler / ouvrir / récolter | Clic sur le PNJ, coffre, ressource ou bâtiment | Toucher la cible : le héros s’y rend et agit seul |
 | Action (parler, ouvrir, **récolter**) | Entrée / Espace / E | Bouton A |
 | Menu / retour | Échap / M | Bouton B ou ☰ |
 

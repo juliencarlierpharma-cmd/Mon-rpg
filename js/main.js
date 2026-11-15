@@ -46,6 +46,40 @@ G.Input = {
       if (btn) btn.click(); else if (top && top.adv) top.adv();
     });
   },
+  // joystick flottant et toucher/clic pour se déplacer, directement sur l'écran de jeu
+  initPointer() {
+    const cv = document.getElementById('game'), joy = U.el('<div id="joy"><div class="knob"></div></div>');
+    document.body.appendChild(joy);
+    let st = null;
+    const canUse = () => G.scene === 'world' && !G.UI.busy() && G.view === 'world';
+    cv.addEventListener('pointerdown', e => {
+      G.Audio.init();
+      if (!canUse()) return;
+      e.preventDefault(); cv.setPointerCapture(e.pointerId);
+      st = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), joy: false };
+    });
+    cv.addEventListener('pointermove', e => {
+      if (!st || e.pointerId !== st.id) return;
+      const dx = e.clientX - st.x, dy = e.clientY - st.y, d = Math.hypot(dx, dy);
+      if (!st.joy && d > 18 && e.pointerType !== 'mouse') { st.joy = true; joy.style.left = st.x + 'px'; joy.style.top = st.y + 'px'; joy.classList.add('on'); G.World.path = null; G.World.pathTarget = null; }
+      if (st.joy) {
+        const k = Math.min(1, d / 42); joy.querySelector('.knob').style.transform = `translate(${dx / (d || 1) * k * 34}px, ${dy / (d || 1) * k * 34}px)`;
+        this.touchDir = d < 12 ? null : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+      }
+    });
+    const end = e => {
+      if (!st || e.pointerId !== st.id) return;
+      if (!st.joy && performance.now() - st.t < 600 && canUse()) {
+        const R = G.R, W = G.World, wx = e.clientX / R.scale + W.cam.x, wy = e.clientY / R.scale + W.cam.y;
+        const tx = Math.floor(wx / 16), ty = Math.floor(wy / 16);
+        if (tx === W.P.x && ty === W.P.y) W.interact();
+        else if (!W.goTo(tx, ty)) G.Audio.sfx('back');
+      }
+      if (st.joy) { this.touchDir = null; joy.classList.remove('on'); joy.querySelector('.knob').style.transform = ''; }
+      st = null;
+    };
+    cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  },
   dir() { return this.touchDir || this.held[this.held.length - 1] || null; },
   take(k) {
     if (!this.pressed[k]) return false;
@@ -63,7 +97,7 @@ G.showTitle = () => {
   const T = document.getElementById('title');
   T.innerHTML = `<div class="logo"><div class="l1">Les Échos</div><div class="l2">ÉLÉMENTAIRES</div><div class="l3">Un RPG HD-2D au tour par tour</div></div>
     <div class="tmenu">${G.hasSave() ? '<button class="btn gold" id="tContinue">Continuer</button>' : ''}<button class="btn" id="tNew">Nouvelle partie</button><button class="btn demo" id="tDemo">✦ Démo rapide <small>niveau 15, tout débloqué</small></button></div>
-    <div class="tfoot">Flèches / ZQSD · Entrée = action · Échap = menu · Tactile supporté</div>`;
+    <div class="tfoot">Toucher / clic pour se déplacer et agir · Glisser = joystick · Flèches / ZQSD · Entrée · Échap = menu</div>`;
   T.classList.add('show');
   G.Audio.music('title');
   const go = fn => () => { G.Audio.init(); G.Audio.sfx('ok'); T.classList.remove('show'); fn(); };
@@ -110,7 +144,7 @@ G.showTitle = () => {
       { who: 'Lyra', t: 'Kael, l’Ancien Théo nous attend. Sa maison est juste là, au sud-est de la place.' },
       { who: 'Kael', t: 'Allons-y. Et gardons les yeux ouverts : les monstres rôdent jusqu’aux portes du bourg.' },
     ]);
-    G.UI.toast('Parlez à l’Ancien Théo (maison violette). Bouton A / Entrée pour interagir.');
+    G.UI.toast(('ontouchstart' in window) ? 'Touchez une case pour y aller, touchez un personnage pour lui parler, ou glissez le doigt pour vous diriger.' : 'Parlez à l’Ancien Théo (maison violette). Cliquez sur une case ou un personnage, ou utilisez les flèches et Entrée.');
     G.save();
   });
 };
@@ -161,6 +195,7 @@ G.onResize = () => {
   G.R.init();
   G.UI.init();
   G.Input.init();
+  G.Input.initPointer();
   G.S = G.newState();
   G.World.init();
   G.S = G.newState();

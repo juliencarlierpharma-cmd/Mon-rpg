@@ -551,11 +551,12 @@ G.World = {
       P.px = U.lerp(P.fx * 16, P.tx * 16, t); P.py = U.lerp(P.fy * 16, P.ty * 16, t);
       this.followers.forEach(f => { f.px = U.lerp(f.fx * 16, f.x * 16, t); f.py = U.lerp(f.fy * 16, f.y * 16, t); });
       P.anim += dt;
-      if (P.t >= 1) { P.moving = false; P.x = P.tx; P.y = P.ty; this.onStep(); }
+      if (P.t >= 1) { P.moving = false; P.x = P.tx; P.y = P.ty; this.onStep(); if (this.pendingArrive && G.scene === 'world') { this.pendingArrive = false; if (!G.UI.busy()) this.arrive(); else { this.path = null; this.pathTarget = null; } } }
     }
     if (!P.moving && !this.mining && !G.UI.busy() && G.scene === 'world') {
       const d = G.Input.dir();
-      if (d) this.tryMove(d);
+      if (d) { this.path = null; this.tryMove(d); }
+      else if (this.path && this.path.length) this.followPath();
       else P.anim = 0;
       if (G.Input.take('a')) this.interact();
       if (G.Input.take('b')) G.UI.openMenu();
@@ -604,7 +605,62 @@ G.World = {
       if (Math.random() < rate) { this.sinceBattle = 0; this.encounter(zone); }
     }
   },
+  // ---------------- Déplacement au toucher / clic ----------------
+  // tx, ty : case visée. Si elle contient une entité interactive, le groupe s'en approche puis agit.
+  goTo(tx, ty) {
+    const P = this.P;
+    if (tx < 0 || ty < 0 || tx >= this.W || ty >= this.H) return false;
+    let e = this.entAt(tx, ty);
+    if (e && ['lamp', 'wall', 'gate', 'prop', 'fountain'].includes(e.k) && e.k !== 'fountain') e = null;
+    let goals;
+    if (e) {
+      // cases depuis lesquelles on peut agir sur l'entité (porte pour les bâtiments)
+      const cells = [];
+      if (e.door) cells.push([e.door[0], e.door[1] + 1, 'up']);
+      else for (let y = e.y; y < e.y + e.h; y++) for (let x = e.x; x < e.x + e.w; x++) [[0, 1, 'up'], [0, -1, 'down'], [1, 0, 'left'], [-1, 0, 'right']].forEach(([dx, dy, dir]) => { const nx = x + dx, ny = y + dy; if (!(nx >= e.x && nx < e.x + e.w && ny >= e.y && ny < e.y + e.h)) cells.push([nx, ny, dir]); });
+      goals = cells.filter(([x, y]) => (x === P.x && y === P.y) || this.canWalk(x, y));
+    } else if (this.canWalk(tx, ty)) goals = [[tx, ty, null]];
+    else return false;
+    if (!goals.length) return false;
+    const path = this.findPath(goals);
+    if (!path) return false;
+    this.path = path.steps; this.pathTarget = { x: tx, y: ty, ent: e, face: path.face, t: performance.now() };
+    if (!this.path.length) this.arrive();
+    return true;
+  },
+  // largeur d'abord dans une fenêtre autour du joueur
+  findPath(goals) {
+    const P = this.P, R = 48, x0 = P.x - R, y0 = P.y - R, S = R * 2 + 1;
+    const goalMap = new Map(goals.map(g => [(g[1] - y0) * S + (g[0] - x0), g[2]]));
+    const prev = new Int32Array(S * S).fill(-1), start = R * S + R, q = [start]; prev[start] = start;
+    let found = -1;
+    for (let i = 0; i < q.length; i++) {
+      const c = q[i]; if (goalMap.has(c)) { found = c; break; }
+      const cx = c % S, cy = (c / S) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= S || ny >= S) continue;
+        const n = ny * S + nx; if (prev[n] >= 0) continue;
+        if (!this.canWalk(nx + x0, ny + y0)) continue;
+        prev[n] = c; q.push(n);
+      }
+    }
+    if (found < 0) return null;
+    const steps = []; let c = found;
+    while (c !== start) { const p = prev[c], dx = (c % S) - (p % S), dy = ((c / S) | 0) - ((p / S) | 0); steps.push(dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up'); c = p; }
+    return { steps: steps.reverse(), face: goalMap.get(found) };
+  },
+  followPath() {
+    const d = this.path.shift(), [dx, dy] = DIRS[d];
+    if (!this.canWalk(this.P.x + dx, this.P.y + dy)) { const T = this.pathTarget; this.path = null; if (T) this.goTo(T.x, T.y); return; }
+    this.tryMove(d);
+    if (!this.path.length) this.pendingArrive = true;
+  },
+  arrive() {
+    const T = this.pathTarget; this.path = null; this.pathTarget = null;
+    if (T && T.ent && T.face) { this.P.dir = T.face; this.interact(); }
+  },
   encounter(zone) {
+    this.path = null; this.pathTarget = null; this.pendingArrive = false;
     const Z = G.ZONES[zone], dep = this.depthAt(this.P.x, this.P.y);
     let grp = U.pick(Z.groups).slice();
     if (grp.length < 3 && (Math.random() < dep * 0.8 || (G.maxLevel() > G.ENEMIES[grp[0]].lvl + 4 && Math.random() < 0.6))) grp.push(U.pick(U.pick(Z.groups)));
@@ -780,6 +836,7 @@ G.World = {
     await G.UI.say([{ who: '', t: 'Coffre ouvert ! ' + got.join(', ') }]);
   },
   async branEvent() {
+    this.path = null; this.pathTarget = null; this.pendingArrive = false;
     const S = G.S;
     S.flags.bran = true;
     await G.UI.say([
@@ -912,6 +969,13 @@ G.World = {
       G.SPR.draw(x, G.SPR.hero(lead, G.CHARS[lead].pal, P.dir, walkF, G.SPR.CHAR_EXTRA[lead]), Math.round((P.px - cx + ox) * 4) / 4, Math.round((P.py - cy + oy) * 4) / 4);
     } });
     objs.sort((a, b) => a.y - b.y).forEach(o => o.d());
+    // repère de destination (toucher / clic)
+    if (this.pathTarget) {
+      const T = this.pathTarget, t = (performance.now() - T.t) / 1000, mx = T.x * 16 - cx + 8, my = T.y * 16 - cy + 8;
+      x.save(); x.globalAlpha = 0.85; x.strokeStyle = T.ent ? '#ffd86a' : '#ffffff'; x.lineWidth = 1;
+      const r = 5 + Math.sin(t * 6) * 1.2; x.beginPath(); x.ellipse(mx, my + 5, r, r * 0.5, 0, 0, Math.PI * 2); x.stroke();
+      x.globalAlpha = 0.5; x.beginPath(); x.ellipse(mx, my + 5, r * 0.45, r * 0.22, 0, 0, Math.PI * 2); x.stroke(); x.restore();
+    }
     // indicateur d'interaction
     if (!P.moving && !this.mining && lead) {
       const [fx, fy] = this.facing(), e = this.entAt(fx, fy);
