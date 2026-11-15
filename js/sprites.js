@@ -1014,6 +1014,19 @@ const AR = {
   crate(g, x, y, s = 3) { g.rect(x, y, s, s, U.shades('#a8784a')); g.line(x + 0.3, y + 0.3, x + s - 0.3, y + s - 0.3, '#6a4a28', 0.5); g.hline(x, y + s / 2, x + s, y + s / 2, '#6a4a28'); },
   ivy(g, x, y, h, seed) { for (let i = 0; i < h * 2; i++) g.ell(x + Math.sin(i * 0.8 + seed) * 1.2, y + i * 0.5, 0.7, 0.5, U.shades(i % 3 ? '#3a8a3a' : '#5aaa4a')); },
   banner(g, x, y, color, emblem) { g.rect(x, y, 3.4, 7, U.shades(color)); g.poly([[x, y + 7], [x + 1.7, y + 5.6], [x + 3.4, y + 7]], U.mix(color, '#000', 0.4)); g.ell(x + 1.7, y + 3, 0.9, 0.9, U.shades(emblem || '#ffe080')); g.hline(x - 0.5, y, x + 3.9, y, '#3a2a1a'); },
+  // enseigne lettrée (police pixel 5x7), centrée en cx
+  text(g, cx, y, str, col, px = 0.5) {
+    const F = { I: ['###', '.#.', '.#.', '.#.', '.#.', '.#.', '###'], N: ['#...#', '##..#', '#.#.#', '#.#.#', '#..##', '#...#', '#...#'] };
+    const w = [...str].reduce((a, c) => a + (F[c] ? F[c][0].length : 3) + 1, -1) * px;
+    let x = cx - w / 2;
+    [...str].forEach(c => { const L = F[c]; if (!L) { x += 4 * px; return; } L.forEach((row, j) => [...row].forEach((v, i) => { if (v === '#') { g.rect(x + i * px, y + j * px, px, px, col); g.rect(x + i * px + px * 0.5, y + j * px + px, px * 0.5, px * 0.5, U.mix(col, '#000', 0.55)); } })); x += (L[0].length + 1) * px; });
+  },
+  innSign(g, cx, y) {
+    g.rect(cx - 6, y, 12, 5.2, ['#2a1408', '#4a2a14', '#6a4424']);
+    g.rect(cx - 5.4, y + 0.6, 10.8, 4, ['#3a1e0c', '#5a3418', '#7a4a24']);
+    AR.text(g, cx, y + 0.85, 'INN', '#ffd860');
+    g.dot(cx - 5.6, y + 0.2, '#ffe080'); g.dot(cx + 5.5, y + 0.2, '#ffe080');
+  },
   lantern(g, x, y) { g.hline(x, y - 1.5, x, y, '#2a2020'); g.rect(x - 0.8, y, 1.6, 1.8, ['#c88a20', '#ffe080', '#fff8d0']); },
 };
 SPR.ARCH_H = { cabin: 44, stilt: 50, ruin: 40, altar: 44, timber: 60, tavern: 60, stone: 46, thatch: 44, manor: 64, barn: 50, shop: 50, forge: 54, market: 40, greenhouse: 44, mine: 46, atelier: 56, menagerie: 50 };
@@ -1067,6 +1080,7 @@ SPR.arch = (style, lvl = 1, opt = {}) => SPR.get(`arch_${style}_${lvl}_${JSON.st
       AR.window(g, 7, 31, 5, 5, '#4a2e18', { box: true }); AR.window(g, 36, 31, 5, 5, '#4a2e18', { box: true });
       AR.window(g, 6, 45, 5, 4.5, '#5a3a22', { shutters: '#3a6a8a' }); AR.window(g, 37, 45, 5, 4.5, '#5a3a22', { shutters: '#3a6a8a' });
       AR.door(g, 20.5, B - 11.5, 7, 11, '#6a4424', { arch: true });
+      if (style === 'tavern' || opt.inn) AR.innSign(g, 24, 41.8);
       AR.sign(g, 33, 39, style === 'tavern' ? 'mug' : opt.icon || 'bed'); AR.lantern(g, 17.5, 44); AR.lantern(g, 30.5, 44);
       if (style === 'tavern' || lvl >= 2) { AR.barrel(g, 4, B - 2.5); AR.barrel(g, 44, B - 2.5); }
       if (lvl >= 2) { g.rect(15, 38.5, 18, 1.2, U.shades('#5a3a22')); for (let x = 15.5; x < 33; x += 1.8) g.hline(x, 36.2, x, 38.5, '#5a3a22'); g.hline(15, 36.2, 33, 36.2, '#5a3a22'); }

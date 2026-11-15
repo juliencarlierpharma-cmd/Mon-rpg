@@ -19,7 +19,7 @@ G.Battle = {
       const E = G.ENEMIES[id];
       seen[id] = (seen[id] || 0) + 1;
       const name = counts[id] > 1 ? `${E.n} ${'ABCD'[seen[id] - 1]}` : E.n;
-      const hp = Math.round(E.hp * (E.boss ? 1 : G.ENEMY_HP));
+      const hp = Math.round(E.hp * (E.boss ? 1 : G.ENEMY_HP) * (1 + (opts.depth || 0) * 0.4));
       this.units.push({ side: 'e', eid: id, E, name, i, hp, maxhp: hp, mp: 999, elem: E.e, st: {}, ct: 0, alive: true, ox: 0, oy: 0, flash: 0, alpha: 1, boss: !!E.boss });
     });
     this.layout();
@@ -360,7 +360,7 @@ G.Battle = {
     const crit = Math.random() * 100 < critCh;
     if (crit) dmg *= 1.6;
     if (tgt.guard) dmg *= 0.5;
-    if (src.side === 'e') dmg *= G.ENEMY_DMG * (src.E.dmgMul || (1 + src.E.lvl * 0.012));
+    if (src.side === 'e') dmg *= G.ENEMY_DMG * (src.E.dmgMul || (1 + src.E.lvl * 0.012)) * (1 + (this.opts.depth || 0) * 0.25);
     dmg = Math.max(1, Math.round(dmg));
     // bouclier
     if (tgt.st.shield) {
@@ -527,17 +527,21 @@ G.Battle = {
       G.Audio.music('victory'); G.Audio.sfx('win');
       const es = this.units.filter(u => u.side === 'e');
       const HB = G.huntBonus();
-      const expBonus = 1 + (S.town.b.taverne || 0) * 0.05 + HB.exp;
+      const dep = this.opts.depth || 0;
+      const expBonus = (1 + (S.town.b.taverne || 0) * 0.05 + HB.exp) * (1 + dep * 0.6);
       const exp = Math.round(es.reduce((a, u) => a + u.E.exp, 0) * expBonus);
-      const gold = Math.round(es.reduce((a, u) => a + u.E.gold, 0) * (1 + HB.gold));
+      const gold = Math.round(es.reduce((a, u) => a + u.E.gold, 0) * (1 + HB.gold) * (1 + dep * 0.6));
       S.gold += gold; S.stats.goldEarned += gold;
       S.stats.wins++; S.stats.kills += es.length;
       const drops = {};
       es.forEach(u => {
         (u.E.tags || []).forEach(t => S.stats.tags[t] = (S.stats.tags[t] || 0) + 1);
-        u.E.drops.forEach(([id, ch, a, b]) => { if (Math.random() < Math.min(1, ch * HB.drop)) { const q = U.randi(a, b); drops[id] = (drops[id] || 0) + q; } });
+        u.E.drops.forEach(([id, ch, a, b]) => { if (Math.random() < Math.min(1, ch * HB.drop * (1 + dep * 0.5))) { const q = U.randi(a, b); drops[id] = (drops[id] || 0) + q; } });
         if (u.boss && !u.E.elite) S.bosses[u.eid] = true;
       });
+      // matériau typique de la région
+      const ZL = G.ZONE_LOOT[this.opts.zone];
+      if (ZL && !this.opts.hunt && !this.opts.boss && Math.random() < 0.3 + dep * 0.4) { const [id, a, b] = U.pick(ZL); drops[id] = (drops[id] || 0) + U.randi(a, b); }
       for (const k in drops) G.give(k, drops[k]);
       if (this.opts.hunt) S.hunts[this.opts.hunt] = 'done';
       syncParty();

@@ -493,34 +493,50 @@ G.HUNT_RANKS = [
   { r: 'S', pts: 30, b: 'EXP +10% et or +20% au total. Traque infinie débloquée.' },
 ];
 G.HUNTS = [
-  { id: 'h1', rank: 'D', t: 'roi_gelee', zone: 'plaines', at: [47, 27], pts: 2, n: 'Le Roi Gelée', d: 'Une gelée dorée grosse comme une charrette dévore les récoltes au nord du bourg.', rw: { g: 300, armor: 'couronne_gel', mats: { trophee: 1 } } },
-  { id: 'h2', rank: 'D', t: 'croc_blanc', zone: 'plaines', at: [31, 53], pts: 2, n: 'Croc-Blanc, l’alpha', d: 'Le chef de meute des loups gris rôde au sud-ouest, près de la lisière.', rw: { g: 350, armor: 'cape_traqueur', mats: { trophee: 1 } } },
-  { id: 'h3', rank: 'C', t: 'reine_spore', zone: 'foret', at: [18, 45], pts: 3, n: 'La Reine des spores', d: 'Ses spores empoisonnent tout le sud de la Forêt de Sylve.', rw: { g: 600, armor: 'masque_sporal', mats: { trophee: 1 }, items: { hipotion: 3 } } },
-  { id: 'h4', rank: 'C', t: 'follet_ancien', zone: 'foret', at: [6, 40], pts: 3, n: 'Le Feu-Fol ancestral', d: 'Une flamme bleue millénaire égare les voyageurs à l’ouest de la forêt.', rw: { g: 650, armor: 'lanterne_ames', mats: { trophee: 1 } } },
-  { id: 'h5', rank: 'B', t: 'golem_obsi', zone: 'montagne', at: [12, 9], pts: 4, n: 'Le Golem d’obsidienne', d: 'Un golem de verre noir, presque invulnérable, garde les mines de l’ouest des Monts Grisés.', rw: { g: 1000, armor: 'carapace_obsi', mats: { trophee: 2 }, items: { megalixir: 1 } } },
-  { id: 'h6', rank: 'B', t: 'harpie', zone: 'montagne', at: [50, 5], pts: 4, n: 'La Harpie tonnerre', d: 'Elle fond sur les caravanes depuis les crêtes à l’est des monts.', rw: { g: 1000, armor: 'plumes_orage', mats: { trophee: 2 } } },
-  { id: 'h7', rank: 'B', t: 'leviathan', zone: 'marais', at: [86, 44], pts: 4, n: 'Le Léviathan des tourbières', d: 'Un serpent colossal hante le sud-est du Marais Brumeux.', rw: { g: 1100, armor: 'ecailles_abyss', mats: { trophee: 2 }, items: { megalixir: 1 } } },
-  { id: 'h8', rank: 'A', t: 'spectre_roi', zone: 'marais', at: [70, 30], pts: 5, n: 'Le Spectre-Roi', d: 'Un roi déchu erre dans les brumes. On dit qu’un renard de lumière veille sur son trésor.', rw: { g: 1800, armor: 'suaire_royal', fam: 'lumi', mats: { trophee: 3 } } },
-  { id: 'h9', rank: 'A', t: 'behemoth', zone: 'volcan', at: [84, 4], pts: 5, n: 'Le Béhémoth de magma', d: 'Le volcan tremble sous ses pas, tout au nord-est.', rw: { g: 2200, armor: 'coeur_magma', mats: { trophee: 3, ame: 1 } } },
-  { id: 'h10', rank: 'A', t: 'chevalier_noir', zone: 'volcan', at: [70, 12], pts: 6, n: 'Le Chevalier sans nom', d: 'Un guerrier sans visage défie quiconque ose fouler les cendres.', rw: { g: 2400, armor: 'armure_sans_nom', mats: { trophee: 3, ame: 1 }, items: { megalixir: 2 } } },
-  { id: 'h11', rank: 'S', t: 'wyrm', zone: 'montagne', at: [60, 4], pts: 8, n: 'Le Wyrm primordial', d: 'Un dragon blanc, plus ancien qu’Ignar, s’est éveillé au sommet oriental des monts.', rw: { g: 4000, armor: 'diademe_celeste', mats: { trophee: 5, ame: 2 } } },
-  { id: 'h12', rank: 'S', t: 'hydre_origine', zone: 'marais', at: [78, 40], pts: 8, n: 'L’Hydre originelle', d: 'La mère de toutes les hydres remonte des profondeurs du marais.', rw: { g: 4500, armor: 'anneau_eternite', mats: { trophee: 5, ame: 2 }, items: { megalixir: 3 } } },
+  { id: 'h1', rank: 'D', t: 'roi_gelee', zone: 'plaines', at: [94, 54], pts: 2, n: 'Le Roi Gelée', d: 'Une gelée dorée grosse comme une charrette dévore les récoltes au nord du bourg.', rw: { g: 300, armor: 'couronne_gel', mats: { trophee: 1 } } },
+  { id: 'h2', rank: 'D', t: 'croc_blanc', zone: 'plaines', at: [62, 106], pts: 2, n: 'Croc-Blanc, l’alpha', d: 'Le chef de meute des loups gris rôde au sud-ouest, près de la lisière.', rw: { g: 350, armor: 'cape_traqueur', mats: { trophee: 1 } } },
+  { id: 'h3', rank: 'C', t: 'reine_spore', zone: 'foret', at: [36, 90], pts: 3, n: 'La Reine des spores', d: 'Ses spores empoisonnent tout le sud de la Forêt de Sylve.', rw: { g: 600, armor: 'masque_sporal', mats: { trophee: 1 }, items: { hipotion: 3 } } },
+  { id: 'h4', rank: 'C', t: 'follet_ancien', zone: 'foret', at: [12, 80], pts: 3, n: 'Le Feu-Fol ancestral', d: 'Une flamme bleue millénaire égare les voyageurs à l’ouest de la forêt.', rw: { g: 650, armor: 'lanterne_ames', mats: { trophee: 1 } } },
+  { id: 'h5', rank: 'B', t: 'golem_obsi', zone: 'montagne', at: [24, 18], pts: 4, n: 'Le Golem d’obsidienne', d: 'Un golem de verre noir, presque invulnérable, garde les mines de l’ouest des Monts Grisés.', rw: { g: 1000, armor: 'carapace_obsi', mats: { trophee: 2 }, items: { megalixir: 1 } } },
+  { id: 'h6', rank: 'B', t: 'harpie', zone: 'montagne', at: [100, 10], pts: 4, n: 'La Harpie tonnerre', d: 'Elle fond sur les caravanes depuis les crêtes à l’est des monts.', rw: { g: 1000, armor: 'plumes_orage', mats: { trophee: 2 } } },
+  { id: 'h7', rank: 'B', t: 'leviathan', zone: 'marais', at: [172, 88], pts: 4, n: 'Le Léviathan des tourbières', d: 'Un serpent colossal hante le sud-est du Marais Brumeux.', rw: { g: 1100, armor: 'ecailles_abyss', mats: { trophee: 2 }, items: { megalixir: 1 } } },
+  { id: 'h8', rank: 'A', t: 'spectre_roi', zone: 'marais', at: [140, 60], pts: 5, n: 'Le Spectre-Roi', d: 'Un roi déchu erre dans les brumes. On dit qu’un renard de lumière veille sur son trésor.', rw: { g: 1800, armor: 'suaire_royal', fam: 'lumi', mats: { trophee: 3 } } },
+  { id: 'h9', rank: 'A', t: 'behemoth', zone: 'volcan', at: [168, 8], pts: 5, n: 'Le Béhémoth de magma', d: 'Le volcan tremble sous ses pas, tout au nord-est.', rw: { g: 2200, armor: 'coeur_magma', mats: { trophee: 3, ame: 1 } } },
+  { id: 'h10', rank: 'A', t: 'chevalier_noir', zone: 'volcan', at: [140, 24], pts: 6, n: 'Le Chevalier sans nom', d: 'Un guerrier sans visage défie quiconque ose fouler les cendres.', rw: { g: 2400, armor: 'armure_sans_nom', mats: { trophee: 3, ame: 1 }, items: { megalixir: 2 } } },
+  { id: 'h11', rank: 'S', t: 'wyrm', zone: 'montagne', at: [120, 8], pts: 8, n: 'Le Wyrm primordial', d: 'Un dragon blanc, plus ancien qu’Ignar, s’est éveillé au sommet oriental des monts.', rw: { g: 4000, armor: 'diademe_celeste', mats: { trophee: 5, ame: 2 } } },
+  { id: 'h12', rank: 'S', t: 'hydre_origine', zone: 'marais', at: [156, 80], pts: 8, n: 'L’Hydre originelle', d: 'La mère de toutes les hydres remonte des profondeurs du marais.', rw: { g: 4500, armor: 'anneau_eternite', mats: { trophee: 5, ame: 2 }, items: { megalixir: 3 } } },
 ];
-G.HUNT_INF = { id: 'inf', rank: 'S', zone: 'plaines', at: [46, 57], n: 'Traque infinie', d: 'Une faille primordiale s’est ouverte au sud des plaines. Chaque victoire en fait surgir un adversaire plus puissant.' };
+G.HUNT_INF = { id: 'inf', rank: 'S', zone: 'plaines', at: [92, 114], n: 'Traque infinie', d: 'Une faille primordiale s’est ouverte au sud des plaines. Chaque victoire en fait surgir un adversaire plus puissant.' };
 G.infReward = n => ({ g: 3000 + 600 * n, mats: { ame: 1, trophee: 2, echo: 1 }, items: n % 2 ? { megalixir: 1 } : {} });
 
 // ---------------- Zones ----------------
 G.ZONES = {
-  plaines: { n: 'Plaines d’Aube', lv: 'Niv. 1 à 4', lmin: 1, lmax: 4, boss: null, rate: 0.055, bg: 'plains', mus: 'field', groups: [['gelee'], ['gelee', 'gelee'], ['lapin', 'gelee'], ['loup'], ['corbeau', 'corbeau'], ['loup', 'lapin'], ['gelee', 'corbeau', 'gelee'], ['lapin', 'lapin']] },
-  foret: { n: 'Forêt de Sylve', lv: 'Niv. 4 à 8', lmin: 4, lmax: 8, boss: 'sylvaros', rate: 0.07, bg: 'forest', mus: 'field', groups: [['champi', 'champi'], ['liane'], ['loupb', 'champi'], ['follet', 'follet'], ['liane', 'follet'], ['loupb', 'loupb'], ['champi', 'liane', 'follet']] },
-  montagne: { n: 'Monts Grisés', lv: 'Niv. 7 à 11', lmin: 7, lmax: 11, boss: 'wyverne', rate: 0.07, bg: 'mountain', mus: 'field', groups: [['chauve', 'chauve'], ['golem'], ['squelette', 'chauve'], ['salamandre'], ['squelette', 'squelette'], ['golem', 'salamandre'], ['chauve', 'salamandre', 'chauve']] },
-  marais: { n: 'Marais Brumeux', lv: 'Niv. 10 à 14', lmin: 10, lmax: 14, boss: 'hydre', rate: 0.075, bg: 'swamp', mus: 'field', groups: [['geleet', 'geleet'], ['crapaud'], ['spectre', 'geleet'], ['serpent', 'crapaud'], ['spectre', 'spectre'], ['serpent', 'geleet', 'spectre']] },
-  volcan: { n: 'Volcan Cendreux', lv: 'Niv. 14 à 18', lmin: 14, lmax: 18, boss: 'ignar', rate: 0.08, bg: 'volcano', mus: 'field', groups: [['diablotin', 'diablotin'], ['drake'], ['golemm'], ['chevalier', 'diablotin'], ['drake', 'diablotin'], ['chevalier', 'golemm']] },
+  plaines: { n: 'Plaines d’Aube', lv: 'Niv. 1 à 4', lmin: 1, lmax: 4, boss: null, rate: 0.05, bg: 'plains', mus: 'field', groups: [['gelee'], ['gelee', 'gelee'], ['lapin', 'gelee'], ['loup'], ['corbeau', 'corbeau'], ['loup', 'lapin'], ['gelee', 'corbeau', 'gelee'], ['lapin', 'lapin']] },
+  foret: { n: 'Forêt de Sylve', lv: 'Niv. 4 à 8', lmin: 4, lmax: 8, boss: 'sylvaros', rate: 0.06, bg: 'forest', mus: 'field', groups: [['champi', 'champi'], ['liane'], ['loupb', 'champi'], ['follet', 'follet'], ['liane', 'follet'], ['loupb', 'loupb'], ['champi', 'liane', 'follet']] },
+  montagne: { n: 'Monts Grisés', lv: 'Niv. 7 à 11', lmin: 7, lmax: 11, boss: 'wyverne', rate: 0.062, bg: 'mountain', mus: 'field', groups: [['chauve', 'chauve'], ['golem'], ['squelette', 'chauve'], ['salamandre'], ['squelette', 'squelette'], ['golem', 'salamandre'], ['chauve', 'salamandre', 'chauve']] },
+  marais: { n: 'Marais Brumeux', lv: 'Niv. 10 à 14', lmin: 10, lmax: 14, boss: 'hydre', rate: 0.065, bg: 'swamp', mus: 'field', groups: [['geleet', 'geleet'], ['crapaud'], ['spectre', 'geleet'], ['serpent', 'crapaud'], ['spectre', 'spectre'], ['serpent', 'geleet', 'spectre']] },
+  volcan: { n: 'Volcan Cendreux', lv: 'Niv. 14 à 18', lmin: 14, lmax: 18, boss: 'ignar', rate: 0.07, bg: 'volcano', mus: 'field', groups: [['diablotin', 'diablotin'], ['drake'], ['golemm'], ['chevalier', 'diablotin'], ['drake', 'diablotin'], ['chevalier', 'golemm']] },
   bourg: { n: 'Bourg-Aube', lv: 'Village', rate: 0, town: true },
   havre: { n: 'Havre', lv: 'Votre ville', rate: 0, town: true },
 };
 
 G.ZONE_ORDER = ['plaines', 'foret', 'montagne', 'marais', 'volcan'];
+// matériaux typiques gagnés en combat dans chaque région (chance croissante avec la profondeur)
+G.ZONE_LOOT = {
+  plaines: [['fibre', 2, 4], ['herbe', 1, 3], ['cuir', 1, 2], ['plume', 1, 2]],
+  foret: [['boisancien', 1, 2], ['seve', 1, 2], ['spore', 1, 3], ['herbe', 2, 3]],
+  montagne: [['minerai', 2, 4], ['cristal', 1, 1], ['pierre', 3, 5], ['essence_terre', 1, 1]],
+  marais: [['ecaille', 2, 3], ['ectoplasme', 1, 2], ['essence_eau', 1, 1], ['cristal', 1, 1]],
+  volcan: [['braise', 2, 4], ['mithril', 1, 1], ['cristal', 1, 2], ['essence_feu', 1, 1]],
+};
+// contenu des coffres générés dans chaque région (les coffres profonds ajoutent un objet rare)
+G.CHEST_LOOT = {
+  plaines: { n: 12, g: [60, 140], items: [['potion', 2], ['ether', 1], ['remede', 2], ['appat', 1], ['friandise', 2]], mats: [['fibre', 3, 5], ['herbe', 2, 4], ['lingot', 1, 2], ['cuir', 2, 3]], rare: [['hipotion', 1], ['essence_terre', 1], ['essence_vent', 1]] },
+  foret: { n: 9, g: [120, 220], items: [['potion', 3], ['hipotion', 1], ['remede', 2], ['friandise', 2]], mats: [['boisancien', 1, 2], ['spore', 2, 3], ['seve', 2, 3], ['braise', 2, 2]], rare: [['festin', 1], ['essence_vent', 1], ['essence_feu', 1]] },
+  montagne: { n: 9, g: [200, 350], items: [['hipotion', 1], ['ether', 2], ['phenix', 1]], mats: [['minerai', 3, 5], ['cristal', 1, 2], ['os', 2, 3], ['aile', 2, 3]], rare: [['essence_terre', 2], ['cristal', 2], ['festin', 1]] },
+  marais: { n: 8, g: [300, 480], items: [['hipotion', 2], ['phenix', 1], ['ether', 2]], mats: [['ecaille', 2, 3], ['ectoplasme', 1, 2], ['gelee', 3, 4]], rare: [['essence_eau', 2], ['festin', 1], ['phenix', 1]] },
+  volcan: { n: 7, g: [450, 700], items: [['hipotion', 3], ['phenix', 1], ['ether', 3]], mats: [['mithril', 1, 1], ['cristal', 2, 3], ['braise', 3, 5]], rare: [['elixir', 1], ['essence_feu', 2], ['mithril', 1]] },
+};
 
 // ---------------- Bâtiments du Havre ----------------
 G.BUILDINGS = {

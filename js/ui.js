@@ -76,7 +76,8 @@ G.UI = {
       const warn = !done && plv < Z.lmin ? 'low' : '';
       return `<li class="${cur ? 'cur' : ''} ${done ? 'done' : ''} ${warn}"><span class="rn">${i + 1}</span><span class="rz">${esc(Z.n)}</span><span class="rl">${done ? '✔' : `${Z.lmin}–${Z.lmax}`}</span></li>`;
     }).join('');
-    const zl = z.town ? z.lv : `Niv. conseillé ${z.lmin}–${z.lmax}`;
+    const dp = W.depthAt(W.P.x, W.P.y), dl = dp < 0.33 ? 1 : dp < 0.66 ? 2 : 3;
+    const zl = z.town ? z.lv : `Niv. conseillé ${z.lmin}–${z.lmax} · Profondeur ${'▮'.repeat(dl)}${'▯'.repeat(3 - dl)}`;
     this.hud.innerHTML = `<div class="hud-col"><div class="hud-l"><div class="zone">${esc(z.n)}</div><div class="sub">${esc(zl)} · Équipe niv. ${plv}</div><div class="sub">${night ? '🌙' : '☀️'} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} · 💰 ${U.fmt(G.S.gold)}</div></div>
       <div class="route ${this.routeOpen ? '' : 'closed'}"><button class="route-h" id="routeBtn">🧭 Itinéraire ${this.routeOpen ? '▾' : '▸'}</button>${this.routeOpen ? `<ol>${route}</ol>` : ''}</div></div>
       <button class="hud-menu" id="menuBtn">☰${ready ? `<b class="badge">${ready}</b>` : ''}</button>`;
@@ -394,7 +395,7 @@ G.UI = {
     return `<h2>Carte du monde</h2><div class="card"><h3>Voyage rapide</h3><div class="actions">${tr}</div><div class="dim small">Les lieux se débloquent en les visitant.</div></div><div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ★ Gardien · ☠ Cible de chasse · 🎯 Tableau de chasse · ! PNJ à recruter · ▣ Coffre · ◆ Havre</p>`;
   },
   drawMap(cv) {
-    const W = G.World, s = 5;
+    const W = G.World, s = 4;
     cv.width = W.W * s; cv.height = W.H * s;
     const x = cv.getContext('2d');
     const zc = { plaines: '#9ad070', foret: '#2e7a3a', montagne: '#9aa0b0', marais: '#7a5aa8', volcan: '#e8501a', bourg: '#ffd86a', havre: '#7affd8' };
@@ -423,8 +424,8 @@ G.UI = {
     });
     x.fillStyle = '#fff'; x.beginPath(); x.arc(W.P.x * s + s / 2, W.P.y * s + s / 2, s * 0.8, 0, 7); x.fill();
     x.strokeStyle = '#000'; x.lineWidth = 1.5; x.stroke();
-    x.fillStyle = 'rgba(255,255,255,0.9)'; x.font = `bold ${s * 1.4}px sans-serif`;
-    [['Forêt de Sylve', 13, 38], ['Monts Grisés', 30, 10], ['Plaines d’Aube', 46, 28], ['Marais Brumeux', 76, 30], ['Volcan', 77, 13], ['Bourg-Aube', 41, 36], ['Havre', 72, 47]].forEach(([n, a, b]) => { x.strokeStyle = 'rgba(0,0,0,0.7)'; x.lineWidth = 3; x.strokeText(n, a * s, b * s); x.fillText(n, a * s, b * s); });
+    x.fillStyle = 'rgba(255,255,255,0.95)'; x.font = 'bold 13px sans-serif';
+    [['Forêt de Sylve', 26, 76], ['Monts Grisés', 60, 20], ['Plaines d’Aube', 92, 56], ['Marais Brumeux', 152, 60], ['Volcan', 154, 26], ['Bourg-Aube', 82, 72], ['Havre', 144, 94]].forEach(([n, a, b]) => { x.strokeStyle = 'rgba(0,0,0,0.7)'; x.lineWidth = 3; x.strokeText(n, a * s, b * s); x.fillText(n, a * s, b * s); });
   },
   // ----- Système -----
   tab_systeme() {

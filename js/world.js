@@ -6,9 +6,9 @@ const WALKABLE = new Set(['.', ',', '_', 'f', 'r', 'm', 'w', 'v', 's', 'p', 'g',
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 G.World = {
-  W: 90, H: 67,
+  W: 180, H: 134,
   // repères (coordonnées en tuiles)
-  BOURG: [37, 37], HAVRE: [66, 48], VX: 64, VY: 21,
+  BOURG: [74, 74], HAVRE: [132, 96], VX: 128, VY: 42,
   init() {
     this.gen();
     this.defineEntities();
@@ -33,15 +33,17 @@ G.World = {
         const n = U.fbm(x / 6, y / 6, 11), h = U.hash(x, y, 21);
         let ch = h < 0.07 ? ',' : '.', zone = 'plaines';
         if (n > 0.72 && h < 0.5) ch = 'T';
-        if (y <= 16 && x < VX) { zone = 'montagne'; ch = (n > 0.58) ? '^' : 'r'; }
-        if (x <= 27 && y >= 19 && y <= 58) { zone = 'foret'; ch = (n > 0.57 || h < 0.08) ? 'T' : 'f'; }
-        if (x > VX && y < VY) { zone = 'volcan'; ch = n > 0.64 ? 'l' : 'v'; }
+        if (y <= 32 && x < VX) { zone = 'montagne'; ch = (n > 0.58) ? '^' : 'r'; }
+        if (x <= 54 && y >= 38 && y <= 116) { zone = 'foret'; ch = (n > 0.57 || h < 0.08) ? 'T' : 'f'; }
+        if (x > VX && y < VY) { zone = 'volcan'; ch = n > 0.69 ? 'l' : 'v'; }
         if ((x === VX && y <= VY) || (y === VY && x >= VX)) { zone = 'volcan'; ch = '^'; }
-        if (x >= VX && y > VY && y <= 46) { zone = 'marais'; ch = n > 0.6 ? 'w' : 'm'; if (h < 0.05) ch = 'T'; }
-        const rx = 54 + Math.round(Math.sin(y * 0.22) * 2.5);
-        if (y >= 18 && y < 61 && (x === rx || x === rx + 1)) ch = '~';
-        if (y >= 62) ch = '~'; else if (y === 61) ch = 's';
-        if (x === 0 || x === W - 1 || y === 0) ch = y >= 61 ? '~' : (zone === 'foret' ? 'T' : '^');
+        if (x >= VX && y > VY && y <= 92) { zone = 'marais'; ch = n > 0.6 ? 'w' : 'm'; if (h < 0.05) ch = 'T'; }
+        const rx = 108 + Math.round(Math.sin(y * 0.11) * 5 + Math.sin(y * 0.31) * 1.5);
+        if (y >= 36 && y < 122 && x >= rx && x <= rx + 2) ch = '~';
+        // lacs des plaines
+        if (zone === 'plaines' && y > 36 && y < 120 && U.fbm(x / 9, y / 9, 71) > 0.74 && Math.abs(x - 78) + Math.abs(y - 78) > 14) ch = '~';
+        if (y >= 124) ch = '~'; else if (y >= 122) ch = 's';
+        if (x === 0 || x === W - 1 || y === 0) ch = y >= 122 ? '~' : (zone === 'foret' ? 'T' : '^');
         this.t[y][x] = ch; this.z[y][x] = zone;
       }
     }
@@ -65,18 +67,43 @@ G.World = {
     // chemins principaux (les passages à travers les lisières deviennent des portiques)
     this.gates = [];
     const P = (pts) => { for (let i = 0; i < pts.length - 1; i++) this.carve(pts[i], pts[i + 1], '_'); };
-    P([[bx - 1, by + 4], [14, by + 4], [14, 30], [8, 30]]);
-    P([[14, by + 4], [14, 53], [22, 53]]);
-    P([[bx + 4, by - 1], [bx + 4, 14], [34, 14], [34, 6]]);
-    P([[bx + 4, 14], [56, 14], [56, 9]]);
-    P([[bx + 9, by + 4], [74, by + 4], [74, 34], [81, 34]]);
-    P([[74, 34], [74, VY], [74, 8], [77, 8], [77, 7]]);
+    P([[bx - 1, by + 4], [28, by + 4], [28, 59], [16, 59]]);
+    P([[28, by + 4], [28, 106], [44, 106], [44, 116]]);
+    P([[28, 92], [10, 92], [10, 108]]);
+    P([[bx + 4, by - 1], [bx + 4, 28], [68, 28], [68, 11]]);
+    P([[bx + 4, 28], [112, 28], [112, 18]]);
+    P([[68, 28], [20, 28], [20, 12]]);
+    P([[bx + 9, by + 4], [148, by + 4], [148, 68], [163, 68]]);
+    P([[148, 84], [170, 84], [170, 72]]);
+    P([[148, 68], [148, VY], [148, 16], [154, 16], [154, 13]]);
+    P([[148, 30], [172, 30], [172, 8]]);
     P([[bx + 4, by + 9], [bx + 4, hy + 4], [hx - 1, hy + 4]]);
-    P([[61, by + 4], [61, 39]]);
-    P([[22, 53], [22, 58]]);
+    P([[hx + 5, hy + 8], [hx + 5, 120], [172, 120]]);
+    P([[bx + 4, 112], [40, 112]]);
+    P([[122, by + 4], [122, 77]]);
     // sol autour des gardiens
-    [[8, 29], [34, 5], [82, 34], [77, 6]].forEach(([x, y]) => this.clearAround(x, y, 1));
+    [[16, 58], [68, 10], [164, 68], [154, 12]].forEach(([x, y]) => this.clearAround(x, y, 1));
+    this.computeDepth();
   },
+  // profondeur de chaque case dans sa région (0 à l'entrée, 1 au plus loin)
+  computeDepth() {
+    const W = this.W, H = this.H, d = this.depth = Array.from({ length: H }, () => new Float32Array(W).fill(-1));
+    const q = [];
+    this.gates.forEach(g => { d[g.y][g.x] = 0; q.push([g.x, g.y]); });
+    [this.BOURG, this.HAVRE].forEach(([bx, by]) => { for (let y = by - 1; y <= by + 9; y++) for (let x = bx - 1; x <= bx + 12; x++) if (this.z[y] && this.z[y][x] === 'plaines' && d[y][x] < 0) { d[y][x] = 0; q.push([x, y]); } });
+    for (let i = 0; i < q.length; i++) {
+      const [x, y] = q[i], z = this.z[y][x];
+      for (const [dx, dy] of Object.values(DIRS)) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || d[ny][nx] >= 0 || this.z[ny][nx] !== z) continue;
+        d[ny][nx] = d[y][x] + 1; q.push([nx, ny]);
+      }
+    }
+    const max = {};
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const z = this.z[y][x]; max[z] = Math.max(max[z] || 1, d[y][x]); }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) d[y][x] = d[y][x] < 0 ? 0.5 : d[y][x] / max[this.z[y][x]];
+  },
+  depthAt(x, y) { return this.depth && this.depth[y] ? this.depth[y][x] : 0; },
   rect(x0, y0, w, h, ch, zone) { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { this.t[y][x] = ch; if (zone) this.z[y][x] = zone; } },
   groundOf(zone) { return { foret: 'f', montagne: 'r', marais: 'm', volcan: 'v', bourg: 'g', havre: 'g' }[zone] || '.'; },
   carve(a, b, ch) {
@@ -110,7 +137,7 @@ G.World = {
     const B = (x, y) => [bx + x, by + y], Hv = (x, y) => [hx + x, hy + y];
     // --- Bourg-Aube ---
     const house = (id, rx, ry, o) => { const [x, y] = B(rx, ry); add(Object.assign({ k: 'house', id, x, y, w: 3, h: 2, door: [x + 1, y + 1] }, o)); };
-    house('inn', 0, 0, { arch: 'timber', aopt: { icon: 'bed' }, roof: '#a83a2a', wall: '#e8d8b8', label: 'Auberge', act: () => G.UI.inn('bourg'), opts: { sign: true, chimney: true } });
+    house('inn', 0, 0, { arch: 'timber', aopt: { icon: 'bed', inn: true }, roof: '#a83a2a', wall: '#e8d8b8', label: 'Auberge', act: () => G.UI.inn('bourg'), opts: { sign: true, chimney: true } });
     house('shop_obj', 6, 0, { arch: 'shop', aopt: { awning: '#3a6aa8' }, roof: '#3a6aa8', wall: '#e8dcc0', label: 'Échoppe', act: () => G.UI.shop(G.SHOPS.bourg_obj), opts: { awning: '#3a6aa8' } });
     house('shop_mat', 0, 6, { arch: 'barn', aopt: { wall: '#7a5a3a', roof: '#3a5a3a' }, roof: '#3a8a4a', wall: '#d8c8a0', label: 'Comptoir', act: () => G.UI.shop(G.SHOPS.bourg_mat), opts: { awning: '#c87a2a' } });
     house('elder', 6, 6, { arch: 'manor', aopt: {}, roof: '#7a4aa8', wall: '#e8e0d0', label: 'Maison de l’Ancien', act: () => this.elderTalk(), opts: { banner: '#7a4aa8' } });
@@ -118,13 +145,13 @@ G.World = {
     [B(3, 2), B(5, 2), B(3, 6), B(5, 6), Hv(4, 3), Hv(6, 3), Hv(3, 7), Hv(8, 7)].forEach(([x, y], i) => add({ k: 'lamp', x, y, show: i < 4 ? null : () => S().town.founded }));
     add({ k: 'sign', x: bx - 1, y: by + 3, text: '← Forêt de Sylve (ouest)\n↑ Monts Grisés (nord)\n→ Marais Brumeux (est)\n↓ Site du Havre (sud-est)' });
     add({ k: 'sign', x: hx - 1, y: hy + 3, text: 'Site du Havre — terre d’accueil.\n« Ici renaîtra l’espoir. »' });
-    add({ k: 'sign', x: 73, y: 24, text: 'Au nord : le Volcan Cendreux.\nUne barrière de flammes en garde l’entrée.' });
+    add({ k: 'sign', x: 147, y: 46, text: 'Au nord : le Volcan Cendreux.\nUne barrière de flammes en garde l’entrée.' });
     const [fx1, fy1] = B(2, 3), [gx1, gy1] = B(5, 7), [dx1, dy1] = B(8, 3);
     add({ k: 'npc', id: 'v_farmer', x: fx1, y: fy1, pal: { H: '#8a6a3a', C: '#6a8a3a', D: '#3a5a24', B: '#4a3a22' }, name: 'Paysan', lines: ['Tu peux arracher du bois aux arbres à mains nues, comme un sauvage !', 'Avec trois bûches, fabrique une pioche en bois (Menu → Artisanat → Outils).', 'Ensuite pierre, fer… chaque outil ouvre de nouveaux filons.'] });
     add({ k: 'npc', id: 'v_girl', x: gx1, y: gy1, pal: { H: '#e8b040', C: '#d85a8a', D: '#8a2a5a', B: '#4a3a22' }, name: 'Fillette', lines: ['Les familiers aiment se battre aux côtés de leur maître.', 'Plus l’affinité grandit, plus ils débloquent de synergies !', 'Et si l’élément du familier correspond à l’arme équipée… ça résonne !'] });
     add({ k: 'npc', id: 'v_guard', x: dx1, y: dy1, pal: { H: '#5a5a6a', C: '#8a8a9a', D: '#4a4a5a', B: '#2a2a2a', L: '#c8a040' }, name: 'Garde', lines: ['Ici, aucun marchand ne vend d’armes ni d’armures.', 'Tout se forge avec les matériaux arrachés aux monstres.', 'Les lisières de forêt, les falaises et les marais marquent la frontière de chaque région : suis les portiques pour y entrer.'] });
     // --- PNJ recrutables (position d'origine) ---
-    const home = { dorn: B(6, 3), pell: B(2, 5), lise: B(3, 1), mira: [31, 40], yuna: [32, 48], fen: [61, 38], grom: [53, 10] };
+    const home = { dorn: B(6, 3), pell: B(2, 5), lise: B(3, 1), mira: [62, 80], yuna: [64, 96], fen: [122, 76], grom: [110, 20] };
     const havre = { dorn: Hv(0, 3), mira: Hv(2, 3), pell: Hv(8, 3), lise: Hv(10, 3), yuna: Hv(2, 7), fen: Hv(5, 7), grom: Hv(9, 7) };
     Object.keys(G.NPCS).forEach(id => {
       const N = G.NPCS[id];
@@ -132,9 +159,9 @@ G.World = {
       add({ k: 'npc', id: 'h_' + id, npc: id, x: havre[id][0], y: havre[id][1], pal: N.pal, name: `${N.n} (${N.job})`, show: () => S().npcs[id] && S().town.founded, act: () => this.serviceTalk(id) });
     });
     // --- Gardiens ---
-    [['sylvaros', 8, 29], ['wyverne', 34, 5], ['hydre', 82, 34], ['ignar', 77, 6]].forEach(([id, x, y]) =>
+    [['sylvaros', 16, 58], ['wyverne', 68, 10], ['hydre', 164, 68], ['ignar', 154, 12]].forEach(([id, x, y]) =>
       add({ k: 'boss', id, x, y, show: () => !S().bosses[id], act: () => this.bossTalk(id) }));
-    add({ k: 'barrier', x: 74, y: this.VY, show: () => ['sylvaros', 'wyverne', 'hydre'].some(b => !S().bosses[b]), act: () => this.barrierTalk() });
+    add({ k: 'barrier', x: 148, y: this.VY, show: () => ['sylvaros', 'wyverne', 'hydre'].some(b => !S().bosses[b]), act: () => this.barrierTalk() });
     // --- Portiques aux entrées des régions ---
     this.gates.forEach(g => {
       if (g.z === 'volcan') return;
@@ -160,16 +187,42 @@ G.World = {
     });
     // --- Coffres ---
     const chests = [
-      ['c1', 22, 51, { items: { potion: 3 }, mats: { lingot: 2 } }], ['c2', 5, 48, { g: 200, items: { appat: 1 } }],
-      ['c3', 56, 8, { mats: { minerai: 4, lingot: 2 } }], ['c4', 13, 5, { items: { hipotion: 2, ether: 2 } }],
-      ['c5', 85, 26, { mats: { ecaille: 3 }, items: { phenix: 1 } }], ['c6', 67, 43, { items: { festin: 1, friandise: 3 } }],
-      ['c7', 83, 13, { mats: { mithril: 2, cristal: 2 } }], ['c8', 19, 22, { mats: { boisancien: 2 }, items: { remede: 3 } }],
-      ['c9', 86, 59, { g: 500 }], ['c10', 5, 59, { items: { bombe: 3 } }], ['c11', 26, 11, { mats: { cristal: 1 }, items: { ether: 2 } }],
-      ['c12', 61, 50, { items: { appat: 2, friandise: 2 } }], ['c13', 47, 24, { g: 150, mats: { fibre: 6 } }],
-      ['c14', 4, 34, { mats: { spore: 3, seve: 2 }, items: { ether: 1 } }], ['c15', 46, 4, { mats: { cristal: 2 }, items: { hipotion: 1 } }],
-      ['c16', 88, 40, { mats: { ectoplasme: 2 }, items: { festin: 1 } }],
+      ['c1', 44, 102, { items: { potion: 3 }, mats: { lingot: 2 } }], ['c2', 10, 96, { g: 200, items: { appat: 1 } }],
+      ['c3', 112, 16, { mats: { minerai: 4, lingot: 2 } }], ['c4', 26, 10, { items: { hipotion: 2, ether: 2 } }],
+      ['c5', 170, 52, { mats: { ecaille: 3 }, items: { phenix: 1 } }], ['c6', 134, 86, { items: { festin: 1, friandise: 3 } }],
+      ['c7', 166, 26, { mats: { mithril: 2, cristal: 2 } }], ['c8', 38, 44, { mats: { boisancien: 2 }, items: { remede: 3 } }],
+      ['c9', 172, 118, { g: 500 }], ['c10', 10, 118, { items: { bombe: 3 } }], ['c11', 52, 22, { mats: { cristal: 1 }, items: { ether: 2 } }],
+      ['c12', 122, 100, { items: { appat: 2, friandise: 2 } }], ['c13', 94, 48, { g: 150, mats: { fibre: 6 } }],
+      ['c14', 8, 68, { mats: { spore: 3, seve: 2 }, items: { ether: 1 } }], ['c15', 92, 8, { mats: { cristal: 2 }, items: { hipotion: 1 } }],
+      ['c16', 176, 80, { mats: { ectoplasme: 2 }, items: { festin: 1 } }],
     ];
     chests.forEach(([id, x, y, loot]) => { this.clearAround(x, y, 0); add({ k: 'chest', id, x, y, loot, act: () => this.openChest(id) }); });
+    // coffres générés : répartis dans chaque région, contenu selon la région et la profondeur
+    Object.keys(G.CHEST_LOOT).forEach(zone => {
+      const T = G.CHEST_LOOT[zone], cand = [];
+      for (let y = 2; y < this.H - 2; y++) for (let x = 2; x < this.W - 2; x++) {
+        if (this.z[y][x] !== zone) continue;
+        const c = this.t[y][x];
+        if (!WALKABLE.has(c) || c === '_' || c === '=' || c === 'w') continue;
+        if (![[0, 1], [0, -1], [1, 0], [-1, 0]].every(([dx, dy]) => WALKABLE.has(this.t[y + dy][x + dx]))) continue;
+        cand.push([x, y, U.hash(x, y, 4242)]);
+      }
+      cand.sort((a, b) => a[2] - b[2]);
+      let n = 0;
+      for (const [x, y] of cand) {
+        if (n >= T.n) break;
+        if (E.some(e => e.k === 'chest' && Math.abs(e.x - x) + Math.abs(e.y - y) < 14)) continue;
+        if (E.some(e => Math.abs(e.x - x) <= e.w && Math.abs(e.y - y) <= e.h)) continue;
+        const dep = this.depthAt(x, y), r = (k) => U.hash(x, y, k), pick = (arr, k) => arr[Math.floor(r(k) * arr.length)];
+        const loot = { g: Math.round(T.g[0] + (T.g[1] - T.g[0]) * r(1) * (0.6 + dep * 0.8)), items: {}, mats: {} };
+        const it = pick(T.items, 2); loot.items[it[0]] = it[1];
+        const m = pick(T.mats, 3); loot.mats[m[0]] = m[1] + Math.floor(r(4) * (m[2] - m[1] + 1));
+        if (dep > 0.55) { const rr = pick(T.rare, 5); (G.MATS[rr[0]] ? loot.mats : loot.items)[rr[0]] = (G.MATS[rr[0]] ? loot.mats : loot.items)[rr[0]] || 0; (G.MATS[rr[0]] ? loot.mats : loot.items)[rr[0]] += rr[1]; }
+        const id = `z_${zone}_${n}`;
+        add({ k: 'chest', id, x, y, loot, deep: dep > 0.55, act: () => this.openChest(id) });
+        n++;
+      }
+    });
     Object.values(home).concat(Object.values(havre)).forEach(([x, y]) => this.clearAround(x, y, 0));
     this.start = B(4, 6);
   },
@@ -205,7 +258,7 @@ G.World = {
     const lines = ['Personne ne répond… On entend un chat ronronner derrière la porte.', 'Une odeur de pain chaud s’échappe de la maison.', '« Bonne route, voyageurs ! » lance une voix à la fenêtre.'];
     homes.forEach(([x, y, arch, aopt], i) => tryAdd({ k: 'house', id: 'home' + i, x, y, w: 3, h: 2, door: [x + 1, y + 1], arch, aopt, label: 'Maison', act: () => G.UI.say([{ who: '', t: lines[i % lines.length] }]) }));
     // architecture des régions sauvages : cabane, ruines, hutte sur pilotis, autel
-    const wild = { foret: ['cabin', 3], montagne: ['ruin', 3], marais: ['stilt', 2], volcan: ['altar', 2] };
+    const wild = { foret: ['cabin', 6], montagne: ['ruin', 6], marais: ['stilt', 5], volcan: ['altar', 4] };
     Object.keys(wild).forEach(zone => {
       const [arch, n] = wild[zone]; let placed = 0;
       const cand = [];
@@ -384,14 +437,14 @@ G.World = {
     }
   },
   encounter(zone) {
-    const Z = G.ZONES[zone];
+    const Z = G.ZONES[zone], dep = this.depthAt(this.P.x, this.P.y);
     let grp = U.pick(Z.groups).slice();
-    if (G.maxLevel() > G.ENEMIES[grp[0]].lvl + 4 && grp.length < 3 && Math.random() < 0.6) grp.push(U.pick(U.pick(Z.groups)));
-    G.Battle.start(grp, { bg: Z.bg, zone });
+    if (grp.length < 3 && (Math.random() < dep * 0.8 || (G.maxLevel() > G.ENEMIES[grp[0]].lvl + 4 && Math.random() < 0.6))) grp.push(U.pick(U.pick(Z.groups)));
+    G.Battle.start(grp, { bg: Z.bg, zone, depth: dep });
   },
   TRAVEL: [
-    ['bourg', 'Bourg-Aube', 41, 43], ['havre', 'Le Havre', 71, 52], ['foret', 'Orée de Sylve', 25, 41],
-    ['montagne', 'Pied des Monts Grisés', 41, 15], ['marais', 'Entrée du marais', 66, 41], ['volcan', 'Volcan Cendreux', 74, 19],
+    ['bourg', 'Bourg-Aube', 78, 80], ['havre', 'Le Havre', 137, 100], ['foret', 'Orée de Sylve', 50, 78],
+    ['montagne', 'Pied des Monts Grisés', 78, 30], ['marais', 'Entrée du marais', 132, 78], ['volcan', 'Volcan Cendreux', 148, 38],
   ],
   canTravel(id) {
     const S = G.S, v = S.flags.visited || {};
@@ -781,6 +834,7 @@ G.World = {
     switch (e.k) {
       case 'house': {
         const img = G.SPR.arch(e.arch || 'thatch', 1, e.aopt || {});
+        if (e.aopt && e.aopt.inn) lights.push({ x: sx + 24, y: sy + 32 - 15, r: day.night ? 34 : 14, c: '#ffd060', a: 0.8 });
         G.SPR.draw(x, img, sx, sy + e.h * 16 - G.SPR.lh(img));
         if (day.night) lights.push({ x: sx + e.w * 8, y: sy + 14, r: 34, c: '#ffcf70', a: 0.6 });
         break;
@@ -791,6 +845,7 @@ G.World = {
         else {
           const img = G.SPR.building(e.id, lvl);
           G.SPR.draw(x, img, sx, sy + 32 - G.SPR.lh(img));
+          if (e.id === 'taverne') lights.push({ x: sx + 24, y: sy + 32 - 15, r: day.night ? 34 : 14, c: '#ffd060', a: 0.8 });
           for (let i = 0; i < lvl; i++) { x.fillStyle = '#ffd86a'; x.fillRect(sx + 2 + i * 4, sy + 28, 3, 3); }
           if (e.id === 'forge') { lights.push({ x: sx + 24, y: sy + 26, r: 40, c: '#ff8a2a', a: 0.8 }); if (Math.random() < 0.08) G.R.parts.push({ x: sx + 36, y: sy - 12, vx: U.rand(-3, 3), vy: -12, life: 2.5, max: 2.5, size: 5, c: '#c8c8c8', glow: false, grav: -2, drag: 1, type: 'fog', rot: 0, layer: 1 }); }
           if (day.night) lights.push({ x: sx + 24, y: sy + 14, r: 34, c: '#ffcf70', a: 0.6 });

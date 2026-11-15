@@ -147,7 +147,7 @@ G.demoState = () => {
   Object.assign(S.armors, { couronne_gel: 1, cape_traqueur: 1, masque_sporal: 1, lanterne_ames: 1 });
   S.mats.trophee = 4;
   S.time = 10 * 60;
-  S.pos = { x: 71, y: 52, dir: 'up' }; S.rest = { x: 71, y: 52 };
+  S.pos = { x: 137, y: 100, dir: 'up' }; S.rest = { x: 137, y: 100 };
   return S;
 };
 
@@ -171,7 +171,7 @@ G.onResize = () => {
       if (G.view === 'title') {
         G.titleCam += dt * 14;
         const W = G.World;
-        W.P.px = 45 * 16 + Math.sin(G.titleCam / 120) * 420; W.P.py = 38 * 16 + Math.cos(G.titleCam / 160) * 200;
+        W.P.px = (W.BOURG[0] + 8) * 16 + Math.sin(G.titleCam / 120) * 420; W.P.py = (W.BOURG[1] + 1) * 16 + Math.cos(G.titleCam / 160) * 200;
         W.cam.x = U.clamp(W.P.px - G.R.W / 2, 0, W.W * 16 - G.R.W); W.cam.y = U.clamp(W.P.py - G.R.H / 2, 0, W.H * 16 - G.R.H);
         W.hidePlayer = true; W.ambient(dt); W.render(); W.hidePlayer = false;
       } else if (G.view === 'battle') {
