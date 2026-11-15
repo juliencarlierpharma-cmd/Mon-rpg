@@ -21,9 +21,9 @@ SPR.fullPal = p => {
   return P;
 };
 // st : { hair: 'spiky'|'long'|'band'|null, outfit: 'tunic'|'robe'|'vest'|'armor'|'apron', hat: 'straw'|'cap'|'helm'|'hood'|'miner', beard, scarf: couleur, ribbon: couleur }
-SPR.heroPix = (pal, dir, frame, extra) => {
+SPR.heroPix = (pal, dir, frame, extra, K = 8) => {
   const st = typeof extra === 'object' && extra ? extra : { hair: extra === 'beard' ? null : extra, beard: extra === 'beard' };
-  const P = SPR.fullPal(pal), g = new G.Pix(16, 16, 2);
+  const P = SPR.fullPal(pal), g = new G.Pix(16, 16, K); g.smooth = true;
   const sh = c => [U.mix(c, '#120a20', 0.42), c, U.mix(c, '#ffffff', 0.35)];
   const hair = [P.h, P.H, U.mix(P.H, '#fff4d8', 0.4)], skin = [U.mix(P.S, P.s, 0.7), P.S, U.mix(P.S, '#ffffff', 0.35)];
   const cloth = sh(P.C), pants = [U.mix(P.D, '#000', 0.3), P.D, U.mix(P.D, '#fff', 0.25)];
@@ -109,32 +109,37 @@ SPR.heroPix = (pal, dir, frame, extra) => {
     g.ell(7.6, 4.2, 4.6, 3.5, hair);
     g.poly([[3.5, 3.8], [8, 2.6], [7.6, 8.4], [4, 8.6]], hair);
     g.poly([[8.6, 1.4], [12.7, 4.3], [11.8, 5.6], [10.6, 4.6], [9.8, 5.8], [9, 4.4]], hair);
-    for (let x = 5; x < 10; x += 0.5) g.dot(x, 2.6 + Math.abs(x - 7.5) * 0.25, hair[2]);
+    g.ell(7.4, 2.7, 2.3, 0.45, [hair[1], hair[2], U.mix(hair[2], '#ffffff', 0.4)]);
     if (st.hair === 'spiky') { g.poly([[4, 2.6], [1.8, 1.2], [4.8, 1.4]], hair); g.poly([[6, 1.4], [5.4, -0.2], [7.6, 1]], hair); g.poly([[3.4, 4.6], [1.4, 4.2], [3.6, 3.6]], hair); }
     if (st.hair === 'band') { g.rect(4, 3.6, 8.6, 0.8, acc); g.poly([[3.8, 3.8], [1.6, 5.2], [2.4, 6], [4, 4.6]], acc); }
     if (st.ribbon) g.ell(5, 4.2, 1, 1.3, sh(st.ribbon));
     if (st.beard) g.poly([[9, 7], [12.2, 7.2], [11.4, 9.6], [9.4, 9.8]], ['#b8b8c0', '#e8e8ee', '#ffffff']);
-    g.rect(10.3, 5.6, 0.75, 1.4, P.E); g.dot(10.4, 5.7, '#ffffff'); g.dot(10.9, 6.6, U.mix(P.E, '#8ac0ff', 0.45)); g.hline(10.1, 5.1, 11.1, 5.2, hair[0]);
-    g.rect(11.1, 8, 0.6, 0.35, U.mix(P.s, '#8a3a3a', 0.3)); g.dot(10.6, 7.6, U.mix(P.S, '#ff7a8a', 0.35));
+    g.ell(10.75, 6.3, 0.48, 0.92, '#fbfbff'); g.ell(10.85, 6.38, 0.38, 0.78, [U.mix(P.E, '#000', 0.35), P.E, U.mix(P.E, '#9ad0ff', 0.55)]); g.ell(10.9, 6.45, 0.18, 0.36, '#0c0a16'); g.ell(10.7, 6, 0.13, 0.13, '#ffffff');
+    g.line(10.2, 5.2, 11.3, 5.15, hair[0], 0.24); g.line(10.3, 5.45, 11.3, 5.45, U.mix(P.E, '#000', 0.4), 0.2);
+    g.ell(11.2, 8.25, 0.32, 0.14, U.mix(P.s, '#8a3a3a', 0.45)); g.ell(10.4, 7.75, 0.6, 0.32, U.mix(P.S, '#ff7a8a', 0.28));
   } else {
     g.ell(8, 3.9, 4.7, 3.3, hair);
     g.poly([[3.4, 4.1], [12.6, 4.1], [12.4, 5.6], [10.8, 4.7], [9.4, 5.5], [8, 4.6], [6.6, 5.5], [5.2, 4.7], [3.6, 5.8]], hair);
     g.rect(3.3, 4.4, 0.9, 2.8, [hair[0], hair[1], hair[1]]); g.rect(11.8, 4.4, 0.9, 2.8, [hair[0], hair[1], hair[1]]);
-    for (let x = 5.5; x < 10.5; x += 0.5) g.dot(x, 2.2 + Math.abs(x - 8) * 0.3, hair[2]);
+    g.ell(7.6, 2.35, 2.6, 0.5, [hair[1], hair[2], U.mix(hair[2], '#ffffff', 0.4)]);
     if (st.hair === 'spiky') { g.poly([[4.6, 2.6], [3.2, 0.4], [6.2, 1.8]], hair); g.poly([[7, 1.4], [8, -0.1], [9.2, 1.4]], hair); g.poly([[10, 1.8], [12.8, 0.4], [11.6, 2.8]], hair); }
     if (st.hair === 'band') { g.rect(3.4, 3.3, 9.2, 0.85, acc); g.dot(4, 3.4, '#ffffff'); }
     if (st.ribbon) { g.ell(11.4, 3.2, 1.2, 0.8, sh(st.ribbon)); g.ell(12.6, 3.6, 0.8, 0.7, sh(st.ribbon)); }
-    // ombre de la frange
-    for (let x = 4.6; x < 11.6; x += 0.5) g.dot(x, 5.9 + (Math.round(x * 2) % 3 === 0 ? 0 : 0.5) * 0, U.mix(P.S, P.s, 0.6));
-    // yeux (blanc, iris, reflet), sourcils, bouche, joues
-    [[5.8, 6.2, -1], [9.3, 6.2, 1]].forEach(([ex, ey, sd]) => {
-      g.dot(sd < 0 ? ex - 0.5 : ex + 0.95, ey + 0.5, '#ffffff'); g.dot(sd < 0 ? ex - 0.5 : ex + 0.95, ey + 1, '#e8e8f0');
-      g.rect(ex, ey, 0.95, 1.5, P.E); g.dot(ex + 0.05, ey + 0.05, '#ffffff'); g.dot(ex + 0.5, ey + 1, U.mix(P.E, '#8ac0ff', 0.45));
-      g.hline(ex - 0.15, ey - 0.5, ex + 1, ey - 0.6, hair[0]);
+    // ombre douce de la frange
+    g.ell(8, 5.85, 3.6, 0.28, U.mix(P.S, P.s, 0.3));
+    // yeux ronds : blanc, iris dégradé, pupille, reflets ; sourcils ; joues ; nez ; bouche
+    const iris = [U.mix(P.E, '#000000', 0.35), P.E, U.mix(P.E, '#9ad0ff', 0.55)];
+    [[6.25, 7, -1], [9.75, 7, 1]].forEach(([ex, ey, sd]) => {
+      g.ell(ex, ey, 0.78, 0.98, '#fbfbff'); g.ell(ex, ey + 0.55, 0.7, 0.35, '#dcdcec');
+      g.ell(ex + sd * 0.06, ey + 0.08, 0.6, 0.86, iris);
+      g.ell(ex + sd * 0.06, ey + 0.18, 0.28, 0.42, '#0c0a16');
+      g.ell(ex - 0.2, ey - 0.32, 0.2, 0.2, '#ffffff'); g.ell(ex + 0.22, ey + 0.42, 0.1, 0.1, '#e8f4ff');
+      g.line(ex - 0.62, ey - 0.88, ex + 0.62, ey - 0.88, U.mix(P.E, '#000', 0.3), 0.16);
+      g.line(ex - 0.45 * sd, ey - 1.42, ex + 0.5 * sd, ey - 1.52, U.mix(hair[0], P.S, 0.25), 0.15);
     });
-    g.dot(8, 7.6, U.mix(P.S, P.s, 0.5));
-    g.rect(7.6, 8.4, 0.8, 0.35, U.mix(P.s, '#8a3a3a', 0.3));
-    g.dot(5.2, 7.7, U.mix(P.S, '#ff7a8a', 0.35)); g.dot(10.6, 7.7, U.mix(P.S, '#ff7a8a', 0.35));
+    g.ell(5.1, 8.25, 0.75, 0.38, U.mix(P.S, '#ff7a8a', 0.28)); g.ell(10.9, 8.25, 0.75, 0.38, U.mix(P.S, '#ff7a8a', 0.28));
+    g.ell(8.05, 8.2, 0.16, 0.12, U.mix(P.S, P.s, 0.7));
+    g.ell(8, 8.85, 0.42, 0.16, U.mix(P.s, '#8a3a3a', 0.45));
     if (st.beard) g.poly([[5.4, 7.4], [10.6, 7.4], [10, 9.6], [8, 10.6], [6, 9.6]], ['#b8b8c0', '#e8e8ee', '#ffffff']);
   }
   // --- couvre-chefs ---
@@ -160,9 +165,9 @@ SPR.NPC_STYLE = {
 };
 SPR.hero = (key, pal, dir, frame, extra) => SPR.get(`h_${key}_${dir}_${frame}`, () => {
   let g = SPR.heroPix(pal, dir === 'left' ? 'right' : dir, frame, extra);
-  g.outline('#1a1020').polish(0.02, 3);
+  g.outline('#1a1020').outline('#1a1020').polish(0, 3);
   if (dir === 'left') g = g.mirror();
-  return g.toCanvas();
+  return g.toCanvas(2);
 });
 
 // ---------------- Armes (vue de profil, tournée vers la droite) ----------------
@@ -182,15 +187,15 @@ SPR.WCOL = {
   hache: { blade: ['#5a5a60', '#9a9aa4', '#d8d8e0'], hilt: '#6a4420', gem: '#a0a0a0' },
 };
 function blade(g, x, y, ang, len, w, cols, hiltLen, hiltCol, guardCol) {
-  const ca = Math.cos(ang), sa = Math.sin(ang), px = -sa, py = ca, st = 1 / g.k;
+  const ca = Math.cos(ang), sa = Math.sin(ang), px = -sa, py = ca, st = 0.5 / g.k;
   for (let i = -hiltLen; i <= len; i += st) {
     for (let q = 0; q < w; q += st) {
       const xx = x + ca * i + px * (q - (w - st) / 2), yy = y + sa * i + py * (q - (w - st) / 2);
-      if (i < 0) g.dot(xx, yy, (Math.round(i * g.k) % 2) ? hiltCol : U.mix(hiltCol, '#ffffff', 0.25));
-      else g.dot(xx, yy, i > len - 1 ? cols[2] : q < st ? cols[2] : q >= w - st ? cols[0] : cols[1]);
+      if (i < 0) g.px1(xx, yy, (Math.round(i * 4) % 2) ? hiltCol : U.mix(hiltCol, '#ffffff', 0.25));
+      else g.px1(xx, yy, i > len - 1 ? cols[2] : q < st ? cols[2] : q >= w - st ? cols[0] : cols[1]);
     }
   }
-  if (guardCol) for (let q = -2; q <= 2; q += st) { g.dot(x + px * q, y + py * q, guardCol); g.dot(x + px * q - ca * st, y + py * q - sa * st, U.mix(guardCol, '#000', 0.3)); }
+  if (guardCol) for (let q = -2; q <= 2; q += st) for (let w2 = 0; w2 < 0.5; w2 += st) { g.px1(x + px * q - ca * w2, y + py * q - sa * w2, guardCol); g.px1(x + px * q - ca * (w2 + 0.5), y + py * q - sa * (w2 + 0.5), U.mix(guardCol, '#000', 0.3)); }
 }
 SPR.drawWeapon = (g, wid, pose) => {
   const W = G.WEAPONS[wid], C = SPR.WCOL[wid], hx = 13, hy = 17, atk = pose === 'atk';
@@ -202,33 +207,33 @@ SPR.drawWeapon = (g, wid, pose) => {
       blade(g, hx - 6, hy, atk ? 0.4 : -2.3, 5, 2, C.blade, 2, C.hilt, null); break;
     case 'swordshield':
       blade(g, hx, hy, atk ? 0.1 : -1.2, 8, 2, C.blade, 2, C.hilt, '#c8a040');
-      g.ell(hx - 1 + (atk ? 0 : 2), hy - 1, 3, 4.5, C.shield); g.set(hx - 1 + (atk ? 0 : 2), hy - 1, '#fff6c0'); break;
+      g.ell(hx - 1 + (atk ? 0 : 2), hy - 1, 3, 4.5, C.shield); g.dot(hx - 1 + (atk ? 0 : 2), hy - 1, '#fff6c0'); break;
     case 'staff':
       g.line(hx - 1, hy + 5, hx + (atk ? 6 : 1), hy - 12, C.blade[1]); g.line(hx, hy + 5, hx + (atk ? 7 : 2), hy - 12, C.blade[0]);
-      g.ell(hx + (atk ? 7 : 2), hy - 13, 2.4, 2.4, U.shades(C.gem)); g.set(hx + (atk ? 6 : 1), hy - 14, '#ffffff'); break;
+      g.ell(hx + (atk ? 7 : 2), hy - 13, 2.4, 2.4, U.shades(C.gem)); g.dot(hx + (atk ? 6 : 1), hy - 14, '#ffffff'); break;
     case 'chalice':
       g.rect(hx, hy - 1, 1, 3, C.blade[1]); g.rect(hx - 1, hy + 2, 3, 1, C.blade[0]);
       g.ell(hx + 0.5, hy - 3, 2.5, 2, C.blade); g.rect(hx - 1, hy - 4, 3, 1, U.shades(C.gem)[2]); break;
     case 'bow': {
       const bx = hx + 2;
-      for (let a = -1.3; a <= 1.3; a += 0.05) g.set(bx + Math.cos(a) * 3, hy + Math.sin(a) * 9, a < -1 || a > 1 ? C.blade[2] : C.blade[1]);
+      for (let a = -1.3; a <= 1.3; a += 0.05) g.dot(bx + Math.cos(a) * 3, hy + Math.sin(a) * 9, a < -1 || a > 1 ? C.blade[2] : C.blade[1]);
       g.line(bx + Math.cos(-1.3) * 3, hy - 9, bx + Math.cos(1.3) * 3, hy + 9, '#f0f0f0');
       if (atk) g.line(bx - 2, hy, bx + 8, hy, '#e8d8a8');
       break;
     }
     case 'tome':
       if (atk) { g.rect(hx - 1, hy - 4, 7, 4, ['#d8c8a0', '#f4ead0', '#fffaf0']); g.line(hx + 2, hy - 4, hx + 2, hy - 1, '#8a6a3a'); g.ell(hx + 3, hy - 7, 1.5, 1.5, U.shades('#ffd040')); }
-      else { g.rect(hx - 1, hy - 3, 5, 5, C.blade); g.set(hx + 1, hy - 1, C.gem); g.rect(hx + 3, hy - 3, 1, 5, '#e8dcc0'); }
+      else { g.rect(hx - 1, hy - 3, 5, 5, C.blade); g.dot(hx + 1, hy - 1, C.gem); g.rect(hx + 3, hy - 3, 1, 5, '#e8dcc0'); }
       break;
     case 'fists':
-      g.ell(hx + (atk ? 4 : 0), hy, 2.6, 2.2, C.blade); g.set(hx + (atk ? 5 : 1), hy - 1, C.gem);
+      g.ell(hx + (atk ? 4 : 0), hy, 2.6, 2.2, C.blade); g.dot(hx + (atk ? 5 : 1), hy - 1, C.gem);
       g.ell(hx - 6, hy + 1, 2.2, 2, C.blade); break;
     case 'trident': {
       const a = atk ? 0 : -0.95, ca = Math.cos(a), sa = Math.sin(a);
       blade(g, hx - ca * 4, hy - sa * 4, a, 16, 1, [C.hilt, C.hilt, C.hilt], 0, C.hilt, null);
       const tx = hx + ca * 12, ty = hy + sa * 12, px = -sa, py = ca;
       [-2, 0, 2].forEach(k => blade(g, tx + px * k, ty + py * k, a, 4, 1, C.blade, 0, C.blade[1], null));
-      for (let k = -2; k <= 2; k++) g.set(tx + px * k, ty + py * k, C.blade[1]);
+      for (let k = -2; k <= 2; k++) g.dot(tx + px * k, ty + py * k, C.blade[1]);
       break;
     }
     case 'lance': {
@@ -250,14 +255,14 @@ SPR.drawWeapon = (g, wid, pose) => {
 // Sprite de combat 48x48 pixels (personnage + arme), regard vers la gauche
 SPR.battler = (cid, wid, pose) => SPR.get(`b_${cid}_${wid}_${pose}`, () => {
   const d = G.CHARS[cid];
-  const g = new G.Pix(24, 24, 2);
-  const h = SPR.heroPix(d.pal, 'right', pose === 'atk' ? 1 : 0, SPR.CHAR_EXTRA[cid]);
+  const K = 16, g = new G.Pix(24, 24, K); g.smooth = true;
+  const h = SPR.heroPix(d.pal, 'right', pose === 'atk' ? 1 : 0, SPR.CHAR_EXTRA[cid], K);
   const back = G.WEAPONS[wid].kind === 'bow' || G.WEAPONS[wid].kind === 'staff';
   if (back) SPR.drawWeapon(g, wid, pose);
-  for (let y = 0; y < h.h; y++) for (let x = 0; x < h.w; x++) { const c = h.get(x, y); if (c) g._s(x + 8, y + 14, c); }
+  for (let y = 0; y < h.h; y++) for (let x = 0; x < h.w; x++) { const c = h.get(x, y); if (c) g._s(x + 4 * K, y + 7 * K, c); }
   if (!back) SPR.drawWeapon(g, wid, pose);
-  g.outline('#1a1020').polish(0.02, 5);
-  return g.mirror().toCanvas();
+  g.outline('#1a1020').outline('#1a1020').outline('#1a1020').polish(0, 5);
+  return g.mirror().toCanvas(2);
 });
 
 // ---------------- Monstres ----------------
@@ -512,8 +517,8 @@ SPR.fam = id => SPR.get('f_' + id, () => { const g = new G.Pix(16, 16, 2); SPR.F
 
 // ---------------- Portraits (data URL pour l'interface) ----------------
 SPR.url = (key, canvasFn, scale = 4) => SPR.get('url_' + key + '_' + scale, () => {
-  const src = canvasFn(), c = U.canvas(src.width * scale, src.height * scale), x = c.getContext('2d');
-  x.imageSmoothingEnabled = false; x.drawImage(src, 0, 0, c.width, c.height);
+  const src = canvasFn(), c = U.canvas(Math.round(SPR.lw(src) * scale * 2), Math.round(SPR.lh(src) * scale * 2)), x = c.getContext('2d');
+  const smooth = (src._d || 1) * 2 >= scale * 2; x.imageSmoothingEnabled = smooth; x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, c.width, c.height);
   return c.toDataURL();
 });
 SPR.charURL = cid => SPR.url('char_' + cid, () => SPR.hero(cid, G.CHARS[cid].pal, 'down', 0, SPR.CHAR_EXTRA[cid]));

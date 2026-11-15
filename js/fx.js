@@ -20,7 +20,7 @@ G.R = {
     const cw = window.innerWidth, ch = window.innerHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
     const short = Math.min(cw, ch);
     // D : densité de pixels (chaque unité logique = D pixels réels du tampon)
-    this.D = 2;
+    this.D = 4;
     // m pixels écran par pixel du tampon (entier => pixels nets), vue d'environ 224 unités sur le petit côté
     const me = Math.max(1, short * dpr / (224 * this.D)), mr = Math.round(me);
     const m = Math.abs(mr - me) / me < 0.12 ? mr : me;

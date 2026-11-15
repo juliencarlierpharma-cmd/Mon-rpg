@@ -75,20 +75,34 @@ G.Pix = class Pix {
   // efface un pixel réel
   erase(x, y) { const X = Math.floor(x * this.k), Y = Math.floor(y * this.k); if (X >= 0 && Y >= 0 && X < this.w && Y < this.h) this.d[Y * this.w + X] = null; }
   // pixel réel unique (détails fins)
-  dot(x, y, c) { this._s(Math.floor(x * this.k), Math.floor(y * this.k), c); }
+  dot(x, y, c) { const k = this.k, n = Math.max(1, Math.round(k / 2)), X = Math.floor(x * k), Y = Math.floor(y * k); for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) this._s(X + i, Y + j, c); }
+  // un seul pixel réel (traits très fins)
+  px1(x, y, c) { this._s(Math.floor(x * this.k), Math.floor(y * this.k), c); }
   get(X, Y) { if (X < 0 || Y < 0 || X >= this.w || Y >= this.h) return null; return this.d[Y * this.w + X]; }
   rect(x, y, w, h, c) {
     const k = this.k, X0 = Math.round(x * k), Y0 = Math.round(y * k), W = Math.max(1, Math.round(w * k)), H = Math.max(1, Math.round(h * k));
     const sh = Array.isArray(c), P = sh ? Pix.tones(c) : null;
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
       let col = c;
-      if (sh) { const t = (j / Math.max(1, H - 1)) * 0.75 + (i / Math.max(1, W - 1)) * 0.25; col = j < k || i < k ? P[4] : (j >= H - k || i >= W - k) ? P[0] : P[t < 0.35 ? 3 : t < 0.7 ? 2 : 1]; }
+      if (sh) { const t = (j / Math.max(1, H - 1)) * 0.75 + (i / Math.max(1, W - 1)) * 0.25; col = this.smooth ? Pix.ramp(c)[Math.round((1 - U.clamp(t, 0, 1) * 0.85) * 32)] : j < k || i < k ? P[4] : (j >= H - k || i >= W - k) ? P[0] : P[t < 0.35 ? 3 : t < 0.7 ? 2 : 1]; }
       this._s(X0 + i, Y0 + j, col);
     }
   }
   // 3 tons [sombre, moyen, clair] -> 5 tons
   static tones(c) { if (c.length >= 5) return c; return c._t || (c._t = [c[0], U.mix(c[0], c[1], 0.5), c[1], U.mix(c[1], c[2], 0.5), c[2]]); }
+  // dégradé continu (rendu lisse) : 33 teintes interpolées entre les 5 tons
+  static ramp(c) {
+    if (c._r) return c._r;
+    const P = Pix.tones(c), R = [];
+    for (let i = 0; i <= 32; i++) { const t = i / 32 * 4, a = Math.min(3, Math.floor(t)); R.push(U.mix(P[a], P[a + 1], t - a)); }
+    return (c._r = R);
+  }
   _shade(c, nx, ny, r) {
+    if (this.smooth) {
+      const R = Pix.ramp(c), l = -(nx * 0.55 + ny * 0.83), rim = r > 0.7 ? (r - 0.7) / 0.3 * Math.max(0, 0.5 - l) * 0.9 : 0;
+      const t = U.clamp((l + 0.85) / 1.6 - rim, 0, 1);
+      return R[Math.round(t * 32)];
+    }
     const P = Pix.tones(c), l = -(nx * 0.55 + ny * 0.83);
     if (r > 0.82 && l < 0.15) return P[0];
     return l > 0.55 ? P[4] : l > 0.25 ? P[3] : l > -0.15 ? P[2] : l > -0.45 ? P[1] : P[0];
@@ -117,7 +131,7 @@ G.Pix = class Pix {
       for (let n = 0; n + 1 < xs.length; n += 2)
         for (let X = Math.round(xs[n] * k); X < Math.round(xs[n + 1] * k); X++) {
           let col = c;
-          if (P) { const t = (yy - minY) / Math.max(0.01, maxY - minY); col = t < 0.15 ? P[4] : t < 0.35 ? P[3] : t < 0.65 ? P[2] : t < 0.85 ? P[1] : P[0]; }
+          if (P) { const t = (yy - minY) / Math.max(0.01, maxY - minY); col = this.smooth ? Pix.ramp(c)[Math.round((1 - U.clamp(t * 1.1 - 0.05, 0, 1)) * 32)] : t < 0.15 ? P[4] : t < 0.35 ? P[3] : t < 0.65 ? P[2] : t < 0.85 ? P[1] : P[0]; }
           this._s(X, Y, col);
         }
     }
@@ -131,7 +145,7 @@ G.Pix = class Pix {
     }
   }
   // ligne fine (un pixel réel)
-  hline(x0, y0, x1, y1, c) { this.line(x0, y0, x1, y1, c, 1 / this.k); }
+  hline(x0, y0, x1, y1, c) { this.line(x0, y0, x1, y1, c, Math.max(1 / this.k, 0.32)); }
   thick(pts, r0, r1, c) {
     const steps = [];
     for (let i = 0; i < pts.length - 1; i++) {
@@ -173,11 +187,11 @@ G.Pix = class Pix {
     return this;
   }
   mirror() {
-    const p = new Pix(1, 1); p.k = this.k; p.w = this.w; p.h = this.h; p.d = new Array(this.w * this.h);
+    const p = new Pix(1, 1); p.k = this.k; p.smooth = this.smooth; p.w = this.w; p.h = this.h; p.d = new Array(this.w * this.h);
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) p.d[y * this.w + x] = this.d[y * this.w + (this.w - 1 - x)];
     return p;
   }
-  toCanvas() {
+  toCanvas(ss = 1) {
     const c = U.canvas(this.w, this.h), x = c.getContext('2d');
     const img = x.createImageData(this.w, this.h), D = img.data, cache = {};
     for (let i = 0; i < this.d.length; i++) {
@@ -192,6 +206,12 @@ G.Pix = class Pix {
     }
     x.putImageData(img, 0, 0);
     c._d = this.k;
+    if (ss > 1) {
+      // réduction lissée : bords anticrénelés
+      const o = U.canvas(Math.round(this.w / ss), Math.round(this.h / ss)), ox = o.getContext('2d');
+      ox.imageSmoothingEnabled = true; ox.imageSmoothingQuality = 'high'; ox.drawImage(c, 0, 0, o.width, o.height);
+      o._d = this.k / ss; return o;
+    }
     return c;
   }
 };

@@ -859,7 +859,7 @@ G.World = {
   // ---------------- Rendu ----------------
   render() {
     const R = G.R, x = R.begin(), cam = this.cam, frame = Math.floor(performance.now() / 220) % 8;
-    const cx = Math.round(cam.x * 2) / 2, cy = Math.round(cam.y * 2) / 2;
+    const cx = Math.round(cam.x * 4) / 4, cy = Math.round(cam.y * 4) / 4;
     const x0 = Math.max(0, Math.floor(cx / 16)), x1 = Math.min(this.W - 1, Math.ceil((cx + R.W) / 16));
     const y0 = Math.max(0, Math.floor(cy / 16)), y1 = Math.min(this.H - 1, Math.ceil((cy + R.H) / 16) + 2);
     x.fillStyle = '#000'; x.fillRect(0, 0, R.W, R.H);
@@ -902,14 +902,14 @@ G.World = {
     this.followers.forEach((f, i) => {
       const cid = party[i + 1]; if (!cid) return;
       const moving = P.moving && (f.fx !== f.x || f.fy !== f.y);
-      objs.push({ y: f.py + 16 - 0.1, d: () => { this.shadow(f.px - cx + 8, f.py - cy + 15, 5); G.SPR.draw(x, G.SPR.hero(cid, G.CHARS[cid].pal, f.dir, moving ? walkF : 0, G.SPR.CHAR_EXTRA[cid]), Math.round(f.px - cx), Math.round(f.py - cy)); } });
+      objs.push({ y: f.py + 16 - 0.1, d: () => { this.shadow(f.px - cx + 8, f.py - cy + 15, 5); G.SPR.draw(x, G.SPR.hero(cid, G.CHARS[cid].pal, f.dir, moving ? walkF : 0, G.SPR.CHAR_EXTRA[cid]), Math.round((f.px - cx) * 4) / 4, Math.round((f.py - cy) * 4) / 4); } });
     });
     const lead = party[0];
     if (lead) objs.push({ y: P.py + 16, d: () => {
       this.shadow(P.px - cx + 8, P.py - cy + 15, 5);
       let ox = 0, oy = 0;
       if (this.mining) { const s = Math.sin(this.mining.t / 0.28 * Math.PI); const [dx, dy] = DIRS[P.dir]; ox = dx * s * 3; oy = dy * s * 3; }
-      G.SPR.draw(x, G.SPR.hero(lead, G.CHARS[lead].pal, P.dir, walkF, G.SPR.CHAR_EXTRA[lead]), Math.round(P.px - cx + ox), Math.round(P.py - cy + oy));
+      G.SPR.draw(x, G.SPR.hero(lead, G.CHARS[lead].pal, P.dir, walkF, G.SPR.CHAR_EXTRA[lead]), Math.round((P.px - cx + ox) * 4) / 4, Math.round((P.py - cy + oy) * 4) / 4);
     } });
     objs.sort((a, b) => a.y - b.y).forEach(o => o.d());
     // indicateur d'interaction

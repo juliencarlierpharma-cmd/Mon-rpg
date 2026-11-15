@@ -3,7 +3,7 @@
 RPG jouable dans le navigateur, inspiré de Final Fantasy et Dragon Quest.
 Pixel art généré par le code, avec un rendu « HD-2D » : profondeur de champ, bloom, éclairage dynamique, cycle jour/nuit, rayons de lumière et particules.
 
-Le rendu utilise une densité de 2 pixels par unité : personnages en 32×32 pixels (visage, cheveux, plis, ombrage en volume), monstres, familiers, arbres et bâtiments dessinés à résolution double avec des contours colorés, et textures extérieures 32×32 qui se raccordent d’une tuile à l’autre, avec des transitions douces entre types de sol.
+Le rendu utilise une densité de 4 pixels par unité. Héros et PNJ sont dessinés en haute définition et sur-échantillonnés (bords anticrénelés, dégradés continus, contours fins, yeux ronds avec iris et reflets), avec un déplacement au quart d’unité. Auparavant : personnages en 32×32 pixels (visage, cheveux, plis, ombrage en volume), monstres, familiers, arbres et bâtiments dessinés à résolution double avec des contours colorés, et textures extérieures 32×32 qui se raccordent d’une tuile à l’autre, avec des transitions douces entre types de sol.
 
 Le paysage varie :
 - teinte du sol qui évolue en continu sur la carte, styles de sol par plaques et 17 petits décors semés selon la région ;
