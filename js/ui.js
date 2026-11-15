@@ -78,16 +78,16 @@ G.UI = {
     }).join('');
     const dp = W.depthAt(W.P.x, W.P.y), dl = dp < 0.33 ? 1 : dp < 0.66 ? 2 : 3;
     const zl = z.town ? z.lv : `Niv. conseillé ${z.lmin}–${z.lmax} · Profondeur ${'▮'.repeat(dl)}${'▯'.repeat(3 - dl)}`;
-    this.hud.innerHTML = `<div class="hud-col"><div class="hud-l"><div class="zone">${esc(z.n)}</div><div class="sub">${esc(zl)} · Équipe niv. ${plv}</div><div class="sub">${night ? '🌙' : '☀️'} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} · 💰 ${U.fmt(G.S.gold)}</div></div>
+    this.hud.innerHTML = `<div class="hud-col"><div class="hud-l"><div class="zone">${esc(z.town ? z.n : (W.subInfo(W.P.x, W.P.y) || z).n)}</div><div class="sub">${z.town ? '' : esc(z.n) + ' · '}${esc(zl)} · Équipe niv. ${plv}</div><div class="sub">${night ? '🌙' : '☀️'} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} · 💰 ${U.fmt(G.S.gold)}</div></div>
       <div class="route ${this.routeOpen ? '' : 'closed'}"><button class="route-h" id="routeBtn">🧭 Itinéraire ${this.routeOpen ? '▾' : '▸'}</button>${this.routeOpen ? `<ol>${route}</ol>` : ''}</div></div>
       <button class="hud-menu" id="menuBtn">☰${ready ? `<b class="badge">${ready}</b>` : ''}</button>`;
     $('#menuBtn').onclick = () => { G.Audio.init(); if (!this.busy()) this.openMenu(ready ? 'succes' : undefined); };
     $('#routeBtn').onclick = () => { this.routeOpen = !this.routeOpen; try { localStorage.setItem('ee-route', this.routeOpen ? '1' : '0'); } catch (e) { } this.updateHUD(); };
   },
-  zoneBanner(Z, first) {
+  zoneBanner(Z, first, sub) {
     let b = document.getElementById('zbanner');
     if (!b) { b = U.el('<div id="zbanner"><div class="zb-n"></div><div class="zb-l"></div></div>'); document.body.appendChild(b); }
-    b.querySelector('.zb-n').textContent = Z.n; b.querySelector('.zb-l').textContent = (Z.lv || '') + (first ? ' · voyage rapide débloqué' : '');
+    b.querySelector('.zb-n').textContent = sub ? sub.n : Z.n; b.querySelector('.zb-l').textContent = (sub ? Z.n + ' · ' : '') + (Z.lv || '') + (first ? ' · nouvelle région' : '');
     b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
     clearTimeout(this._zb); this._zb = setTimeout(() => b.classList.remove('show'), 2600);
   },
@@ -209,12 +209,12 @@ G.UI = {
       if (!eq) actions += `<button class="btn" data-a="equipW" data-c="${cid}" data-s="${slot}">Équiper</button>`;
       if (tier < G.MAX_TIER) {
         const cost = G.upgradeCost(W, tier), capped = tier >= G.maxWeaponTier();
-        actions += `<div class="cost-line">→ Rang ${tier + 1} : ${G.costHTML(cost)}</div><button class="btn gold" data-a="upgrade" data-c="${cid}" data-s="${slot}" ${!capped && G.canPay(cost) ? '' : 'disabled'}>${capped ? (tier >= 5 ? 'Forge niv. 4 requise' : `Forge niv. ${tier} requise`) : tier === 5 ? '🌟 Éveiller (rang 6)' : '⬆️ Améliorer'}</button>`;
+        actions += `<div class="cost-line">→ Rang ${tier + 1} : ${G.costHTML(cost)}</div><button class="btn gold" data-a="upgrade" data-c="${cid}" data-s="${slot}" ${!capped && G.canPay(cost) ? '' : 'disabled'}>${capped ? (tier >= 5 ? 'Forge niv. 4 requise' : `Forge niv. ${tier} requise`) : tier === 6 ? '♛ Éveil légendaire (rang 7)' : tier === 5 ? '🌟 Éveiller (rang 6)' : '⬆️ Améliorer'}</button>`;
       } else actions += '<div class="dim">Rang maximal atteint ✦</div>';
     }
     return `<div class="card wcard ${eq ? 'eq' : ''} ${own ? '' : 'unowned'}" style="--c:${G.ELEM[slot].c}">
       <div class="wslot">${G.ELEM[slot].i} Emplacement ${G.ELEM[slot].n}${eq ? ' <span class="pill">Équipée</span>' : ''}</div>
-      <div class="wh"><img class="wimg" src="${G.SPR.battlerURL(cid, wid)}"><div><h3>${W.n}</h3><div class="small">${W.kn} · Infusion : ${elemTag(W.e)}</div><div class="small">${own ? `Rang <b>${tier}</b>/${G.MAX_TIER}` : '<i>Non forgée</i>'}</div></div></div>
+      <div class="wh"><img class="wimg" src="${G.SPR.battlerURL(cid, wid)}"><div><h3>${W.n}</h3><div class="small">${W.kn} · Infusion : ${elemTag(W.e)}</div><div class="small">${own ? `Rang <b>${tier}</b>/${G.MAX_TIER}${tier >= 7 ? ' <span class="legend-tag">♛ Légendaire</span>' : ''}` : '<i>Non forgée</i>'}</div></div></div>
       <div class="build">${W.build}</div>
       <div class="trait">◈ <b>${W.trait.n}</b> — ${W.trait.d}</div>
       <div class="stats mini">${['hp', 'atk', 'mag', 'def', 'res', 'spd', 'crit'].map(k => `<div><span>${G.STATN[k]}</span><b>${m[k]}</b></div>`).join('')}</div>
@@ -251,7 +251,7 @@ G.UI = {
     const ar = Object.keys(G.ARMORS).filter(k => G.ARMORS[k].r).map(k => {
       const A = G.ARMORS[k], lock = A.tier > maxT;
       const st = Object.keys(A.st).map(s => `${G.STATN[s]} +${A.st[s]}`).join(', ');
-      return `<div class="cell recipe ${lock ? 'locked' : ''}"><div><b>${A.slot === 'armor' ? '🛡️' : '💍'} ${A.n}</b> <small>rang ${A.tier}${S.armors[k] ? ` · possédé ×${S.armors[k]}` : ''}</small><div class="dim small">${st}${st ? ' · ' : ''}${A.d}</div><div class="cost-line">${lock ? `Atelier niv. ${A.tier - 1} requis` : G.costHTML(A.r)}</div></div><button class="btn sm gold" data-a="craftA" data-i="${k}" ${!lock && G.canPay(A.r) ? '' : 'disabled'}>Fabriquer</button></div>`;
+      return `<div class="cell recipe ${lock ? 'locked' : ''} ${A.legend ? 'legendary' : ''}"><div><b>${A.legend ? '♛' : A.slot === 'armor' ? '🛡️' : '💍'} ${A.n}</b> <small>rang ${A.tier}${S.armors[k] ? ` · possédé ×${S.armors[k]}` : ''}</small><div class="dim small">${st}${st ? ' · ' : ''}${A.d}</div><div class="cost-line">${lock ? `Atelier niv. ${A.tier - 1} requis` : G.costHTML(A.r)}</div></div><button class="btn sm gold" data-a="craftA" data-i="${k}" ${!lock && G.canPay(A.r) ? '' : 'disabled'}>Fabriquer</button></div>`;
     }).join('');
     const tools = Object.keys(G.TOOLS).map(k => {
       const T = G.TOOLS[k], have = S.tools[T.type] >= T.tier;
@@ -307,33 +307,41 @@ G.UI = {
   huntsHTML() {
     const S = G.S, ri = G.hunterRankIdx(), R = G.HUNT_RANKS[ri], next = G.HUNT_RANKS[ri + 1];
     const plv = Math.round(S.party.reduce((a, c) => a + S.chars[c].lvl, 0) / S.party.length);
-    const card = (h, eid, rw, pts, unlocked) => {
-      const E = G.ENEMIES[eid], st = S.hunts[h.id];
-      const rewards = G.rewardText(rw).map(t => `<span class="pill ${/🛡️|🐾/.test(t) ? 'excl' : ''}">${esc(t)}</span>`).join(' ');
+    const card = (h, eid, rw, pts, unlocked, why) => {
+      const E = G.ENEMIES[eid], st = S.hunts[h.id], prem = h.premium, nPrem = (S.hunter.prem || {})[h.id] || 0;
+      const rwShow = prem && nPrem > 0 ? h.rep : rw;
+      const rewards = G.rewardText(rwShow).map(t => `<span class="pill ${/🛡️|🐾/.test(t) ? 'excl' : ''} ${Object.keys(G.MATS).some(k => G.MATS[k].legend && t.includes(G.MATS[k].n)) ? 'legend' : ''}">${esc(t)}</span>`).join(' ');
       let act;
-      if (!unlocked) act = `<div class="small no">🔒 Rang ${h.rank} requis</div>`;
+      if (!unlocked) act = `<div class="small no">🔒 ${esc(why)}</div>`;
       else if (st === 'done') act = `<button class="btn gold" data-a="claimHunt" data-i="${h.id}">✦ Toucher la prime</button>`;
-      else if (st === 'active') act = `<div class="small ok">☠ Cible marquée sur la carte — ${esc(G.ZONES[h.zone].n)}</div>`;
-      else if (st === 'claimed') act = '<div class="small ok">✔ Chasse accomplie</div>';
-      else act = `<button class="btn" data-a="acceptHunt" data-i="${h.id}">Accepter le contrat</button>`;
+      else if (st === 'active') act = `<div class="small ok">☠ Cible marquée sur la carte — ${esc(h.sub != null ? G.SUBZONES[h.zone][h.sub].n : G.ZONES[h.zone].n)}</div>`;
+      else if (st === 'claimed' && !prem) act = '<div class="small ok">✔ Chasse accomplie</div>';
+      else act = `<button class="btn ${prem ? 'gold' : ''}" data-a="acceptHunt" data-i="${h.id}">${prem && nPrem ? `Rechasser (${nPrem}× vaincu)` : 'Accepter le contrat'}</button>`;
       const low = unlocked && st !== 'claimed' && plv < E.lvl - 2;
-      return `<div class="card hcard ${unlocked ? '' : 'locked'} ${st || ''}" data-rank="${h.rank}">
-        <div class="pc-head"><img class="portrait" src="${G.SPR.enemyURL(eid)}"><div><div class="hrank">Rang ${h.rank}</div><h3>${esc(h.n)}</h3>
-        <div class="small">${esc(E.n)} · <b class="${low ? 'no' : ''}">niv. ${E.lvl}</b> · ${esc(G.ZONES[h.zone].n)}</div></div></div>
+      const where = h.sub != null ? G.SUBZONES[h.zone][h.sub].n : prem ? 'Profondeurs — ' + G.ZONES[h.zone].n : G.ZONES[h.zone].n;
+      return `<div class="card hcard ${prem ? 'premium' : ''} ${unlocked ? '' : 'locked'} ${st || ''}" data-rank="${h.rank}">
+        <div class="pc-head"><img class="portrait" src="${G.SPR.enemyURL(eid)}"><div><div class="hrank">${prem ? '♛ Premium' : 'Rang ' + h.rank}</div><h3>${esc(h.n)}</h3>
+        <div class="small">${esc(E.n)} · <b class="${low ? 'no' : ''}">niv. ${E.lvl}</b> · ${esc(where)}</div></div></div>
         <div class="small dim">${esc(h.d)}</div>
-        <div class="small">Prime : ${rewards} <span class="pill">🎯 +${pts} pts</span></div>
+        <div class="small">${prem && nPrem ? 'Prime répétable' : 'Prime'} : ${rewards} ${prem && nPrem ? '' : `<span class="pill">🎯 +${pts} pts</span>`}</div>
         <div class="actions">${act}</div></div>`;
     };
     const ranks = G.HUNT_RANKS.map((X, i) => `<div class="hr ${i <= ri ? 'on' : ''}"><b>${X.r}</b><span>${X.pts} pts</span><small>${esc(X.b)}</small></div>`).join('');
-    const groups = ['D', 'C', 'B', 'A', 'S'].map(r => {
-      const list = G.HUNTS.filter(h => h.rank === r).map(h => card(h, h.t, h.rw, h.pts, G.huntUnlocked(h))).join('');
-      return `<h3>Contrats de rang ${r}</h3><div class="cards">${list}</div>`;
+    const groups = G.ZONE_ORDER.map(z => {
+      const L = G.HUNTS.filter(h => h.zone === z), std = L.filter(h => !h.premium), done = std.filter(h => S.hunts[h.id] === 'claimed').length;
+      const cards = L.map(h => {
+        const ok = G.huntUnlocked(h);
+        const why = !G.huntRankOk(h) ? `Rang ${h.rank} requis` : `Accomplissez d’abord les 3 chasses de la région (${done}/3)`;
+        return card(h, h.t, h.rw, h.pts, ok, why);
+      }).join('');
+      const legend = G.MATS[G.PREMIUM_LOOT[z]];
+      return `<h3>${esc(G.ZONES[z].n)} <small class="dim">rang ${G.ZONE_RANK[z]} · ${done}/3 chasses · butin premium : ${legend.i} ${esc(legend.n)}</small></h3><div class="cards">${cards}</div>`;
     }).join('');
     const n = S.hunter.inf, infId = G.makeInfinite(n);
-    const inf = card(G.HUNT_INF, infId, G.infReward(n), 3, ri >= 4);
+    const inf = card(G.HUNT_INF, infId, G.infReward(n), 3, ri >= 4, 'Rang S requis');
     return `<h2>Tableau de chasse</h2>
       <div class="card hunter"><div class="hbig">${R.r}</div><div style="flex:1;min-width:0"><b>Rang de chasseur ${R.r}</b> · ${S.hunter.pts} points de chasse${next ? ` — prochain rang ${next.r} à ${next.pts} pts` : ' — rang maximal'}
-        ${next ? bar(S.hunter.pts - R.pts, next.pts - R.pts, 'exp') : ''}<div class="dim small">Les primes contiennent des équipements, un familier et des matériaux introuvables ailleurs. L’Âme primordiale (rangs A et S) éveille une arme au rang 6.</div></div></div>
+        ${next ? bar(S.hunter.pts - R.pts, next.pts - R.pts, 'exp') : ''}<div class="dim small">Chaque région propose 3 chasses (une par sous-zone). Une fois les 3 primes touchées, la chasse premium ♛ apparaît : elle seule donne le matériau légendaire de la région, indispensable aux armes de rang 7 et aux armures légendaires. Elle peut être refaite.</div></div></div>
       <div class="hranks">${ranks}</div>${groups}
       <h3>Traque infinie <small class="dim">(répétable, +3 niveaux à chaque victoire — ${n} vague(s) vaincue(s))</small></h3><div class="cards">${inf}</div>`;
   },
@@ -411,8 +419,11 @@ G.UI = {
     for (let yy = 0; yy < W.H; yy++) for (let xx = 0; xx < W.W; xx++) {
       const i = (yy * W.W + xx) * 4, c = rgb[W.t[yy][xx]] || [0, 0, 0], z = W.z[yy][xx], zr = zrgb[z];
       let r = c[0] * 0.8 + zr[0] * 0.2, g = c[1] * 0.8 + zr[1] * 0.2, b = c[2] * 0.8 + zr[2] * 0.2;
+      const SZ = G.SUBZONES[z] && G.SUBZONES[z][W.subAt(xx, yy)];
+      if (SZ && W.t[yy][xx] !== '~' && W.t[yy][xx] !== 's') { const t = SZ.tint, a = t[3] * 1.3; r += (t[0] - r) * a; g += (t[1] - g) * a; b += (t[2] - b) * a; }
       const edge = (xx + 1 < W.W && W.z[yy][xx + 1] !== z) || (yy + 1 < W.H && W.z[yy + 1][xx] !== z);
       if (edge) { r = 255; g = 250; b = 235; }
+      else if (!z.match(/bourg|havre/) && xx + 1 < W.W && yy + 1 < W.H && ((W.subAt(xx + 1, yy) !== W.subAt(xx, yy) && W.z[yy][xx + 1] === z) || (W.subAt(xx, yy + 1) !== W.subAt(xx, yy) && W.z[yy + 1][xx] === z)) && ((xx + yy) % 3)) { r = r * 0.5 + 120; g = g * 0.5 + 120; b = b * 0.5 + 120; }
       if (!W.isExplored(xx, yy)) { const n = U.hash(xx >> 2, yy >> 2, 7) * 6; r = 14 + n; g = 16 + n; b = 34 + n; if (edge) { r += 10; g += 10; b += 14; } }
       D[i] = r; D[i + 1] = g; D[i + 2] = b; D[i + 3] = 255;
     }
@@ -430,9 +441,12 @@ G.UI = {
       else if (e.k === 'barrier') { x.fillStyle = '#ff8a2a'; x.fillText('▲', cx, cy); }
     });
     x.fillStyle = '#fff'; x.beginPath(); x.arc(W.P.x * s + s / 2, W.P.y * s + s / 2, 4, 0, 7); x.fill(); x.strokeStyle = '#000'; x.lineWidth = 1.5; x.stroke();
-    x.font = 'bold 13px sans-serif';
+    x.font = 'bold 12px sans-serif';
     const lab = [['Bourg-Aube', W.BOURG[0] + 4, W.BOURG[1] - 4], ['Le Havre', W.HAVRE[0] + 6, W.HAVRE[1] - 4]];
-    W.E.filter(e => e.k === 'boss').forEach(e => lab.push([G.ZONES[W.zoneAt(e.x, e.y)].n, e.x, e.y - 6]));
+    // nom de chaque sous-zone au centre de ses foyers
+    const acc = {};
+    W.sites.forEach(st => { if (!G.SUBZONES[st.type]) return; const k = st.type + st.sub; (acc[k] = acc[k] || { n: G.SUBZONES[st.type][st.sub].n, x: 0, y: 0, c: 0 }); acc[k].x += st.x; acc[k].y += st.y; acc[k].c++; });
+    Object.keys(acc).forEach(k => { const a = acc[k], mx = a.x / a.c, my = a.y / a.c; const st = W.sites.filter(q => q.type + q.sub === k).sort((p, q) => Math.hypot(p.x - mx, p.y - my) - Math.hypot(q.x - mx, q.y - my))[0]; lab.push([a.n, st.x, st.y + 5]); });
     lab.forEach(([n, a, b]) => { if (!W.isExplored(a, b + 4)) return; x.strokeStyle = 'rgba(0,0,0,0.75)'; x.lineWidth = 3; x.strokeText(n, a * s, b * s); x.fillStyle = 'rgba(255,255,255,0.95)'; x.fillText(n, a * s, b * s); });
     // centre la vue sur le joueur
     const wrap = cv.parentElement; if (wrap) requestAnimationFrame(() => { const k = cv.clientWidth / cv.width; wrap.scrollLeft = W.P.x * s * k - wrap.clientWidth / 2; wrap.scrollTop = W.P.y * s * k - wrap.clientHeight / 2; });
@@ -481,7 +495,7 @@ G.UI = {
         if (!(S.items[d.i] > 0)) return;
         G.healAll(); G.give(d.i, -1); G.Audio.sfx('heal'); this.toast(`${I.i} ${I.n} : équipe entièrement restaurée.`); R();
       },
-      acceptHunt: d => { S.hunts[d.i] = 'active'; if (d.i === 'inf') G.makeInfinite(S.hunter.inf); G.World.refresh(); G.Audio.sfx('ok'); this.toast('Contrat accepté : la cible est marquée ☠ sur la carte.'); R(); },
+      acceptHunt: d => { const h = G.HUNTS.find(x => x.id === d.i); if (h && !G.huntUnlocked(h)) return; S.hunts[d.i] = 'active'; if (d.i === 'inf') G.makeInfinite(S.hunter.inf); G.World.refresh(); G.Audio.sfx('ok'); this.toast('Contrat accepté : la cible est marquée ☠ sur la carte.'); R(); },
       claimHunt: d => {
         const before = G.hunterRankIdx(), rw = G.claimHunt(d.i);
         if (!rw) return;

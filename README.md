@@ -57,9 +57,11 @@ La partie est sauvegardée dans le navigateur : automatiquement, à l’auberge 
 - **Itinéraire** (coin supérieur gauche) : ordre conseillé des régions, niveaux recommandés, région actuelle et Gardiens vaincus. Repliable.
 - **Butin lisible** : chaque objet obtenu indique le nouveau total en stock.
 - **Montée de niveau** : les PV et PM sont entièrement restaurés.
-- **Tableau de chasse** (Bourg-Aube, Havre ou Menu › Chasses) : 12 contrats contre des monstres d’élite marqués ☠ sur la carte (niveaux 5 à 28), répartis en rangs D, C, B, A et S.
-  - Chaque prime donne des points de chasse, qui font monter le rang de chasseur et ses bonus permanents (EXP, or, butin).
-  - Récompenses introuvables ailleurs : 12 équipements uniques, le familier Lumi, la Mégalixir et l’Âme primordiale, qui éveille une arme au rang 6.
+- **Sous-zones** : chaque région est divisée en 3 sous-zones reconnaissables (ex. Bois-Clair, Sylve profonde, Forêt d’automne ; Contreforts, Pics enneigés, Gorges cristallines), chacune avec sa teinte, ses essences d’arbres, son relief et ses décors, nommée à l’écran et sur la carte.
+- **Tableau de chasse** (Bourg-Aube, Havre ou Menu › Chasses) : 20 contrats, 4 par région.
+  - 3 chasses standard par région, une dans chaque sous-zone, qui donnent équipements uniques et points de chasse (rangs D à S, bonus permanents).
+  - 1 chasse premium ♛ par région, qui n’apparaît qu’une fois les 3 primes standard de la région touchées. Elle est répétable et donne le seul matériau légendaire de la région : Plume d’aurore, Sève éternelle, Cœur de cristal, Perle abyssale, Flamme primordiale.
+  - Ces matériaux permettent l’éveil légendaire des armes au rang 7 (rang maximum, Forge niv. 4) et la fabrication de 5 armures et accessoires légendaires (Atelier niv. 3).
   - Au rang S, la Traque infinie est répétable et monte de 3 niveaux à chaque victoire.
 - **Histoire** : 4 Gardiens corrompus à purifier, une barrière à briser, puis le dragon Ignar.
 

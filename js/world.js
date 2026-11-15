@@ -55,6 +55,16 @@ G.World = {
       else { const m = 0.5 + north * 0.35 - east * 0.45 + (U.hash(s.x, s.y, 314) - 0.5) * 0.7; s.type = U.hash(s.x, s.y, 315) < 0.12 ? 'foret' : m > 0.5 ? 'montagne' : 'marais'; }
     });
     ['foret', 'montagne', 'marais'].forEach((z, j) => { let n = sites.filter(s => s.type === z).length; sites.filter(s => s.type === 'plaines' && Math.hypot(s.x - cx0, s.y - cy0) > 120).sort((a, b) => U.hash(a.x, a.y, 330 + j) - U.hash(b.x, b.y, 330 + j)).forEach(s => { if (n < 4) { s.type = z; n++; } }); });
+    // sous-zones : les foyers d'une région sont répartis en 3 secteurs angulaires autour du bourg
+    ['plaines', 'foret', 'montagne', 'marais', 'volcan'].forEach(z => {
+      const L = sites.filter(s => s.type === z).map(s => ({ s, a: Math.atan2(s.y - cy0, s.x - cx0) }));
+      if (!L.length) return;
+      // coupe l'anneau au plus grand vide angulaire pour garder des secteurs contigus
+      L.sort((p, q) => p.a - q.a);
+      let gi = 0, gap = -1; L.forEach((p, i) => { const nx = L[(i + 1) % L.length], g = ((nx.a - p.a) + Math.PI * 2) % (Math.PI * 2) || Math.PI * 2; if (g > gap) { gap = g; gi = (i + 1) % L.length; } });
+      const ord = L.slice(gi).concat(L.slice(0, gi));
+      ord.forEach((p, i) => { p.s.sub = Math.min(2, Math.floor(i * 3 / ord.length)); });
+    });
     this.sites = sites;
     // --- régions par plus proche foyer (coordonnées déformées) ---
     this.t = []; this.z = []; this.sid = [];
@@ -62,7 +72,7 @@ G.World = {
     const GC = SP, GW = Math.ceil(W / GC) + 1, GH = Math.ceil(H / GC) + 1, grid = Array.from({ length: GW * GH }, () => []);
     sites.forEach((st, i) => grid[Math.min(GH - 1, Math.floor(st.y / GC)) * GW + Math.min(GW - 1, Math.floor(st.x / GC))].push(i));
     for (let y = 0; y < H; y++) {
-      const tr = new Array(W), zr = new Array(W), sr = new Int16Array(W);
+      const tR = new Array(W), zr = new Array(W), sr = new Int16Array(W);
       for (let x = 0; x < W; x++) {
         const wx = x + (U.fbm(x / 50, y / 50, 401) - 0.5) * 95 + (U.noise(x / 14, y / 14, 403) - 0.5) * 16;
         const wy = y + (U.fbm(x / 50, y / 50, 402) - 0.5) * 95 + (U.noise(x / 14, y / 14, 404) - 0.5) * 16;
@@ -70,15 +80,16 @@ G.World = {
         const gcx = Math.floor(wx / GC), gcy = Math.floor(wy / GC);
         for (let gy2 = gcy - 2; gy2 <= gcy + 2; gy2++) { if (gy2 < 0 || gy2 >= GH) continue; for (let gx2 = gcx - 2; gx2 <= gcx + 2; gx2++) { if (gx2 < 0 || gx2 >= GW) continue; const L = grid[gy2 * GW + gx2]; for (let k = 0; k < L.length; k++) { const i = L[k], dx = wx - sites[i].x, dy = wy - sites[i].y, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; bi = i; } } } }
         const zone = sites[bi].type, n = U.fbm(x / 6, y / 6, 11), h = U.hash(x, y, 21);
+        const SZ = G.SUBZONES[zone] && G.SUBZONES[zone][sites[bi].sub || 0], tr = SZ && SZ.terrain;
         let ch;
-        if (zone === 'montagne') ch = n > 0.58 ? '^' : 'r';
-        else if (zone === 'foret') ch = (n > 0.57 || h < 0.08) ? 'T' : 'f';
-        else if (zone === 'volcan') ch = n > 0.69 ? 'l' : 'v';
-        else if (zone === 'marais') { ch = n > 0.6 ? 'w' : 'm'; if (h < 0.05) ch = 'T'; }
+        if (zone === 'montagne') ch = n > (tr || 0.58) ? '^' : 'r';
+        else if (zone === 'foret') ch = (n > (tr || 0.57) || h < 0.08) ? 'T' : 'f';
+        else if (zone === 'volcan') ch = n > (tr || 0.69) ? 'l' : 'v';
+        else if (zone === 'marais') { ch = n > (tr || 0.6) ? 'w' : 'm'; if (h < 0.05) ch = 'T'; }
         else { ch = h < 0.07 ? ',' : '.'; if (n > 0.72 && h < 0.5) ch = 'T'; if (U.fbm(x / 14, y / 14, 71) > 0.76) ch = '~'; }
-        tr[x] = ch; zr[x] = zone; sr[x] = bi;
+        tR[x] = ch; zr[x] = zone; sr[x] = bi;
       }
-      this.t.push(tr); this.z.push(zr); this.sid.push(sr);
+      this.t.push(tR); this.z.push(zr); this.sid.push(sr);
     }
     // --- fleuves ---
     const riverOk = z => z === 'plaines' || z === 'foret' || z === 'marais';
@@ -229,6 +240,8 @@ G.World = {
   },
   tile(x, y) { return (x < 0 || y < 0 || x >= this.W || y >= this.H) ? '^' : this.t[y][x]; },
   zoneAt(x, y) { return (this.z[y] && this.z[y][x]) || 'plaines'; },
+  subAt(x, y) { const r = this.sid && this.sid[y]; return r ? (this.sites[r[x]].sub || 0) : 0; },
+  subInfo(x, y) { const S = G.SUBZONES[this.zoneAt(x, y)]; return S ? S[this.subAt(x, y)] : null; },
   // cases accessibles depuis le départ (la barrière du volcan compte comme ouverte)
   computeReach() {
     const W = this.W, H = this.H, R = this.reach = new Uint8Array(W * H), occ = this.occGrid;
@@ -267,7 +280,7 @@ G.World = {
     return true;
   },
   // cherche une case convenable dans une région, à une profondeur donnée
-  findSpot(zone, minD, maxD, seed, near) {
+  findSpot(zone, minD, maxD, seed, near, sub) {
     const tries = 4000;
     for (let i = 0; i < tries; i++) {
       let x, y;
@@ -275,6 +288,7 @@ G.World = {
       else { x = 3 + Math.floor(U.hash(i, seed, 3) * (this.W - 6)); y = 3 + Math.floor(U.hash(seed, i, 4) * (this.H - 6)); }
       if (x < 3 || y < 3 || x >= this.W - 3 || y >= this.H - 3) continue;
       if (zone && this.z[y][x] !== zone) continue;
+      if (sub != null && this.subAt(x, y) !== sub) continue;
       const d = this.depthAt(x, y); if (d < minD || d > maxD) continue;
       if (this.okSpot(x, y)) return [x, y];
     }
@@ -370,8 +384,8 @@ G.World = {
     });
     // --- cibles de chasse : dans leur région, assez profond ---
     G.HUNTS.concat([G.HUNT_INF]).forEach((h, i) => {
-      const lvl = h.id === 'inf' ? 30 : G.ENEMIES[h.t].lvl, minD = h.zone === 'plaines' ? 0.15 : Math.min(0.75, 0.25 + (lvl % 10) * 0.05);
-      h.at = this.findSpot(h.zone, minD, 1, 600 + i) || this.findSpot(h.zone, 0, 1, 700 + i) || [bx + 10, by + 10];
+      const minD = h.premium ? 0.7 : h.zone === 'plaines' ? 0.15 : 0.35;
+      h.at = this.findSpot(h.zone, minD, 1, 600 + i, null, h.sub) || this.findSpot(h.zone, h.premium ? 0.45 : 0, 1, 700 + i, null, h.sub) || this.findSpot(h.zone, 0, 1, 750 + i) || [bx + 10, by + 10];
       add({ k: 'hunt', id: 'hunt_' + h.id, hunt: h.id, x: h.at[0], y: h.at[1], show: () => S().hunts[h.id] === 'active', act: () => this.huntTalk(h.id) });
     });
     // --- coffres nommés ---
@@ -505,7 +519,7 @@ G.World = {
     P.x = P.tx = x; P.y = P.ty = y; P.px = x * 16; P.py = y * 16; P.dir = dir || 'down'; P.moving = false;
     this.followers = G.S.party.slice(1).map(() => ({ x, y, px: x * 16, py: y * 16, fx: x, fy: y, dir: P.dir }));
     G.S.pos = { x, y, dir: P.dir };
-    this.lastZone = this.zoneAt(x, y);
+    this.lastZone = this.zoneAt(x, y); this.lastSub = G.ZONES[this.lastZone].town ? -1 : this.subAt(x, y);
     this.explore(x, y);
     this.snapCam();
   },
@@ -577,7 +591,9 @@ G.World = {
     S.flags.visited = S.flags.visited || {};
     const first = !S.flags.visited[zone];
     S.flags.visited[zone] = true;
-    if (zone !== this.lastZone) { if (this.lastZone) G.UI.zoneBanner(Z, first && !Z.town); this.lastZone = zone; }
+    const sub = Z.town ? -1 : this.subAt(P.x, P.y);
+    if (zone !== this.lastZone) { if (this.lastZone) G.UI.zoneBanner(Z, first && !Z.town, this.subInfo(P.x, P.y)); this.lastZone = zone; this.lastSub = sub; }
+    else if (sub !== this.lastSub) { this.lastSub = sub; if (sub >= 0) G.UI.zoneBanner(Z, false, this.subInfo(P.x, P.y)); }
     this.explore(P.x, P.y);
     for (const c of this.camps) if (Math.abs(c.x - P.x) <= 4 && Math.abs(c.y - P.y) <= 4) { S.flags.camps = S.flags.camps || {}; if (!S.flags.camps[c.id]) { S.flags.camps[c.id] = true; G.UI.toast(`⛺ Camp découvert : ${c.name} (voyage rapide)`); } }
     if (zone === 'havre' && !S.flags.bran) { this.branEvent(); return; }
@@ -832,7 +848,9 @@ G.World = {
     const x = Math.random() * R.W, y = Math.random() * R.H;
     const P = (o) => R.parts.push(Object.assign({ x, y, vx: 0, vy: 0, life: 4, max: 4, size: 1, c: '#fff', glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 }, o));
     if (zone === 'foret') { if (Math.random() < 0.5) P({ y: -4, vx: U.rand(-8, 8), vy: U.rand(8, 16), c: U.pick(['#6a9a3a', '#a8a040', '#4a7a2a']), glow: false, type: 'leaf', size: 1.4, life: 6, max: 6 }); }
+    else if (zone === 'montagne' && this.subAt(this.P.x, this.P.y) === 1) { P({ y: -4, vx: U.rand(-16, -6), vy: U.rand(14, 26), c: '#ffffff', glow: false, size: 1.1, life: 6, max: 6 }); P({ y: -4, vx: U.rand(-16, -6), vy: U.rand(14, 26), c: '#ffffff', glow: false, size: 0.8, life: 6, max: 6 }); }
     else if (zone === 'montagne') P({ y: -4, vx: U.rand(-12, -4), vy: U.rand(10, 20), c: '#ffffff', glow: false, size: 0.8, life: 6, max: 6 });
+    else if (zone === 'marais' && this.subAt(this.P.x, this.P.y) === 2) { if (Math.random() < 0.5) P({ vx: U.rand(-5, 5), c: '#c8a8ff', type: 'fog', size: U.rand(24, 44), life: 6, max: 6 }); }
     else if (zone === 'marais') { if (Math.random() < 0.35) P({ vx: U.rand(-5, 5), c: '#c8e8d8', type: 'fog', size: U.rand(20, 40), life: 6, max: 6 }); }
     else if (zone === 'volcan') P({ y: R.H + 2, vx: U.rand(-6, 6), vy: U.rand(-25, -12), c: U.pick(['#ff8a2a', '#ffcf40']), size: 0.9, life: 5, max: 5 });
     else if (Math.random() < 0.3) P({ vx: U.rand(-4, 4), vy: U.rand(-4, 2), c: night ? '#d8ff6a' : '#fff8d0', size: night ? 1 : 0.6, life: 3, max: 3 });
@@ -909,7 +927,8 @@ G.World = {
   },
   // espèce d'arbre selon la région (variété du paysage)
   treeKind(tx, ty, zone) {
-    const h = U.hash(tx, ty, 9), n = U.fbm(tx / 7, ty / 7, 41);
+    const h = U.hash(tx, ty, 9), n = U.fbm(tx / 7, ty / 7, 41), SZ = this.subInfo(tx, ty);
+    if (SZ && zone !== 'bourg' && zone !== 'havre') return SZ.trees[Math.floor(h * SZ.trees.length)];
     if (zone === 'foret') return h < 0.42 ? 'pine' : h < 0.86 ? 'forest' : h < 0.95 ? 'birch' : 'giant';
     if (zone === 'marais') return h < 0.45 ? 'willow' : 'swamp';
     if (zone === 'volcan') return 'volcano';
@@ -938,6 +957,8 @@ G.World = {
       marais: [[0.09, 'reeds'], [0.14, 'puddle'], [0.18, 'mushroom'], [0.2, 'log']],
       volcan: [[0.07, 'shard'], [0.11, 'vent'], [0.14, 'bones'], [0.18, 'gravel']],
     }[zone] || [];
+    const SZ = this.subInfo(tx, ty);
+    if (SZ && SZ.deco && h > 0.9 && h < 0.94) return SZ.deco;
     const r = L.find(q => h < q[0]);
     return r ? r[1] : null;
   },
@@ -973,9 +994,11 @@ G.World = {
         else if (ch === 'f') { if (n > 0.55) { tr = 20; tg = 70; tb = 60; a = (n - 0.55) * 0.8; } else { tr = 90; tg = 110; tb = 40; a = (0.55 - n) * 0.4; } }
         else if (ch === 'r') { if (n < 0.45) { tr = 120; tg = 96; tb = 70; a = (0.45 - n) * 0.8; } else { tr = 100; tg = 110; tb = 130; a = (n - 0.45) * 0.5; } }
         a = Math.min(0.32, a);
+        const SZ = this.subInfo(tx, ty), st = SZ ? SZ.tint : null;
         for (let Y = BY; Y < BY + 4; Y++) for (let X = BX; X < BX + 4; X++) {
           const i = (Y * W + X) * 4; if (D[i + 3] === 0) continue;
           D[i] = Math.min(255, (D[i] * (1 - a) + tr * a) * (1 + b)); D[i + 1] = Math.min(255, (D[i + 1] * (1 - a) + tg * a) * (1 + b)); D[i + 2] = Math.min(255, (D[i + 2] * (1 - a) + tb * a) * (1 + b));
+          if (st) { D[i] += (st[0] - D[i]) * st[3]; D[i + 1] += (st[1] - D[i + 1]) * st[3]; D[i + 2] += (st[2] - D[i + 2]) * st[3]; }
         }
       }
       x.putImageData(img, 0, 0);

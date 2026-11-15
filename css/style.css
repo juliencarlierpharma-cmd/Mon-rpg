@@ -109,7 +109,7 @@ button { font-family: inherit; color: inherit; }
 .pc-head { display: flex; gap: 10px; align-items: center; }
 .pc-head > div { flex: 1; }
 .portrait { width: 72px; height: 72px; image-rendering: pixelated; background: radial-gradient(circle, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0)); border-radius: 8px; }
-.mini { width: 20px; height: 20px; image-rendering: pixelated; vertical-align: middle; }
+img.mini { width: 20px; height: 20px; image-rendering: pixelated; vertical-align: middle; }
 .hpmp { font-size: 12px; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 10px; font-size: 13px; }
 .stats.mini { grid-template-columns: repeat(4, 1fr); font-size: 12px; }
@@ -301,3 +301,10 @@ body:has(.menu-wrap) #touch { display: none; }
 .hcard.done { box-shadow: 0 0 0 2px var(--gold), 0 0 16px rgba(255, 216, 106, 0.4); }
 .hrank { font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); }
 .pill.excl { border-color: #ff8ad8; color: #ffc8ec; }
+
+/* ---------- Légendaire & premium ---------- */
+.hcard.premium { border-left-color: #ffd040; background: linear-gradient(135deg, rgba(120, 80, 10, 0.35), rgba(0, 0, 20, 0.35)); box-shadow: 0 0 0 1px rgba(255, 208, 64, 0.45), 0 0 18px rgba(255, 180, 40, 0.25); }
+.hcard.premium.locked { opacity: 0.55; filter: grayscale(0.4); }
+.pill.legend, .legend-tag { border-color: #ffd040; color: #ffe8a0; background: rgba(255, 190, 40, 0.15); text-shadow: 0 0 6px #ffb030; }
+.legend-tag { display: inline-block; padding: 0 6px; border-radius: 99px; border: 1px solid #ffd040; font-size: 11px; font-weight: 800; }
+.cell.recipe.legendary { border-color: #ffd040; background: linear-gradient(135deg, rgba(120, 80, 10, 0.3), rgba(0, 0, 20, 0.3)); }

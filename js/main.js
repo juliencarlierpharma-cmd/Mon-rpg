@@ -87,7 +87,7 @@ G.showTitle = () => {
       { who: 'Démo', t: 'Menu › Accomplissements : deux récompenses attendent d’être réclamées. Menu › Havre : construisez et améliorez les bâtiments.' },
       { who: 'Démo', t: 'Les familiers sont liés et leur énergie est pleine dès le début de chaque combat : essayez la commande « Familier » !' },
       { who: 'Démo', t: 'Le monde est immense : Menu › Carte › Voyage rapide vous mène aux camps de chaque région (marais de l’Hydre, monts de la Wyverne…).' },
-      { who: 'Démo', t: 'Le tableau de chasse (à droite de la pierre de fondation, ou Menu › Chasses) propose des contrats d’élite aux primes exclusives. Vous êtes chasseur de rang B, et le Golem d’obsidienne vous attend dans les Monts Grisés !' },
+      { who: 'Démo', t: 'Le tableau de chasse (à droite de la pierre de fondation, ou Menu › Chasses) propose des contrats d’élite aux primes exclusives. Les trois chasses des Plaines sont faites : la chasse premium du Seigneur des corbeaux est débloquée, et la Liane-mère vous attend en forêt !' },
       { who: 'Démo', t: 'Et devant la pierre de fondation, faites face à un arbre ou un rocher et appuyez sur A pour récolter. Bonne aventure !' },
     ]);
     G.UI.checkAch();
@@ -142,8 +142,8 @@ G.demoState = () => {
   S.npcs = { dorn: true, mira: true, pell: true, yuna: true, fen: true };
   S.quests = { q_havre: 'done', r_dorn: 'done', r_mira: 'done', r_pell: 'done', r_yuna: 'done', r_fen: 'done', r_grom: 'active', r_lise: 'active' };
   ['a_first', 'a_hunter', 'a_gather', 'a_forge1', 'a_sylve', 'a_weak', 'a_town1', 'a_craft', 'a_lvl10'].forEach(a => S.ach[a] = true);
-  S.hunts = { h1: 'claimed', h2: 'claimed', h3: 'claimed', h4: 'claimed', h5: 'active' };
-  S.hunter = { pts: 10, inf: 0 };
+  S.hunts = { pl1: 'claimed', pl2: 'claimed', pl3: 'claimed', fo1: 'claimed', fo2: 'active' };
+  S.hunter = { pts: 9, inf: 0 };
   Object.assign(S.armors, { couronne_gel: 1, cape_traqueur: 1, masque_sporal: 1, lanterne_ames: 1 });
   S.mats.trophee = 4;
   S.time = 10 * 60;

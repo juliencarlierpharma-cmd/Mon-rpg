@@ -35,6 +35,11 @@ G.MATS = {
   plume_tempete: { n: 'Plume de Tempête', i: '⚡', p: 0, d: 'Plume crépitante de la Wyverne.' },
   larme_hydre: { n: 'Larme d’Hydre', i: '💧', p: 0, d: 'Perle d’eau éternelle.' },
   ecaille_ignar: { n: 'Écaille d’Ignar', i: '🐉', p: 0, d: 'Écaille brûlante du Dragon des Cendres.' },
+  plume_aurore: { n: 'Plume d’aurore', i: '🌅', p: 0, legend: true, d: 'Légendaire. Butin exclusif de la chasse premium des Plaines. Éveil légendaire des armes de Vent.' },
+  seve_eternelle: { n: 'Sève éternelle', i: '🌿', p: 0, legend: true, d: 'Légendaire. Butin exclusif de la chasse premium de la Forêt. Requise pour tout éveil légendaire.' },
+  coeur_cristal: { n: 'Cœur de cristal', i: '💠', p: 0, legend: true, d: 'Légendaire. Butin exclusif de la chasse premium des Monts. Éveil légendaire des armes de Terre.' },
+  perle_abyssale: { n: 'Perle abyssale', i: '🦪', p: 0, legend: true, d: 'Légendaire. Butin exclusif de la chasse premium du Marais. Éveil légendaire des armes d’Eau.' },
+  flamme_primordiale: { n: 'Flamme primordiale', i: '☄️', p: 0, legend: true, d: 'Légendaire. Butin exclusif de la chasse premium du Volcan. Éveil légendaire des armes de Feu.' },
   trophee: { n: 'Trophée de chasse', i: '🏅', p: 0, d: 'Preuve d’une chasse d’élite. Exclusif au tableau de chasse.' },
   ame: { n: 'Âme primordiale', i: '🌟', p: 0, d: 'Exclusive aux chasses de rang A et S. Éveille une arme au rang 6.' },
 };
@@ -339,7 +344,8 @@ G.WEAPONS = {
     recipe: { g: 0, m: { bois: 4, pierre: 4 } },
   },
 };
-G.MAX_TIER = 6;
+G.MAX_TIER = 7;
+G.LEGEND_MAT = { feu: 'flamme_primordiale', eau: 'perle_abyssale', vent: 'plume_aurore', terre: 'coeur_cristal' };
 // coût d'amélioration rang t -> t+1
 G.upgradeCost = (w, t) => {
   const slotEss = 'essence_' + w.slot;
@@ -347,7 +353,8 @@ G.upgradeCost = (w, t) => {
   if (t === 2) return { g: 320, m: { lingot: 4, [w.upMat]: 5, [slotEss]: 2 } };
   if (t === 3) return { g: 750, m: { lingot: 6, cristal: 3, [slotEss]: 4, echo: 1 } };
   if (t === 4) return { g: 1600, m: { mithril: 4, [slotEss]: 6, echo: 2 } };
-  return { g: 3000, m: { ame: 1, mithril: 4, echo: 2 } }; // éveil : rang 6
+  if (t === 5) return { g: 3000, m: { ame: 1, mithril: 4, echo: 2 } }; // éveil : rang 6
+  return { g: 6000, m: { [G.LEGEND_MAT[w.slot]]: 2, seve_eternelle: 1, mithril: 6, echo: 3 } }; // légendaire : rang 7
 };
 
 // ---------------- Armures & accessoires ----------------
@@ -370,6 +377,12 @@ G.ARMORS = {
   larme_acc: { n: 'Pendentif de l’Hydre', slot: 'acc', tier: 0, st: { mp: 20, res: 8 }, mods: { mpRegen: 4 }, d: 'Unique. +4 PM par tour.' },
   insigne: { n: 'Insigne du Maître', slot: 'acc', tier: 0, st: {}, mods: { hp: 0.06, atk: 0.06, mag: 0.06, def: 0.06, res: 0.06, spd: 0.06 }, d: 'Unique. Toutes les stats +6%.' },
   collier_lien: { n: 'Collier du lien', slot: 'acc', tier: 0, st: { res: 6 }, flags: ['bond'], d: 'Unique. Affinité x2, énergie du familier +50%.' },
+  // légendaires (matériaux des chasses premium, Atelier niv. 3)
+  armure_aurore: { n: 'Armure de l’Aurore', slot: 'armor', tier: 4, legend: true, st: { def: 58, res: 42, hp: 160, spd: 6 }, mods: { crit: 6 }, d: 'Légendaire. Rapide et robuste.', r: { g: 4000, m: { plume_aurore: 2, seve_eternelle: 1, mithril: 4 } } },
+  robe_sylve: { n: 'Robe de la Sylve éternelle', slot: 'armor', tier: 4, legend: true, st: { def: 36, res: 64, mag: 24, mp: 60, hp: 80 }, flags: ['regenAlways'], d: 'Légendaire. Magie et régénération.', r: { g: 4000, m: { seve_eternelle: 2, perle_abyssale: 1, fil: 10 } } },
+  egide_cristal: { n: 'Égide de cristal', slot: 'armor', tier: 4, legend: true, st: { def: 74, res: 34, hp: 200 }, el: { terre: 0.3, vent: 0.3 }, d: 'Légendaire. Défense ultime, résiste à la terre et au vent.', r: { g: 4000, m: { coeur_cristal: 2, mithril: 6, cristal: 6 } } },
+  anneau_abyssal: { n: 'Anneau abyssal', slot: 'acc', tier: 4, legend: true, st: { res: 16, mp: 40 }, mods: { mpRegen: 6 }, flags: ['autoRevive'], el: { eau: 0.3 }, d: 'Légendaire. +6 PM par tour, ranime une fois.', r: { g: 4000, m: { perle_abyssale: 2, cristal: 5, echo: 1 } } },
+  couronne_primordiale: { n: 'Couronne primordiale', slot: 'acc', tier: 4, legend: true, st: { atk: 18, mag: 18 }, mods: { hp: 0.12, atk: 0.12, mag: 0.12, def: 0.12, res: 0.12, spd: 0.12 }, el: { feu: 0.3 }, d: 'Légendaire. Toutes les stats +12%.', r: { g: 5000, m: { flamme_primordiale: 2, seve_eternelle: 1, echo: 3 } } },
   // exclusifs du tableau de chasse
   couronne_gel: { n: 'Couronne gélatineuse', slot: 'acc', tier: 0, hunt: true, st: { hp: 40, res: 6 }, mods: { mpRegen: 2 }, d: 'Chasse. +2 PM par tour.' },
   cape_traqueur: { n: 'Cape du traqueur', slot: 'acc', tier: 0, hunt: true, st: { spd: 5 }, mods: { crit: 6 }, d: 'Chasse. VIT +5, critique +6%.' },
@@ -381,6 +394,11 @@ G.ARMORS = {
   suaire_royal: { n: 'Suaire royal', slot: 'armor', tier: 0, hunt: true, st: { def: 26, res: 50, mag: 16, mp: 40 }, d: 'Chasse. RÉS et MAG élevées.' },
   coeur_magma: { n: 'Cœur de magma', slot: 'acc', tier: 0, hunt: true, st: { atk: 16, mag: 16 }, flags: ['regenAlways'], el: { feu: 0.25 }, d: 'Chasse. ATQ/MAG +16, régénération.' },
   armure_sans_nom: { n: 'Armure du Sans-Nom', slot: 'armor', tier: 0, hunt: true, st: { def: 50, res: 34, hp: 120, atk: 10 }, d: 'Chasse. L’armure la plus solide du monde.' },
+  griffes_lievre: { n: 'Pattes du lièvre-titan', slot: 'acc', tier: 0, hunt: true, st: { spd: 6, hp: 30 }, d: 'Chasse. VIT +6.' },
+  voile_liane: { n: 'Voile de liane-mère', slot: 'armor', tier: 0, hunt: true, st: { def: 18, res: 18, hp: 50 }, flags: ['regenAlways'], d: 'Chasse. Régénération.' },
+  sceptre_os: { n: 'Couronne d’os', slot: 'acc', tier: 0, hunt: true, st: { mag: 12, atk: 12 }, d: 'Chasse. ATQ/MAG +12.' },
+  peau_crapaud: { n: 'Peau du crapaud-roi', slot: 'armor', tier: 0, hunt: true, st: { def: 34, res: 34, hp: 100 }, el: { eau: 0.25 }, d: 'Chasse. Résiste à l’eau.' },
+  cornes_seigneur: { n: 'Cornes du seigneur démon', slot: 'acc', tier: 0, hunt: true, st: { atk: 16, mag: 16, spd: 4 }, d: 'Chasse. ATQ/MAG +16.' },
   diademe_celeste: { n: 'Diadème céleste', slot: 'acc', tier: 0, hunt: true, st: { hp: 40 }, mods: { hp: 0.1, atk: 0.1, mag: 0.1, def: 0.1, res: 0.1, spd: 0.1 }, d: 'Chasse. Toutes les stats +10%.' },
   anneau_eternite: { n: 'Anneau d’éternité', slot: 'acc', tier: 0, hunt: true, st: { hp: 60, mp: 30 }, mods: { mpRegen: 5 }, flags: ['autoRevive', 'regenAlways'], d: 'Chasse. Ranime une fois, régénère PV et PM.' },
   couronne: { n: 'Couronne draconique', slot: 'acc', tier: 0, st: { atk: 15, mag: 15, spd: 5 }, mods: { crit: 10 }, d: 'Unique. Trophée du tueur de dragon.' },
@@ -457,20 +475,45 @@ G.ENEMIES = {
 
 
 // ---------------- Monstres d'élite du tableau de chasse ----------------
+// statistiques calculées à partir du niveau ; rôle : tank, rapide, mage, brute ; premium = boss de région
 const _EL = (o) => Object.assign({ boss: true, elite: true, big: true }, o);
+G.eliteStats = (lvl, role, prem) => {
+  const R = { tank: [1.25, 0.95, 0.7, 1.5, 0.9, 0.8], fast: [0.85, 1.05, 0.9, 0.85, 0.9, 1.4], mage: [0.9, 0.7, 1.25, 0.8, 1.4, 1.0], brute: [1.05, 1.2, 0.8, 1.0, 0.9, 0.95] }[role || 'brute'];
+  const P = prem ? 1.85 : 1;
+  return {
+    hp: Math.round(62 * Math.pow(lvl, 1.42) * R[0] * P), atk: Math.round(3.25 * lvl * R[1]), mag: Math.round(3.25 * lvl * R[2]),
+    def: Math.round(2.1 * lvl * R[3]), res: Math.round(2.0 * lvl * R[4]), spd: Math.round((9 + lvl * 0.55) * R[5]),
+    exp: Math.round(9 * Math.pow(lvl, 1.85) * (prem ? 2.2 : 1)), gold: Math.round(7 * Math.pow(lvl, 1.75) * (prem ? 2 : 1)),
+    dmgMul: Math.min(2.1, 1.05 + lvl * 0.028 + (prem ? Math.max(0.12, 0.62 - lvl * 0.016) : 0)), lvl,
+  };
+};
+const _H = (lvl, role, prem, o) => _EL(Object.assign(G.eliteStats(lvl, role, prem), o, { premium: !!prem }));
 Object.assign(G.ENEMIES, {
-  roi_gelee: _EL({ n: '★ Roi Gelée', spr: 'slime', pal: '#ffc830', e: 'eau', lvl: 5, hp: 650, atk: 20, mag: 22, def: 10, res: 12, spd: 9, exp: 180, gold: 250, dmgMul: 1.1, drops: [_D('gelee', 1, 3, 5)], sk: ['e_tackle', 'e_water', 'e_toxic', 'e_heal'] }),
-  croc_blanc: _EL({ n: '★ Croc-Blanc, l’alpha', spr: 'wolf', pal: '#e8f0ff', e: 'vent', lvl: 7, hp: 850, atk: 26, mag: 12, def: 12, res: 10, spd: 20, exp: 260, gold: 320, dmgMul: 1.15, drops: [_D('croc', 1, 3, 5), _D('cuir', 1, 2, 3)], sk: ['e_bite', 'e_claw', 'e_howl', 'e_gust'] }),
-  reine_spore: _EL({ n: '★ Reine des spores', spr: 'mushroom', pal: '#b040e0', e: 'terre', lvl: 10, hp: 1500, atk: 28, mag: 32, def: 18, res: 18, spd: 10, exp: 450, gold: 500, dmgMul: 1.2, drops: [_D('spore', 1, 4, 6)], sk: ['e_spores', 'e_spores', 'e_drain', 'e_heal'] }),
-  follet_ancien: _EL({ n: '★ Feu-Fol ancestral', spr: 'wisp', pal: '#5ad8ff', e: 'feu', lvl: 11, hp: 1300, atk: 18, mag: 40, def: 14, res: 30, spd: 18, exp: 480, gold: 520, dmgMul: 1.2, drops: [_D('braise', 1, 4, 6), _D('essence_feu', 1, 1, 2)], sk: ['e_fire', 'e_flames', 'e_inferno'] }),
-  golem_obsi: _EL({ n: '★ Golem d’obsidienne', spr: 'golem', pal: '#3a3050', e: 'terre', lvl: 14, hp: 3300, atk: 46, mag: 12, def: 55, res: 14, spd: 7, exp: 900, gold: 900, dmgMul: 1.5, drops: [_D('cristal', 1, 2, 3), _D('minerai', 1, 4, 6)], sk: ['e_rock', 'e_smash', 'e_crush'] }),
-  harpie: _EL({ n: '★ Harpie tonnerre', spr: 'bird', pal: '#f0d040', e: 'vent', lvl: 14, hp: 2600, atk: 42, mag: 40, def: 22, res: 22, spd: 26, exp: 900, gold: 900, dmgMul: 1.45, drops: [_D('plume', 1, 5, 8), _D('essence_vent', 1, 2, 3)], sk: ['e_dive', 'e_cyclone', 'e_shriek', 'e_claw'] }),
-  leviathan: _EL({ n: '★ Léviathan des tourbières', spr: 'snake', pal: '#1a5a7a', e: 'eau', lvl: 15, hp: 3600, atk: 48, mag: 44, def: 28, res: 28, spd: 18, exp: 1000, gold: 1000, dmgMul: 1.45, drops: [_D('ecaille', 1, 4, 6), _D('essence_eau', 1, 2, 3)], sk: ['e_tidal', 'e_venom', 'e_hbite'] }),
-  spectre_roi: _EL({ n: '★ Spectre-Roi', spr: 'ghost', pal: '#ffd86a', e: null, lvl: 19, hp: 4800, atk: 30, mag: 62, def: 26, res: 55, spd: 22, exp: 1800, gold: 1600, dmgMul: 1.7, drops: [_D('ectoplasme', 1, 4, 6)], sk: ['e_drain', 'e_curse', 'e_tidal', 'e_shriek'] }),
-  behemoth: _EL({ n: '★ Béhémoth de magma', spr: 'golem', pal: '#ff3a1a', e: 'feu', lvl: 21, hp: 7000, atk: 70, mag: 40, def: 60, res: 30, spd: 12, exp: 2400, gold: 2200, dmgMul: 1.75, drops: [_D('mithril', 1, 1, 2), _D('braise', 1, 5, 8)], sk: ['e_rock', 'e_inferno', 'e_dclaw', 'e_roar'] }),
-  chevalier_noir: _EL({ n: '★ Chevalier sans nom', spr: 'knight', pal: '#1a1a2a', e: null, lvl: 22, hp: 6500, atk: 74, mag: 30, def: 50, res: 40, spd: 20, exp: 2600, gold: 2400, dmgMul: 1.75, drops: [_D('mithril', 1, 2, 3), _D('lingot', 1, 4, 6)], sk: ['e_slash', 'e_smash', 'e_dclaw', 'e_roar'] }),
-  wyrm: _EL({ n: '★ Wyrm primordial', spr: 'dragon', pal: '#d8e0ff', e: 'vent', lvl: 26, hp: 12500, atk: 82, mag: 80, def: 50, res: 48, spd: 26, exp: 5000, gold: 4000, dmgMul: 2.0, big: false, drops: [_D('echo', 1, 1, 2)], sk: ['e_cyclone', 'e_dive', 'e_meteor', 'e_shriek', 'e_dclaw'] }),
-  hydre_origine: _EL({ n: '★ Hydre originelle', spr: 'hydra', pal: '#c88aff', e: 'eau', lvl: 28, hp: 14500, atk: 86, mag: 88, def: 54, res: 54, spd: 22, exp: 6000, gold: 4500, dmgMul: 2.0, big: false, drops: [_D('echo', 1, 1, 2)], sk: ['e_tidal', 'e_hvenom', 'e_hbite', 'e_hbite', 'e_meteor'] }),
+  // Plaines
+  roi_gelee: _H(5, 'tank', 0, { n: '★ Roi Gelée', spr: 'slime', pal: '#ffc830', e: 'eau', drops: [_D('gelee', 1, 3, 5)], sk: ['e_tackle', 'e_water', 'e_toxic', 'e_heal'] }),
+  lievre_titan: _H(6, 'fast', 0, { n: '★ Lièvre-titan', spr: 'rabbit', pal: '#a8784a', e: 'terre', drops: [_D('cuir', 1, 3, 4), _D('croc', 1, 2, 3)], sk: ['e_tackle', 'e_bite', 'e_rock', 'e_howl'] }),
+  croc_blanc: _H(7, 'fast', 0, { n: '★ Croc-Blanc, l’alpha', spr: 'wolf', pal: '#e8f0ff', e: 'vent', drops: [_D('croc', 1, 3, 5), _D('cuir', 1, 2, 3)], sk: ['e_bite', 'e_claw', 'e_howl', 'e_gust'] }),
+  seigneur_corbeau: _H(11, 'mage', 1, { n: '♛ Seigneur des corbeaux', spr: 'bird', pal: '#3a2a5a', e: 'vent', big: true, drops: [_D('plume', 1, 6, 9), _D('essence_vent', 1, 2, 3)], sk: ['e_cyclone', 'e_dive', 'e_shriek', 'e_claw'] }),
+  // Forêt
+  reine_spore: _H(10, 'mage', 0, { n: '★ Reine des spores', spr: 'mushroom', pal: '#b040e0', e: 'terre', drops: [_D('spore', 1, 4, 6)], sk: ['e_spores', 'e_spores', 'e_drain', 'e_heal'] }),
+  liane_mere: _H(11, 'tank', 0, { n: '★ Liane-mère', spr: 'plant', pal: '#2a8a3a', e: 'terre', drops: [_D('seve', 1, 3, 5), _D('fibre', 1, 4, 6)], sk: ['e_vine', 'e_roots', 'e_bite', 'e_spores'] }),
+  follet_ancien: _H(12, 'mage', 0, { n: '★ Feu-Fol ancestral', spr: 'wisp', pal: '#5ad8ff', e: 'feu', drops: [_D('braise', 1, 4, 6), _D('essence_feu', 1, 1, 2)], sk: ['e_fire', 'e_flames', 'e_inferno'] }),
+  ent_ancestral: _H(15, 'tank', 1, { n: '♛ Ent ancestral', spr: 'ent', pal: '#2a6a5a', e: 'terre', big: false, drops: [_D('boisancien', 1, 4, 6), _D('essence_terre', 1, 2, 3)], sk: ['e_roots', 'e_crush', 'e_crush', 'e_spores'] }),
+  // Monts
+  harpie: _H(15, 'fast', 0, { n: '★ Harpie tonnerre', spr: 'bird', pal: '#f0d040', e: 'vent', drops: [_D('plume', 1, 5, 8), _D('essence_vent', 1, 2, 3)], sk: ['e_dive', 'e_cyclone', 'e_shriek', 'e_claw'] }),
+  roi_squelette: _H(16, 'brute', 0, { n: '★ Roi squelette', spr: 'skeleton', pal: '#e8e0c0', e: null, drops: [_D('os', 1, 4, 6), _D('lingot', 1, 2, 4)], sk: ['e_slash', 'e_smash', 'e_curse', 'e_slash'] }),
+  golem_obsi: _H(17, 'tank', 0, { n: '★ Golem d’obsidienne', spr: 'golem', pal: '#3a3050', e: 'terre', drops: [_D('cristal', 1, 2, 3), _D('minerai', 1, 4, 6)], sk: ['e_rock', 'e_smash', 'e_crush'] }),
+  wyrm: _H(21, 'brute', 1, { n: '♛ Wyrm primordial', spr: 'wyvern', pal: '#d8e0ff', e: 'vent', big: false, drops: [_D('echo', 1, 1, 1), _D('cristal', 1, 3, 4)], sk: ['e_cyclone', 'e_dive', 'e_meteor', 'e_shriek'] }),
+  // Marais
+  leviathan: _H(20, 'brute', 0, { n: '★ Léviathan des tourbières', spr: 'snake', pal: '#1a5a7a', e: 'eau', drops: [_D('ecaille', 1, 4, 6), _D('essence_eau', 1, 2, 3)], sk: ['e_tidal', 'e_venom', 'e_hbite'] }),
+  crapaud_roi: _H(21, 'tank', 0, { n: '★ Crapaud-roi', spr: 'toad', pal: '#8a6a2a', e: 'eau', drops: [_D('ecaille', 1, 3, 5), _D('gelee', 1, 4, 6)], sk: ['e_water', 'e_tidal', 'e_bite', 'e_toxic'] }),
+  spectre_roi: _H(22, 'mage', 0, { n: '★ Spectre-Roi', spr: 'ghost', pal: '#ffd86a', e: null, drops: [_D('ectoplasme', 1, 4, 6)], sk: ['e_drain', 'e_curse', 'e_tidal', 'e_shriek'] }),
+  hydre_origine: _H(24, 'brute', 1, { n: '♛ Hydre originelle', spr: 'hydra', pal: '#c88aff', e: 'eau', big: false, drops: [_D('echo', 1, 1, 2), _D('ecaille', 1, 5, 8)], sk: ['e_tidal', 'e_hvenom', 'e_hbite', 'e_hbite', 'e_meteor'] }),
+  // Volcan
+  behemoth: _H(25, 'tank', 0, { n: '★ Béhémoth de magma', spr: 'golem', pal: '#ff3a1a', e: 'feu', drops: [_D('mithril', 1, 1, 2), _D('braise', 1, 5, 8)], sk: ['e_rock', 'e_inferno', 'e_dclaw', 'e_roar'] }),
+  seigneur_demon: _H(26, 'mage', 0, { n: '★ Seigneur diablotin', spr: 'imp', pal: '#8a1a3a', e: 'feu', drops: [_D('braise', 1, 5, 7), _D('essence_feu', 1, 2, 4)], sk: ['e_inferno', 'e_fire', 'e_meteor', 'e_curse'] }),
+  chevalier_noir: _H(27, 'brute', 0, { n: '★ Chevalier sans nom', spr: 'knight', pal: '#1a1a2a', e: null, drops: [_D('mithril', 1, 2, 3), _D('lingot', 1, 4, 6)], sk: ['e_slash', 'e_smash', 'e_dclaw', 'e_roar'] }),
+  dragon_noir: _H(29, 'brute', 1, { n: '♛ Dragon d’obsidienne', spr: 'dragon', pal: '#2a1a3a', e: 'feu', big: false, drops: [_D('echo', 1, 2, 3), _D('mithril', 1, 2, 4)], sk: ['e_inferno', 'e_dclaw', 'e_meteor', 'e_roar', 'e_dclaw'] }),
 });
 // Traque infinie : un primordial dont la puissance augmente à chaque victoire
 G.makeInfinite = n => {
@@ -486,28 +529,42 @@ G.makeInfinite = n => {
 
 // ---------------- Tableau de chasse ----------------
 G.HUNT_RANKS = [
-  { r: 'D', pts: 0, b: 'Accès aux contrats de rang D.' },
-  { r: 'C', pts: 4, b: 'EXP +5% après chaque combat.' },
-  { r: 'B', pts: 10, b: 'Or +10% après chaque combat.' },
-  { r: 'A', pts: 18, b: 'Butin +25% de chances.' },
-  { r: 'S', pts: 30, b: 'EXP +10% et or +20% au total. Traque infinie débloquée.' },
+  { r: 'D', pts: 0, b: 'Contrats des Plaines.' },
+  { r: 'C', pts: 4, b: 'Contrats de la Forêt. EXP +5%.' },
+  { r: 'B', pts: 12, b: 'Contrats des Monts. Or +10%.' },
+  { r: 'A', pts: 26, b: 'Contrats du Marais. Butin +25%.' },
+  { r: 'S', pts: 44, b: 'Contrats du Volcan. EXP +10%, or +20%. Traque infinie.' },
 ];
+// 4 chasses par région : 3 standard (une par sous-zone) puis une premium (après les 3 autres, répétable)
+G.ZONE_RANK = { plaines: 'D', foret: 'C', montagne: 'B', marais: 'A', volcan: 'S' };
+G.PREMIUM_LOOT = { plaines: 'plume_aurore', foret: 'seve_eternelle', montagne: 'coeur_cristal', marais: 'perle_abyssale', volcan: 'flamme_primordiale' };
 G.HUNTS = [
-  { id: 'h1', rank: 'D', t: 'roi_gelee', zone: 'plaines', at: [94, 54], pts: 2, n: 'Le Roi Gelée', d: 'Une gelée dorée grosse comme une charrette dévore les récoltes au nord du bourg.', rw: { g: 300, armor: 'couronne_gel', mats: { trophee: 1 } } },
-  { id: 'h2', rank: 'D', t: 'croc_blanc', zone: 'plaines', at: [62, 106], pts: 2, n: 'Croc-Blanc, l’alpha', d: 'Le chef de meute des loups gris rôde au sud-ouest, près de la lisière.', rw: { g: 350, armor: 'cape_traqueur', mats: { trophee: 1 } } },
-  { id: 'h3', rank: 'C', t: 'reine_spore', zone: 'foret', at: [36, 90], pts: 3, n: 'La Reine des spores', d: 'Ses spores empoisonnent tout le sud de la Forêt de Sylve.', rw: { g: 600, armor: 'masque_sporal', mats: { trophee: 1 }, items: { hipotion: 3 } } },
-  { id: 'h4', rank: 'C', t: 'follet_ancien', zone: 'foret', at: [12, 80], pts: 3, n: 'Le Feu-Fol ancestral', d: 'Une flamme bleue millénaire égare les voyageurs à l’ouest de la forêt.', rw: { g: 650, armor: 'lanterne_ames', mats: { trophee: 1 } } },
-  { id: 'h5', rank: 'B', t: 'golem_obsi', zone: 'montagne', at: [24, 18], pts: 4, n: 'Le Golem d’obsidienne', d: 'Un golem de verre noir, presque invulnérable, garde les mines de l’ouest des Monts Grisés.', rw: { g: 1000, armor: 'carapace_obsi', mats: { trophee: 2 }, items: { megalixir: 1 } } },
-  { id: 'h6', rank: 'B', t: 'harpie', zone: 'montagne', at: [100, 10], pts: 4, n: 'La Harpie tonnerre', d: 'Elle fond sur les caravanes depuis les crêtes à l’est des monts.', rw: { g: 1000, armor: 'plumes_orage', mats: { trophee: 2 } } },
-  { id: 'h7', rank: 'B', t: 'leviathan', zone: 'marais', at: [172, 88], pts: 4, n: 'Le Léviathan des tourbières', d: 'Un serpent colossal hante le sud-est du Marais Brumeux.', rw: { g: 1100, armor: 'ecailles_abyss', mats: { trophee: 2 }, items: { megalixir: 1 } } },
-  { id: 'h8', rank: 'A', t: 'spectre_roi', zone: 'marais', at: [140, 60], pts: 5, n: 'Le Spectre-Roi', d: 'Un roi déchu erre dans les brumes. On dit qu’un renard de lumière veille sur son trésor.', rw: { g: 1800, armor: 'suaire_royal', fam: 'lumi', mats: { trophee: 3 } } },
-  { id: 'h9', rank: 'A', t: 'behemoth', zone: 'volcan', at: [168, 8], pts: 5, n: 'Le Béhémoth de magma', d: 'Le volcan tremble sous ses pas, tout au nord-est.', rw: { g: 2200, armor: 'coeur_magma', mats: { trophee: 3, ame: 1 } } },
-  { id: 'h10', rank: 'A', t: 'chevalier_noir', zone: 'volcan', at: [140, 24], pts: 6, n: 'Le Chevalier sans nom', d: 'Un guerrier sans visage défie quiconque ose fouler les cendres.', rw: { g: 2400, armor: 'armure_sans_nom', mats: { trophee: 3, ame: 1 }, items: { megalixir: 2 } } },
-  { id: 'h11', rank: 'S', t: 'wyrm', zone: 'montagne', at: [120, 8], pts: 8, n: 'Le Wyrm primordial', d: 'Un dragon blanc, plus ancien qu’Ignar, s’est éveillé au sommet oriental des monts.', rw: { g: 4000, armor: 'diademe_celeste', mats: { trophee: 5, ame: 2 } } },
-  { id: 'h12', rank: 'S', t: 'hydre_origine', zone: 'marais', at: [156, 80], pts: 8, n: 'L’Hydre originelle', d: 'La mère de toutes les hydres remonte des profondeurs du marais.', rw: { g: 4500, armor: 'anneau_eternite', mats: { trophee: 5, ame: 2 }, items: { megalixir: 3 } } },
+  { id: 'pl1', zone: 'plaines', sub: 0, t: 'roi_gelee', pts: 2, n: 'Le Roi Gelée', d: 'Une gelée dorée grosse comme une charrette dévore les récoltes.', rw: { g: 300, armor: 'couronne_gel', mats: { trophee: 1 } } },
+  { id: 'pl2', zone: 'plaines', sub: 1, t: 'lievre_titan', pts: 2, n: 'Le Lièvre-titan', d: 'Un lièvre aussi grand qu’un cheval laboure les champs à coups de cornes.', rw: { g: 320, armor: 'griffes_lievre', mats: { trophee: 1 } } },
+  { id: 'pl3', zone: 'plaines', sub: 2, t: 'croc_blanc', pts: 2, n: 'Croc-Blanc, l’alpha', d: 'Le chef de meute des loups gris rôde dans les collines.', rw: { g: 350, armor: 'cape_traqueur', mats: { trophee: 1 } } },
+  { id: 'plP', zone: 'plaines', premium: true, t: 'seigneur_corbeau', pts: 4, n: 'Le Seigneur des corbeaux', d: 'Quand les trois fléaux des plaines tombent, leur maître ailé descend des nuées.', rw: { g: 900, mats: { plume_aurore: 3, trophee: 2 }, items: { megalixir: 1 } }, rep: { g: 400, mats: { plume_aurore: 2 } } },
+  { id: 'fo1', zone: 'foret', sub: 0, t: 'reine_spore', pts: 3, n: 'La Reine des spores', d: 'Ses spores empoisonnent tout un pan de la forêt.', rw: { g: 600, armor: 'masque_sporal', mats: { trophee: 1 }, items: { hipotion: 3 } } },
+  { id: 'fo2', zone: 'foret', sub: 1, t: 'liane_mere', pts: 3, n: 'La Liane-mère', d: 'Une liane colossale étouffe les arbres un à un.', rw: { g: 620, armor: 'voile_liane', mats: { trophee: 1 } } },
+  { id: 'fo3', zone: 'foret', sub: 2, t: 'follet_ancien', pts: 3, n: 'Le Feu-Fol ancestral', d: 'Une flamme bleue millénaire égare les voyageurs.', rw: { g: 650, armor: 'lanterne_ames', mats: { trophee: 1 } } },
+  { id: 'foP', zone: 'foret', premium: true, t: 'ent_ancestral', pts: 5, n: 'L’Ent ancestral', d: 'Le plus vieil arbre de Sylve s’éveille quand la forêt est purgée de ses fléaux.', rw: { g: 1600, mats: { seve_eternelle: 3, trophee: 2 }, items: { megalixir: 1 } }, rep: { g: 700, mats: { seve_eternelle: 2 } } },
+  { id: 'mo1', zone: 'montagne', sub: 0, t: 'harpie', pts: 4, n: 'La Harpie tonnerre', d: 'Elle fond sur les caravanes depuis les crêtes.', rw: { g: 1000, armor: 'plumes_orage', mats: { trophee: 2 } } },
+  { id: 'mo2', zone: 'montagne', sub: 1, t: 'roi_squelette', pts: 4, n: 'Le Roi squelette', d: 'Un roi mort-vivant règne sur les ruines enneigées.', rw: { g: 1000, armor: 'sceptre_os', mats: { trophee: 2 } } },
+  { id: 'mo3', zone: 'montagne', sub: 2, t: 'golem_obsi', pts: 4, n: 'Le Golem d’obsidienne', d: 'Un golem de verre noir garde les gisements de cristal.', rw: { g: 1050, armor: 'carapace_obsi', mats: { trophee: 2 }, items: { megalixir: 1 } } },
+  { id: 'moP', zone: 'montagne', premium: true, t: 'wyrm', pts: 6, n: 'Le Wyrm primordial', d: 'Un dragon blanc plus ancien qu’Ignar se réveille quand les monts sont pacifiés.', rw: { g: 2600, mats: { coeur_cristal: 3, trophee: 3, ame: 1 } }, rep: { g: 1000, mats: { coeur_cristal: 2 } } },
+  { id: 'ma1', zone: 'marais', sub: 0, t: 'leviathan', pts: 5, n: 'Le Léviathan des tourbières', d: 'Un serpent colossal hante les tourbières.', rw: { g: 1500, armor: 'ecailles_abyss', mats: { trophee: 2 }, items: { megalixir: 1 } } },
+  { id: 'ma2', zone: 'marais', sub: 1, t: 'crapaud_roi', pts: 5, n: 'Le Crapaud-roi', d: 'Son coassement fait trembler les saules du bayou.', rw: { g: 1500, armor: 'peau_crapaud', mats: { trophee: 2 } } },
+  { id: 'ma3', zone: 'marais', sub: 2, t: 'spectre_roi', pts: 5, n: 'Le Spectre-Roi', d: 'Un roi déchu erre dans les brumes. Un renard de lumière veille sur son trésor.', rw: { g: 1800, armor: 'suaire_royal', fam: 'lumi', mats: { trophee: 3 } } },
+  { id: 'maP', zone: 'marais', premium: true, t: 'hydre_origine', pts: 7, n: 'L’Hydre originelle', d: 'La mère de toutes les hydres remonte des profondeurs quand le marais est libéré.', rw: { g: 3500, mats: { perle_abyssale: 3, trophee: 4, ame: 1 }, items: { megalixir: 2 } }, rep: { g: 1400, mats: { perle_abyssale: 2 } } },
+  { id: 'vo1', zone: 'volcan', sub: 0, t: 'behemoth', pts: 6, n: 'Le Béhémoth de magma', d: 'Le sol tremble sous ses pas dans les champs de cendres.', rw: { g: 2200, armor: 'coeur_magma', mats: { trophee: 3, ame: 1 } } },
+  { id: 'vo2', zone: 'volcan', sub: 1, t: 'seigneur_demon', pts: 6, n: 'Le Seigneur diablotin', d: 'Il nage dans les coulées de lave et commande aux diablotins.', rw: { g: 2300, armor: 'cornes_seigneur', mats: { trophee: 3 } } },
+  { id: 'vo3', zone: 'volcan', sub: 2, t: 'chevalier_noir', pts: 6, n: 'Le Chevalier sans nom', d: 'Un guerrier sans visage défie quiconque ose fouler la caldeira.', rw: { g: 2400, armor: 'armure_sans_nom', mats: { trophee: 3, ame: 1 }, items: { megalixir: 2 } } },
+  { id: 'voP', zone: 'volcan', premium: true, t: 'dragon_noir', pts: 8, n: 'Le Dragon d’obsidienne', d: 'Le dernier des dragons primordiaux sort de la caldeira quand ses gardes sont tombés.', rw: { g: 5000, armor: 'diademe_celeste', mats: { flamme_primordiale: 3, trophee: 5, ame: 2 }, items: { megalixir: 3 } }, rep: { g: 2000, mats: { flamme_primordiale: 2 } } },
 ];
-G.HUNT_INF = { id: 'inf', rank: 'S', zone: 'plaines', at: [92, 114], n: 'Traque infinie', d: 'Une faille primordiale s’est ouverte au sud des plaines. Chaque victoire en fait surgir un adversaire plus puissant.' };
-G.infReward = n => ({ g: 3000 + 600 * n, mats: { ame: 1, trophee: 2, echo: 1 }, items: n % 2 ? { megalixir: 1 } : {} });
+G.HUNTS.forEach(h => { h.rank = G.ZONE_RANK[h.zone]; });
+// anciens identifiants (sauvegardes) -> nouveaux
+G.HUNT_OLD = { h1: 'pl1', h2: 'pl3', h3: 'fo1', h4: 'fo3', h5: 'mo3', h6: 'mo1', h7: 'ma1', h8: 'ma3', h9: 'vo1', h10: 'vo3', h11: 'moP', h12: 'maP' };
+G.HUNT_INF = { id: 'inf', rank: 'S', zone: 'plaines', n: 'Traque infinie', d: 'Une faille primordiale s’est ouverte au sud des plaines. Chaque victoire en fait surgir un adversaire plus puissant.' };
+G.infReward = n => ({ g: 3000 + 600 * n, mats: { ame: 1, trophee: 2, echo: 1 }, items: n % 2 ? { megalixir: 1 } : {}, armor: n === 2 ? 'anneau_eternite' : undefined });
 
 // ---------------- Zones ----------------
 G.ZONES = {
@@ -536,6 +593,36 @@ G.CHEST_LOOT = {
   montagne: { n: 9, g: [200, 350], items: [['hipotion', 1], ['ether', 2], ['phenix', 1]], mats: [['minerai', 3, 5], ['cristal', 1, 2], ['os', 2, 3], ['aile', 2, 3]], rare: [['essence_terre', 2], ['cristal', 2], ['festin', 1]] },
   marais: { n: 8, g: [300, 480], items: [['hipotion', 2], ['phenix', 1], ['ether', 2]], mats: [['ecaille', 2, 3], ['ectoplasme', 1, 2], ['gelee', 3, 4]], rare: [['essence_eau', 2], ['festin', 1], ['phenix', 1]] },
   volcan: { n: 7, g: [450, 700], items: [['hipotion', 3], ['phenix', 1], ['ether', 3]], mats: [['mithril', 1, 1], ['cristal', 2, 3], ['braise', 3, 5]], rare: [['elixir', 1], ['essence_feu', 2], ['mithril', 1]] },
+};
+
+// ---------------- Sous-zones (3 par région) ----------------
+// tint : teinte du sol [r, g, b, force] ; trees : essences ; deco : décor favori ; terrain : densité du relief propre
+G.SUBZONES = {
+  plaines: [
+    { n: 'Prairies dorées', tint: [222, 192, 92, 0.2], trees: ['plain', 'autumn', 'plain'], deco: 'tuft' },
+    { n: 'Vallée verdoyante', tint: [40, 150, 80, 0.16], trees: ['plain', 'fruit', 'birch'], deco: 'bush' },
+    { n: 'Collines fleuries', tint: [235, 120, 175, 0.1], trees: ['cherry', 'plain', 'cherry'], deco: 'flowers' },
+  ],
+  foret: [
+    { n: 'Bois-Clair', tint: [160, 210, 90, 0.18], trees: ['birch', 'birch', 'plain', 'forest'], deco: 'flowers' },
+    { n: 'Sylve profonde', tint: [10, 50, 55, 0.28], trees: ['giant', 'forest', 'pine', 'forest'], deco: 'mushroom', terrain: 0.52 },
+    { n: 'Forêt d’automne', tint: [205, 110, 40, 0.22], trees: ['autumn', 'autumn', 'forest', 'birch'], deco: 'leaves' },
+  ],
+  montagne: [
+    { n: 'Contreforts', tint: [150, 108, 64, 0.22], trees: ['pine'], deco: 'pebbles' },
+    { n: 'Pics enneigés', tint: [240, 244, 255, 0.36], trees: ['snowpine'], deco: 'gravel', terrain: 0.54 },
+    { n: 'Gorges cristallines', tint: [80, 150, 225, 0.22], trees: ['snowpine', 'pine'], deco: 'shard' },
+  ],
+  marais: [
+    { n: 'Tourbières', tint: [120, 96, 44, 0.22], trees: ['swamp'], deco: 'puddle' },
+    { n: 'Bayou des saules', tint: [60, 145, 95, 0.2], trees: ['willow', 'willow', 'swamp'], deco: 'reeds', terrain: 0.55 },
+    { n: 'Marais spectral', tint: [125, 75, 175, 0.28], trees: ['swamp'], deco: 'bones' },
+  ],
+  volcan: [
+    { n: 'Champs de cendres', tint: [130, 120, 120, 0.22], trees: ['volcano'], deco: 'gravel' },
+    { n: 'Coulées de lave', tint: [255, 95, 30, 0.2], trees: ['volcano'], deco: 'vent', terrain: 0.6 },
+    { n: 'Caldeira d’obsidienne', tint: [75, 30, 115, 0.28], trees: ['volcano'], deco: 'shard' },
+  ],
 };
 
 // ---------------- Bâtiments du Havre ----------------

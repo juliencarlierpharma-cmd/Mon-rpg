@@ -52,7 +52,7 @@ G.maxAffinity = () => { let m = 0; Object.values(G.S.fams).forEach(f => Object.v
 G.weaponsOf = cid => Object.values(G.S.chars[cid].weapons).filter(Boolean).length;
 G.maxWeaponsOneChar = () => Math.max(...G.CHAR_ORDER.map(G.weaponsOf));
 G.totalWeapons = () => G.CHAR_ORDER.reduce((a, c) => a + G.weaponsOf(c), 0);
-G.maxWeaponTier = () => (G.S.town.b.forge || 0) >= 4 ? 6 : 1 + (G.S.town.b.forge || 0);
+G.maxWeaponTier = () => (G.S.town.b.forge || 0) >= 4 ? 7 : 1 + (G.S.town.b.forge || 0);
 G.maxArmorTier = () => 1 + (G.S.town.b.atelier || 0);
 G.famOf = cid => { const id = Object.keys(G.S.fams).find(k => G.S.fams[k].owner === cid); return id ? { id, ...G.S.fams[id], ref: G.S.fams[id] } : null; };
 G.linkLevel = (famId, cid) => { const a = G.S.fams[famId].aff[cid] || 0; return a >= 100 ? 3 : a >= 60 ? 2 : a >= 30 ? 1 : 0; };
@@ -262,7 +262,11 @@ G.collectTown = () => {
 // ---------------- Tableau de chasse ----------------
 G.hunterRankIdx = () => { const p = G.S.hunter.pts; let r = 0; G.HUNT_RANKS.forEach((R, i) => { if (p >= R.pts) r = i; }); return r; };
 G.hunterRank = () => G.HUNT_RANKS[G.hunterRankIdx()];
-G.huntUnlocked = h => G.HUNT_RANKS.findIndex(R => R.r === h.rank) <= G.hunterRankIdx();
+G.huntDone = id => G.S.hunts[id] === 'done' || G.S.hunts[id] === 'claimed' || (G.S.hunter.prem && G.S.hunter.prem[id] > 0);
+G.huntRankOk = h => G.HUNT_RANKS.findIndex(R => R.r === h.rank) <= G.hunterRankIdx();
+// une chasse premium n'apparaît qu'une fois les 3 chasses standard de sa région accomplies
+G.premiumOpen = zone => G.HUNTS.filter(h => h.zone === zone && !h.premium).every(h => G.S.hunts[h.id] === 'claimed');
+G.huntUnlocked = h => G.huntRankOk(h) && (!h.premium || G.premiumOpen(h.zone));
 G.huntBonus = () => { const i = G.hunterRankIdx(); return { exp: (i >= 1 ? 0.05 : 0) + (i >= 4 ? 0.05 : 0), gold: (i >= 2 ? 0.1 : 0) + (i >= 4 ? 0.1 : 0), drop: i >= 3 ? 1.25 : 1 }; };
 G.giveReward = rw => {
   if (rw.g) { G.S.gold += rw.g; G.S.stats.goldEarned += rw.g; }
@@ -281,8 +285,13 @@ G.claimHunt = id => {
   }
   const h = G.HUNTS.find(x => x.id === id);
   if (!h || S.hunts[id] !== 'done') return null;
-  G.giveReward(h.rw); S.hunter.pts += h.pts; S.hunts[id] = 'claimed';
-  return h.rw;
+  S.hunter.prem = S.hunter.prem || {};
+  const first = !(h.premium && S.hunter.prem[id] > 0);
+  const rw = first ? h.rw : h.rep;
+  G.giveReward(rw); if (first) S.hunter.pts += h.pts;
+  if (h.premium) S.hunter.prem[id] = (S.hunter.prem[id] || 0) + 1;
+  S.hunts[id] = 'claimed';
+  return rw;
 };
 
 // ---------------- Sauvegarde ----------------
@@ -298,6 +307,8 @@ G.load = () => {
     G.S = Object.assign(base, s);
     G.S.stats = Object.assign(G.newState().stats, s.stats || {});
     G.S.town = Object.assign(G.newState().town, s.town || {});
+    // anciens contrats de chasse
+    Object.keys(G.S.hunts || {}).forEach(k => { const n = G.HUNT_OLD[k]; if (n) { G.S.hunts[n] = G.S.hunts[k]; delete G.S.hunts[k]; } });
     if ((s.v || 1) < 4) { const n = G.newState(); G.S.pos = n.pos; G.S.rest = n.rest; G.S.nodes = {}; G.S.flags.visited = { bourg: true, plaines: true }; G.S.v = 2; }
     return true;
   } catch (e) { console.error(e); return false; }
