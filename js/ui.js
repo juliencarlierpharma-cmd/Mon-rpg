@@ -391,41 +391,51 @@ G.UI = {
   },
   // ----- Carte -----
   tab_carte() {
-    const tr = G.World.TRAVEL.map(([id, n]) => `<button class="btn sm" data-a="travel" data-i="${id}" ${G.World.canTravel(id) ? '' : 'disabled'}>${G.World.canTravel(id) ? '🧭' : '🔒'} ${esc(n)}</button>`).join('');
-    return `<h2>Carte du monde</h2><div class="card"><h3>Voyage rapide</h3><div class="actions">${tr}</div><div class="dim small">Les lieux se débloquent en les visitant.</div></div><div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ★ Gardien · ☠ Cible de chasse · 🎯 Tableau de chasse · ! PNJ à recruter · ▣ Coffre · ◆ Havre</p>`;
+    const W = G.World, list = W.travelList(), ok = list.filter(t => W.canTravel(t.id));
+    const groups = ['bourg', 'havre', 'plaines', 'foret', 'montagne', 'marais', 'volcan'].map(z => {
+      const L = ok.filter(t => t.zone === z); if (!L.length) return '';
+      const Z = G.ZONES[z];
+      return `<div class="trow"><span class="small dim">${esc(Z.town ? '' : Z.n)}</span>${L.map(t => `<button class="btn sm" data-a="travel" data-i="${t.id}">${t.id.startsWith('camp') ? '⛺' : '🏘️'} ${esc(t.name)}</button>`).join('')}</div>`;
+    }).join('');
+    const total = W.camps.length, found = W.camps.filter(c => W.canTravel(c.id)).length;
+    return `<h2>Carte du monde</h2><div class="card"><h3>Voyage rapide <small>${found}/${total} camps découverts</small></h3>${groups}<div class="dim small">Approchez-vous d’un camp ⛺ pour le découvrir : vous pourrez vous y reposer et y revenir instantanément.</div></div>
+      <div class="mapwrap"><canvas class="worldmap"></canvas></div><p class="dim small">● Vous · ★ Gardien · ⛺ Camp · ☠ Cible de chasse · ! PNJ à recruter · ▣ Coffre · Les zones inexplorées sont voilées.</p>`;
   },
   drawMap(cv) {
-    const W = G.World, s = 4;
+    const W = G.World, s = 2;
     cv.width = W.W * s; cv.height = W.H * s;
-    const x = cv.getContext('2d');
-    const zc = { plaines: '#9ad070', foret: '#2e7a3a', montagne: '#9aa0b0', marais: '#7a5aa8', volcan: '#e8501a', bourg: '#ffd86a', havre: '#7affd8' };
-    const col = { '.': '#5aa03c', ',': '#62a844', '_': '#c8a86a', 'f': '#3d7a32', 'T': '#2a5a26', 'r': '#8f877a', '^': '#5e584e', 'm': '#4f5a38', 'w': '#3a5e54', 'v': '#3d2c2a', 'l': '#e8501a', '~': '#2f6fc0', '=': '#8a5a32', 's': '#e6d39a', 'p': '#a39b8e', 'g': '#7cc256' };
-    for (let y = 0; y < W.H; y++) for (let xx = 0; xx < W.W; xx++) { x.fillStyle = col[W.t[y][xx]] || '#000'; x.fillRect(xx * s, y * s, s, s); }
-    // teinte et frontières des régions
-    for (let y = 0; y < W.H; y++) for (let xx = 0; xx < W.W; xx++) {
-      const z = W.z[y][xx];
-      x.fillStyle = U.rgba(zc[z], 0.22); x.fillRect(xx * s, y * s, s, s);
-      x.fillStyle = 'rgba(255,255,255,0.85)';
-      if (xx + 1 < W.W && W.z[y][xx + 1] !== z) x.fillRect((xx + 1) * s - 1, y * s, 2, s);
-      if (y + 1 < W.H && W.z[y + 1][xx] !== z) x.fillRect(xx * s, (y + 1) * s - 1, s, 2);
+    const x = cv.getContext('2d'), img = x.createImageData(W.W, W.H), D = img.data;
+    const col = { '.': '#5aa03c', ',': '#62a844', '_': '#d8b878', 'f': '#3d7a32', 'T': '#2a5a26', 'r': '#8f877a', '^': '#5e584e', 'm': '#4f5a38', 'w': '#3a5e54', 'v': '#3d2c2a', 'l': '#e8501a', '~': '#2f6fc0', '=': '#8a5a32', 's': '#e6d39a', 'p': '#a39b8e', 'g': '#7cc256' };
+    const rgb = {}; for (const k in col) rgb[k] = U.hex2rgb(col[k]);
+    const zc = { plaines: '#9ad070', foret: '#2e7a3a', montagne: '#b0b4c0', marais: '#8a5ab8', volcan: '#ff5a1a', bourg: '#ffd86a', havre: '#7affd8' }, zrgb = {}; for (const k in zc) zrgb[k] = U.hex2rgb(zc[k]);
+    for (let yy = 0; yy < W.H; yy++) for (let xx = 0; xx < W.W; xx++) {
+      const i = (yy * W.W + xx) * 4, c = rgb[W.t[yy][xx]] || [0, 0, 0], z = W.z[yy][xx], zr = zrgb[z];
+      let r = c[0] * 0.8 + zr[0] * 0.2, g = c[1] * 0.8 + zr[1] * 0.2, b = c[2] * 0.8 + zr[2] * 0.2;
+      const edge = (xx + 1 < W.W && W.z[yy][xx + 1] !== z) || (yy + 1 < W.H && W.z[yy + 1][xx] !== z);
+      if (edge) { r = 255; g = 250; b = 235; }
+      if (!W.isExplored(xx, yy)) { const n = U.hash(xx >> 2, yy >> 2, 7) * 6; r = 14 + n; g = 16 + n; b = 34 + n; if (edge) { r += 10; g += 10; b += 14; } }
+      D[i] = r; D[i + 1] = g; D[i + 2] = b; D[i + 3] = 255;
     }
-    x.font = `bold ${s * 1.6}px sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    const tmp = U.canvas(W.W, W.H); tmp.getContext('2d').putImageData(img, 0, 0);
+    x.imageSmoothingEnabled = false; x.drawImage(tmp, 0, 0, cv.width, cv.height);
+    x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = 'bold 11px sans-serif';
     W.E.forEach(e => {
-      if (!W.visible(e)) return;
+      if (!W.visible(e) || !W.isExplored(e.x, e.y)) return;
       const cx = e.x * s + s / 2, cy = e.y * s + s / 2;
       if (e.k === 'boss') { x.fillStyle = '#ff4a6a'; x.fillText('★', cx, cy); }
-      else if (e.k === 'npc' && e.npc && !G.S.npcs[e.npc]) { x.fillStyle = '#ffe060'; x.fillText('!', cx, cy); }
-      else if (e.k === 'chest' && !G.S.chests[e.id]) { x.fillStyle = '#ffd040'; x.fillRect(cx - 2, cy - 2, 4, 4); }
-      else if (e.k === 'house') { x.fillStyle = '#c84a3a'; x.fillRect(e.x * s, e.y * s, e.w * s, e.h * s); }
-      else if (e.k === 'stone') { x.fillStyle = '#7affd8'; x.fillText('◆', cx, cy); }
+      else if (e.k === 'camp') { x.fillStyle = W.canTravel(e.id) ? '#ffd86a' : '#c8b088'; x.fillText('⛺', cx, cy); }
       else if (e.k === 'hunt') { x.fillStyle = '#ff3a4a'; x.fillText('☠', cx, cy); }
-      else if (e.k === 'board') { x.fillStyle = '#ffd86a'; x.fillText('🎯', cx, cy); }
+      else if (e.k === 'npc' && e.npc && !G.S.npcs[e.npc]) { x.fillStyle = '#ffe060'; x.fillText('!', cx, cy); }
+      else if (e.k === 'chest' && !G.S.chests[e.id]) { x.fillStyle = '#ffd040'; x.fillRect(cx - 1.5, cy - 1.5, 3, 3); }
       else if (e.k === 'barrier') { x.fillStyle = '#ff8a2a'; x.fillText('▲', cx, cy); }
     });
-    x.fillStyle = '#fff'; x.beginPath(); x.arc(W.P.x * s + s / 2, W.P.y * s + s / 2, s * 0.8, 0, 7); x.fill();
-    x.strokeStyle = '#000'; x.lineWidth = 1.5; x.stroke();
-    x.fillStyle = 'rgba(255,255,255,0.95)'; x.font = 'bold 13px sans-serif';
-    [['Forêt de Sylve', 26, 76], ['Monts Grisés', 60, 20], ['Plaines d’Aube', 92, 56], ['Marais Brumeux', 152, 60], ['Volcan', 154, 26], ['Bourg-Aube', 82, 72], ['Havre', 144, 94]].forEach(([n, a, b]) => { x.strokeStyle = 'rgba(0,0,0,0.7)'; x.lineWidth = 3; x.strokeText(n, a * s, b * s); x.fillText(n, a * s, b * s); });
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(W.P.x * s + s / 2, W.P.y * s + s / 2, 4, 0, 7); x.fill(); x.strokeStyle = '#000'; x.lineWidth = 1.5; x.stroke();
+    x.font = 'bold 13px sans-serif';
+    const lab = [['Bourg-Aube', W.BOURG[0] + 4, W.BOURG[1] - 4], ['Le Havre', W.HAVRE[0] + 6, W.HAVRE[1] - 4]];
+    W.E.filter(e => e.k === 'boss').forEach(e => lab.push([G.ZONES[W.zoneAt(e.x, e.y)].n, e.x, e.y - 6]));
+    lab.forEach(([n, a, b]) => { if (!W.isExplored(a, b + 4)) return; x.strokeStyle = 'rgba(0,0,0,0.75)'; x.lineWidth = 3; x.strokeText(n, a * s, b * s); x.fillStyle = 'rgba(255,255,255,0.95)'; x.fillText(n, a * s, b * s); });
+    // centre la vue sur le joueur
+    const wrap = cv.parentElement; if (wrap) requestAnimationFrame(() => { const k = cv.clientWidth / cv.width; wrap.scrollLeft = W.P.x * s * k - wrap.clientWidth / 2; wrap.scrollTop = W.P.y * s * k - wrap.clientHeight / 2; });
   },
   // ----- Système -----
   tab_systeme() {

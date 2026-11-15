@@ -86,7 +86,7 @@ G.showTitle = () => {
       { who: 'Démo', t: 'Menu (☰ / Échap) › Armes : 4 armes par héros. Forgez celles qui manquent, améliorez-les, et comparez les styles de jeu.' },
       { who: 'Démo', t: 'Menu › Accomplissements : deux récompenses attendent d’être réclamées. Menu › Havre : construisez et améliorez les bâtiments.' },
       { who: 'Démo', t: 'Les familiers sont liés et leur énergie est pleine dès le début de chaque combat : essayez la commande « Familier » !' },
-      { who: 'Démo', t: 'Menu › Carte › Voyage rapide pour rejoindre le Marais (Hydre, à l’est) ou les Monts Grisés (Wyverne, au nord).' },
+      { who: 'Démo', t: 'Le monde est immense : Menu › Carte › Voyage rapide vous mène aux camps de chaque région (marais de l’Hydre, monts de la Wyverne…).' },
       { who: 'Démo', t: 'Le tableau de chasse (à droite de la pierre de fondation, ou Menu › Chasses) propose des contrats d’élite aux primes exclusives. Vous êtes chasseur de rang B, et le Golem d’obsidienne vous attend dans les Monts Grisés !' },
       { who: 'Démo', t: 'Et devant la pierre de fondation, faites face à un arbre ou un rocher et appuyez sur A pour récolter. Bonne aventure !' },
     ]);
@@ -147,7 +147,8 @@ G.demoState = () => {
   Object.assign(S.armors, { couronne_gel: 1, cape_traqueur: 1, masque_sporal: 1, lanterne_ames: 1 });
   S.mats.trophee = 4;
   S.time = 10 * 60;
-  S.pos = { x: 137, y: 100, dir: 'up' }; S.rest = { x: 137, y: 100 };
+  const [hx, hy] = G.World.HAVRE; S.pos = { x: hx + 5, y: hy + 4, dir: 'up' }; S.rest = { x: hx + 5, y: hy + 4 };
+  S.flags.camps = {}; G.World.camps.forEach(c => { if (c.zone !== 'volcan') S.flags.camps[c.id] = true; });
   return S;
 };
 
@@ -162,6 +163,8 @@ G.onResize = () => {
   G.Input.init();
   G.S = G.newState();
   G.World.init();
+  G.S = G.newState();
+  console.log('Monde généré en', G.World.genTime, 'ms');
   G.showTitle();
   let last = performance.now();
   const loop = t => {

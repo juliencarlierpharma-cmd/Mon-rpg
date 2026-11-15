@@ -155,7 +155,10 @@ button { font-family: inherit; color: inherit; }
 .bcard.focus { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(255, 216, 106, .4); }
 .help { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; }
 .mapwrap { overflow: auto; border-radius: 8px; border: 1px solid var(--line); max-width: 100%; }
-.worldmap { display: block; image-rendering: pixelated; width: 100%; min-width: 336px; }
+.worldmap { display: block; image-rendering: pixelated; width: 1248px; max-width: none; }
+.mapwrap { max-height: 70vh; }
+.trow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 3px 0; }
+.trow > span { width: 100%; }
 
 /* ---------- Arbre d'accomplissements ---------- */
 .atree-wrap { overflow: auto; border: 1px solid rgba(201, 211, 255, 0.3); border-radius: 9px; background: radial-gradient(ellipse at 30% 40%, rgba(80, 60, 160, 0.25), rgba(0, 0, 0, 0.3)); margin-bottom: 10px; }

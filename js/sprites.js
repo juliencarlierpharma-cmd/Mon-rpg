@@ -1306,3 +1306,18 @@ SPR.gatePost = (zone, side, horiz) => SPR.get(`gate_${zone}_${side}_${horiz ? 1 
   g.outline('#140c1c').polish(0.015, 53);
   return g.toCanvas();
 });
+
+// ---------------- Camp (tente et feu) ----------------
+SPR.camp = f => SPR.get('camp_' + f, () => {
+  const g = new G.Pix(32, 32, 2);
+  g.poly([[2, 24], [11, 8], [20, 24]], ['#8a5a30', '#c88a4a', '#e8b878']); g.poly([[11, 8], [20, 24], [24, 22], [15, 7]], U.shades('#9a6a3a'));
+  g.poly([[8.5, 24], [11, 15], [13.5, 24]], '#2a1a10'); g.hline(11, 7, 11, 24, '#5a3a20');
+  g.rect(14.5, 6, 0.6, 2, '#3a2a1a'); g.poly([[15, 6], [18, 6.8], [15, 7.6]], U.shades('#c83a3a'));
+  [[22, 27], [28, 27], [25, 25.6], [25, 28.4]].forEach(([x, y]) => g.ell(x, y, 1.8, 0.9, U.shades('#6a6458')));
+  g.line(22, 27.5, 28, 26, '#5a3a20', 0.8); g.line(22, 26, 28, 27.5, '#4a2e16', 0.8);
+  const fl = [[25, 24, 2.2, 3.4], [24, 23.5 - (f % 2) * 0.6, 1.2, 2.4], [26.2, 24 - ((f + 1) % 2) * 0.5, 1, 2]];
+  fl.forEach(([x, y, rx, ry], i) => g.ell(x, y, rx, ry, i === 0 ? ['#c83a10', '#ff8a2a', '#ffe080'] : ['#ff8a2a', '#ffd040', '#fff8c0']));
+  g.ell(30, 24, 1.6, 2.4, U.shades('#6a4626')); g.ell(30, 22, 1.8, 0.6, U.shades('#a8784a'));
+  g.outline('#140c1c').polish(0.015, 61);
+  return g.toCanvas();
+});

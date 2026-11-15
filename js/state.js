@@ -15,7 +15,7 @@ G.newChar = id => {
 };
 
 G.newState = () => ({
-  v: 3,
+  v: 4,
   party: ['kael', 'lyra'],
   chars: { kael: G.newChar('kael'), lyra: G.newChar('lyra'), bran: G.newChar('bran') },
   gold: 120,
@@ -33,8 +33,8 @@ G.newState = () => ({
   quests: {},
   hunts: {},
   hunter: { pts: 0, inf: 0 },
-  pos: { x: 78, y: 80, dir: 'down' },
-  rest: { x: 78, y: 80 },
+  pos: G.World && G.World.start ? { x: G.World.start[0], y: G.World.start[1], dir: 'down' } : { x: 0, y: 0, dir: 'down' },
+  rest: G.World && G.World.start ? { x: G.World.start[0], y: G.World.start[1] } : { x: 0, y: 0 },
   time: 9 * 60,
   nodes: {},
   chests: {},
@@ -298,7 +298,7 @@ G.load = () => {
     G.S = Object.assign(base, s);
     G.S.stats = Object.assign(G.newState().stats, s.stats || {});
     G.S.town = Object.assign(G.newState().town, s.town || {});
-    if ((s.v || 1) < 3) { const n = G.newState(); G.S.pos = n.pos; G.S.rest = n.rest; G.S.nodes = {}; G.S.flags.visited = { bourg: true, plaines: true }; G.S.v = 2; }
+    if ((s.v || 1) < 4) { const n = G.newState(); G.S.pos = n.pos; G.S.rest = n.rest; G.S.nodes = {}; G.S.flags.visited = { bourg: true, plaines: true }; G.S.v = 2; }
     return true;
   } catch (e) { console.error(e); return false; }
 };

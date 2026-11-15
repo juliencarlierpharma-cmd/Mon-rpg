@@ -6,10 +6,9 @@ const WALKABLE = new Set(['.', ',', '_', 'f', 'r', 'm', 'w', 'v', 's', 'p', 'g',
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 G.World = {
-  W: 180, H: 134,
-  // repères (coordonnées en tuiles)
-  BOURG: [74, 74], HAVRE: [132, 96], VX: 128, VY: 42,
+  W: 624, H: 464,
   init() {
+    const t0 = performance.now();
     this.gen();
     this.defineEntities();
     this.decorate();
@@ -22,312 +21,462 @@ G.World = {
     this.mining = null;
     this.sinceBattle = 0;
     this.emitT = 0;
+    this.genTime = Math.round(performance.now() - t0);
   },
   // ---------------- Génération ----------------
+  // Régions organiques : chaque case appartient au « foyer » le plus proche, après une
+  // déformation par du bruit (frontières sinueuses et régions imbriquées).
   gen() {
-    const W = this.W, H = this.H, VX = this.VX, VY = this.VY;
-    this.t = []; this.z = [];
-    for (let y = 0; y < H; y++) {
-      this.t.push([]); this.z.push([]);
-      for (let x = 0; x < W; x++) {
-        const n = U.fbm(x / 6, y / 6, 11), h = U.hash(x, y, 21);
-        let ch = h < 0.07 ? ',' : '.', zone = 'plaines';
-        if (n > 0.72 && h < 0.5) ch = 'T';
-        if (y <= 32 && x < VX) { zone = 'montagne'; ch = (n > 0.58) ? '^' : 'r'; }
-        if (x <= 54 && y >= 38 && y <= 116) { zone = 'foret'; ch = (n > 0.57 || h < 0.08) ? 'T' : 'f'; }
-        if (x > VX && y < VY) { zone = 'volcan'; ch = n > 0.69 ? 'l' : 'v'; }
-        if ((x === VX && y <= VY) || (y === VY && x >= VX)) { zone = 'volcan'; ch = '^'; }
-        if (x >= VX && y > VY && y <= 92) { zone = 'marais'; ch = n > 0.6 ? 'w' : 'm'; if (h < 0.05) ch = 'T'; }
-        const rx = 108 + Math.round(Math.sin(y * 0.11) * 5 + Math.sin(y * 0.31) * 1.5);
-        if (y >= 36 && y < 122 && x >= rx && x <= rx + 2) ch = '~';
-        // lacs des plaines
-        if (zone === 'plaines' && y > 36 && y < 120 && U.fbm(x / 9, y / 9, 71) > 0.74 && Math.abs(x - 78) + Math.abs(y - 78) > 14) ch = '~';
-        if (y >= 124) ch = '~'; else if (y >= 122) ch = 's';
-        if (x === 0 || x === W - 1 || y === 0) ch = y >= 122 ? '~' : (zone === 'foret' ? 'T' : '^');
-        this.t[y][x] = ch; this.z[y][x] = zone;
-      }
+    const W = this.W, H = this.H;
+    const bx = Math.round(W * 0.4), by = Math.round(H * 0.58);
+    this.BOURG = [bx, by]; this.HAVRE = [bx + 58, by + 22];
+    const cx0 = bx + 4, cy0 = by + 4;
+    // --- foyers régionaux ---
+    const SP = 46, sites = [];
+    for (let gy = 0; gy * SP < H; gy++) for (let gx = 0; gx * SP < W; gx++) {
+      const x = Math.round((gx + 0.5) * SP + (U.hash(gx, gy, 301) - 0.5) * SP * 0.7), y = Math.round((gy + 0.5) * SP + (U.hash(gx, gy, 302) - 0.5) * SP * 0.7);
+      if (x < 16 || y < 16 || x > W - 16 || y > H - 48) continue;
+      sites.push({ x, y });
     }
-    // lisières : chaque zone sauvage est bordée d'une frontière bien visible
-    const EDGE = { foret: 'T', montagne: '^', marais: 'T' };
+    const maxD = Math.hypot(W, H) * 0.55;
+    let vi = 0; sites.forEach((s, i) => { if (s.y < H * 0.4 && s.x - s.y * 1.2 > sites[vi].x - sites[vi].y * 1.2) vi = i; });
+    // le volcan : le foyer le plus au nord-est et ses deux plus proches voisins
+    const volc = new Set([vi].concat(sites.map((s, i) => [i, Math.hypot(s.x - sites[vi].x, s.y - sites[vi].y)]).filter(([i]) => i !== vi).sort((a, b) => a[1] - b[1]).slice(0, 2).map(([i]) => i)));
+    sites.forEach((s, i) => {
+      const dist = Math.hypot(s.x - cx0, s.y - cy0), d = dist / maxD, ang = Math.atan2(s.y - cy0, s.x - cx0);
+      const north = -Math.sin(ang), east = Math.cos(ang);
+      if (volc.has(i)) { s.type = 'volcan'; return; }
+      if (dist < 70) { s.type = 'plaines'; return; }
+      // anneaux de difficulté autour du bourg (plaines › forêt › monts/marais), bords irréguliers ;
+      // les monts dominent l'ouest et le nord, le marais l'est et le sud-est
+      const r = d + (U.hash(s.x, s.y, 311) - 0.5) * 0.22;
+      if (r < 0.24) s.type = U.hash(s.x, s.y, 312) < 0.22 ? 'foret' : 'plaines';
+      else if (r < 0.42) s.type = U.hash(s.x, s.y, 313) < 0.18 ? 'plaines' : 'foret';
+      else { const m = 0.5 + north * 0.35 - east * 0.45 + (U.hash(s.x, s.y, 314) - 0.5) * 0.7; s.type = U.hash(s.x, s.y, 315) < 0.12 ? 'foret' : m > 0.5 ? 'montagne' : 'marais'; }
+    });
+    ['foret', 'montagne', 'marais'].forEach((z, j) => { let n = sites.filter(s => s.type === z).length; sites.filter(s => s.type === 'plaines' && Math.hypot(s.x - cx0, s.y - cy0) > 120).sort((a, b) => U.hash(a.x, a.y, 330 + j) - U.hash(b.x, b.y, 330 + j)).forEach(s => { if (n < 4) { s.type = z; n++; } }); });
+    this.sites = sites;
+    // --- régions par plus proche foyer (coordonnées déformées) ---
+    this.t = []; this.z = []; this.sid = [];
+    // grille de recherche des foyers (accélère le « plus proche foyer »)
+    const GC = SP, GW = Math.ceil(W / GC) + 1, GH = Math.ceil(H / GC) + 1, grid = Array.from({ length: GW * GH }, () => []);
+    sites.forEach((st, i) => grid[Math.min(GH - 1, Math.floor(st.y / GC)) * GW + Math.min(GW - 1, Math.floor(st.x / GC))].push(i));
+    for (let y = 0; y < H; y++) {
+      const tr = new Array(W), zr = new Array(W), sr = new Int16Array(W);
+      for (let x = 0; x < W; x++) {
+        const wx = x + (U.fbm(x / 50, y / 50, 401) - 0.5) * 95 + (U.noise(x / 14, y / 14, 403) - 0.5) * 16;
+        const wy = y + (U.fbm(x / 50, y / 50, 402) - 0.5) * 95 + (U.noise(x / 14, y / 14, 404) - 0.5) * 16;
+        let bi = 0, bd = 1e12;
+        const gcx = Math.floor(wx / GC), gcy = Math.floor(wy / GC);
+        for (let gy2 = gcy - 2; gy2 <= gcy + 2; gy2++) { if (gy2 < 0 || gy2 >= GH) continue; for (let gx2 = gcx - 2; gx2 <= gcx + 2; gx2++) { if (gx2 < 0 || gx2 >= GW) continue; const L = grid[gy2 * GW + gx2]; for (let k = 0; k < L.length; k++) { const i = L[k], dx = wx - sites[i].x, dy = wy - sites[i].y, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; bi = i; } } } }
+        const zone = sites[bi].type, n = U.fbm(x / 6, y / 6, 11), h = U.hash(x, y, 21);
+        let ch;
+        if (zone === 'montagne') ch = n > 0.58 ? '^' : 'r';
+        else if (zone === 'foret') ch = (n > 0.57 || h < 0.08) ? 'T' : 'f';
+        else if (zone === 'volcan') ch = n > 0.69 ? 'l' : 'v';
+        else if (zone === 'marais') { ch = n > 0.6 ? 'w' : 'm'; if (h < 0.05) ch = 'T'; }
+        else { ch = h < 0.07 ? ',' : '.'; if (n > 0.72 && h < 0.5) ch = 'T'; if (U.fbm(x / 14, y / 14, 71) > 0.76) ch = '~'; }
+        tr[x] = ch; zr[x] = zone; sr[x] = bi;
+      }
+      this.t.push(tr); this.z.push(zr); this.sid.push(sr);
+    }
+    // --- fleuves ---
+    const riverOk = z => z === 'plaines' || z === 'foret' || z === 'marais';
+    for (let y = Math.round(H * 0.08); y < H; y++) { const rx = Math.round(W * 0.63 + Math.sin(y / 50) * 28 + Math.sin(y / 17) * 6); for (let x = rx; x <= rx + 2; x++) if (riverOk(this.z[y][x])) this.t[y][x] = '~'; }
+    for (let x = Math.round(W * 0.04); x < Math.round(W * 0.52); x++) { const ry = Math.round(H * 0.34 + Math.sin(x / 60) * 22 + Math.sin(x / 19) * 5); for (let y = ry; y <= ry + 2; y++) if (riverOk(this.z[y][x])) this.t[y][x] = '~'; }
+    // --- côte sud et bords de carte ---
+    this.coast = new Int16Array(W);
+    for (let x = 0; x < W; x++) {
+      const coast = this.coast[x] = Math.round(H - 20 - U.fbm(x / 40, 3, 405) * 16);
+      for (let y = coast - 2; y < H; y++) if (this.z[y][x] !== 'volcan') this.t[y][x] = y >= coast ? '~' : 's';
+    }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x < 2 || y < 2 || x >= W - 2) this.t[y][x] = this.z[y][x] === 'foret' ? 'T' : '^';
+    // --- lisières : frontières visibles et infranchissables hors des chemins ---
+    const EDGE = { foret: 'T', montagne: '^', marais: 'T', volcan: '^' };
     const edges = [];
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
-      const z = this.z[y][x];
-      if (!EDGE[z]) continue;
-      const out = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(([dx, dy]) => { const o = this.z[y + dy][x + dx]; return o !== z && o !== 'volcan'; });
-      if (out && this.t[y][x] !== '~') edges.push([x, y, EDGE[z]]);
+      const z = this.z[y][x]; if (!EDGE[z]) continue;
+      let out = false;
+      for (let dy = -1; dy <= 1 && !out; dy++) for (let dx = -1; dx <= 1; dx++) if (this.z[y + dy][x + dx] !== z) { out = true; break; }
+      if (out && (this.t[y][x] !== '~' || z === 'volcan')) edges.push([x, y, EDGE[z]]);
     }
     edges.forEach(([x, y, c]) => { this.t[y][x] = c; });
-    // villes
-    const [bx, by] = this.BOURG, [hx, hy] = this.HAVRE;
+    // --- villes (avec un dégagement autour) ---
+    const [hx, hy] = this.HAVRE;
+    for (let y = by - 8; y < hy + 16; y++) for (let x = bx - 10; x < hx + 22; x++) {
+      const nb = Math.max(0, bx - 10 - x, x - (bx + 18)) + Math.max(0, by - 8 - y, y - (by + 18));
+      const nh = Math.max(0, hx - 8 - x, x - (hx + 20)) + Math.max(0, hy - 8 - y, y - (hy + 15));
+      if (Math.min(nb, nh) === 0 && this.z[y][x] !== 'volcan') { this.z[y][x] = 'plaines'; if (!WALKABLE.has(this.t[y][x]) || this.t[y][x] === 's') this.t[y][x] = U.hash(x, y, 21) < 0.07 ? ',' : '.'; }
+    }
     this.rect(bx, by, 9, 9, 'g', 'bourg');
     this.rect(bx + 3, by + 3, 3, 3, 'p');
     for (let i = 0; i < 9; i++) { this.t[by + 4][bx + i] = 'p'; this.t[by + i][bx + 4] = 'p'; }
     this.rect(hx, hy, 12, 8, 'g', 'havre');
     for (let x = 0; x < 12; x++) this.t[hy + 4][hx + x] = 'p';
-    // chemins principaux (les passages à travers les lisières deviennent des portiques)
+    // --- réseau de chemins sinueux entre les foyers ---
     this.gates = [];
-    const P = (pts) => { for (let i = 0; i < pts.length - 1; i++) this.carve(pts[i], pts[i + 1], '_'); };
-    P([[bx - 1, by + 4], [28, by + 4], [28, 59], [16, 59]]);
-    P([[28, by + 4], [28, 106], [44, 106], [44, 116]]);
-    P([[28, 92], [10, 92], [10, 108]]);
-    P([[bx + 4, by - 1], [bx + 4, 28], [68, 28], [68, 11]]);
-    P([[bx + 4, 28], [112, 28], [112, 18]]);
-    P([[68, 28], [20, 28], [20, 12]]);
-    P([[bx + 9, by + 4], [148, by + 4], [148, 68], [163, 68]]);
-    P([[148, 84], [170, 84], [170, 72]]);
-    P([[148, 68], [148, VY], [148, 16], [154, 16], [154, 13]]);
-    P([[148, 30], [172, 30], [172, 8]]);
-    P([[bx + 4, by + 9], [bx + 4, hy + 4], [hx - 1, hy + 4]]);
-    P([[hx + 5, hy + 8], [hx + 5, 120], [172, 120]]);
-    P([[bx + 4, 112], [40, 112]]);
-    P([[122, by + 4], [122, 77]]);
-    // sol autour des gardiens
-    [[16, 58], [68, 10], [164, 68], [154, 12]].forEach(([x, y]) => this.clearAround(x, y, 1));
+    const segHitsVolcano = (a, b) => { const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)); for (let i = 0; i <= n; i++) { const x = Math.round(a.x + (b.x - a.x) * i / n), y = Math.round(a.y + (b.y - a.y) * i / n); for (let dy = -6; dy <= 6; dy += 3) for (let dx = -6; dx <= 6; dx += 3) if (this.zoneAt(x + dx, y + dy) === 'volcan') return true; } return false; };
+    const nodes = sites.map((s, i) => ({ x: s.x, y: s.y, i })).filter(s => !volc.has(s.i));
+    nodes.push({ x: cx0, y: cy0, i: -1, town: true });
+    // arbre couvrant minimal (Kruskal sur les 6 plus proches voisins) + quelques liaisons en plus
+    const cand = [], seen = new Set();
+    nodes.forEach((a, i) => nodes.map((b, j) => [j, Math.hypot(a.x - b.x, a.y - b.y)]).filter(([j]) => j !== i).sort((p, q) => p[1] - q[1]).slice(0, 6).forEach(([j, d]) => {
+      const key = Math.min(i, j) + ',' + Math.max(i, j); if (seen.has(key)) return; seen.add(key);
+      cand.push([i, j, d * (segHitsVolcano(a, nodes[j]) ? 50 : 1)]);
+    }));
+    cand.sort((p, q) => p[2] - q[2]);
+    const par = nodes.map((_, i) => i), find = i => par[i] === i ? i : (par[i] = find(par[i]));
+    const edgesG = [];
+    cand.forEach(([i, j, d]) => { const a = find(i), b = find(j); if (a !== b) { par[a] = b; edgesG.push([i, j]); } else if (d < SP * 1.5 && U.hash(i, j, 340) < 0.3) edgesG.push([i, j]); });
+    const meander = (a, b, depth, seed) => {
+      if (depth === 0) return [a, b];
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, len = Math.hypot(b[0] - a[0], b[1] - a[1]), nx = -(b[1] - a[1]) / (len || 1), ny = (b[0] - a[0]) / (len || 1);
+      const off = (U.hash(Math.round(mx), Math.round(my), seed) - 0.5) * len * 0.35;
+      const m = [Math.round(mx + nx * off), Math.round(my + ny * off)];
+      return meander(a, m, depth - 1, seed + 1).concat(meander(m, b, depth - 1, seed + 2).slice(1));
+    };
+    const exitOf = (n, toward) => { if (!n.town) return [n.x, n.y]; const dx = toward.x - cx0, dy = toward.y - cy0; return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? [bx - 1, by + 4] : [bx + 9, by + 4]) : (dy < 0 ? [bx + 4, by - 1] : [bx + 4, by + 9]); };
+    edgesG.forEach(([i, j]) => {
+      const a = nodes[i], b = nodes[j], pts = meander(exitOf(a, b), exitOf(b, a), 3, 350 + i * 7 + j);
+      pts.forEach((p, k) => { p[0] = U.clamp(p[0], 3, W - 4); p[1] = U.clamp(p[1], 3, this.coast[p[0]] - 7); if (k) this.carve(pts[k - 1], p, '_', true); });
+    });
+    // liaison du Havre au bourg
+    [[bx + 4, by + 9], [bx + 4, hy + 4], [hx - 1, hy + 4]].reduce((a, b) => { this.carve(a, b, '_'); return b; });
+    // --- entrée unique du volcan (gardée par la barrière) ---
+    const V = sites[vi];
+    let tgt = null, td = 1e12; nodes.forEach(n => { const d = Math.hypot(n.x - V.x, n.y - V.y); if (!n.town && d < td) { td = d; tgt = n; } });
+    // tracé 4-connexe du cœur du volcan vers l'extérieur : la dernière case volcanique devient la barrière
+    let px = V.x, py = V.y, ix = V.x, iy = V.y, cx = V.x, cy = V.y;
+    const tdx = tgt.x - V.x, tdy = tgt.y - V.y;
+    for (let i = 0; i < 2000; i++) {
+      const ex = (cx - V.x) * tdy - (cy - V.y) * tdx;
+      if (Math.abs(cx - tgt.x) > 0 && (Math.abs(cy - tgt.y) === 0 || (ex * Math.sign(tdx) * Math.sign(tdy) <= 0 ? Math.abs(tdx) >= Math.abs(tdy) * 0.5 : Math.abs(tdx) > Math.abs(tdy) * 2))) cx += Math.sign(tdx); else cy += Math.sign(tdy);
+      if (this.z[cy][cx] !== 'volcan') { px = cx; py = cy; break; }
+      ix = cx; iy = cy;
+    }
+    { const p = this.bfsPath([V.x, V.y], [ix, iy], (x, y) => this.z[y][x] === 'volcan'); if (p) p.forEach((q, k) => { if (k) this.carve(p[k - 1], q, 'v'); }); }
+    volc.forEach(i => { if (i === vi) return; const p = this.bfsPath([V.x, V.y], [sites[i].x, sites[i].y], (x, y) => this.z[y][x] === 'volcan' && !this.edgeVolc(x, y)); if (p) p.forEach((q, k) => { if (k) this.carve(p[k - 1], q, 'v'); }); });
+    // chemin extérieur : plus court chemin qui évite le volcan
+    const outPath = this.bfsPath([px, py], [tgt.x, tgt.y], (x, y) => this.z[y][x] !== 'volcan' && x > 1 && y > 1 && x < W - 2 && y < H - 2);
+    if (outPath) outPath.forEach((p, k) => { if (k) this.carve(outPath[k - 1], p, '_'); });
+    this.t[iy][ix] = '_'; this.t[py][px] = '_';
+    this.VBARRIER = [ix, iy];
+    this.gates = this.gates.filter(g => g.z !== 'volcan');
+    this.gates.push({ x: ix, y: iy, z: 'volcan', horiz: ix !== px });
+    // dégagement au cœur de chaque région
+    sites.forEach(s => this.clearAround(s.x, s.y, 2));
     this.computeDepth();
+  },
+  edgeVolc(x, y) { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (this.zoneAt(x + dx, y + dy) !== 'volcan') return true; return false; },
+  // plus court chemin sur la grille (largeur), limité par une condition de passage
+  bfsPath(a, b, ok) {
+    const W = this.W, H = this.H, prev = new Int32Array(W * H).fill(-1), q = new Int32Array(W * H);
+    let qh = 0, qt = 0; const s = a[1] * W + a[0], goal = b[1] * W + b[0];
+    prev[s] = s; q[qt++] = s;
+    while (qh < qt) {
+      const c = q[qh++]; if (c === goal) break;
+      const x = c % W, y = (c / W) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, n = ny * W + nx; if (nx < 0 || ny < 0 || nx >= W || ny >= H || prev[n] >= 0 || !ok(nx, ny)) continue; prev[n] = c; q[qt++] = n; }
+    }
+    if (prev[goal] < 0) return null;
+    const path = []; let c = goal; while (c !== s) { path.push([c % W, (c / W) | 0]); c = prev[c]; } path.push(a);
+    return path.reverse();
   },
   // profondeur de chaque case dans sa région (0 à l'entrée, 1 au plus loin)
   computeDepth() {
     const W = this.W, H = this.H, d = this.depth = Array.from({ length: H }, () => new Float32Array(W).fill(-1));
     const q = [];
-    this.gates.forEach(g => { d[g.y][g.x] = 0; q.push([g.x, g.y]); });
-    [this.BOURG, this.HAVRE].forEach(([bx, by]) => { for (let y = by - 1; y <= by + 9; y++) for (let x = bx - 1; x <= bx + 12; x++) if (this.z[y] && this.z[y][x] === 'plaines' && d[y][x] < 0) { d[y][x] = 0; q.push([x, y]); } });
+    this.gates.forEach(g => { d[g.y][g.x] = 0; q.push(g.y * W + g.x); });
+    [this.BOURG, this.HAVRE].forEach(([bx, by]) => { for (let y = by - 1; y <= by + 9; y++) for (let x = bx - 1; x <= bx + 12; x++) if (this.z[y] && this.z[y][x] === 'plaines' && d[y][x] < 0) { d[y][x] = 0; q.push(y * W + x); } });
     for (let i = 0; i < q.length; i++) {
-      const [x, y] = q[i], z = this.z[y][x];
-      for (const [dx, dy] of Object.values(DIRS)) {
+      const x = q[i] % W, y = (q[i] / W) | 0, z = this.z[y][x];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const nx = x + dx, ny = y + dy;
         if (nx < 0 || ny < 0 || nx >= W || ny >= H || d[ny][nx] >= 0 || this.z[ny][nx] !== z) continue;
-        d[ny][nx] = d[y][x] + 1; q.push([nx, ny]);
+        d[ny][nx] = d[y][x] + 1; q.push(ny * W + nx);
       }
     }
-    const max = {};
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const z = this.z[y][x]; max[z] = Math.max(max[z] || 1, d[y][x]); }
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) d[y][x] = d[y][x] < 0 ? 0.5 : d[y][x] / max[this.z[y][x]];
+    // normalisation : 0 à l'entrée, 1 à environ 70 cases de la frontière
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) d[y][x] = d[y][x] < 0 ? 0.5 : Math.min(1, d[y][x] / 70);
   },
   depthAt(x, y) { return this.depth && this.depth[y] ? this.depth[y][x] : 0; },
   rect(x0, y0, w, h, ch, zone) { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { this.t[y][x] = ch; if (zone) this.z[y][x] = zone; } },
   groundOf(zone) { return { foret: 'f', montagne: 'r', marais: 'm', volcan: 'v', bourg: 'g', havre: 'g' }[zone] || '.'; },
-  carve(a, b, ch) {
+  // creuse un chemin en L ; noVolcano : ne perce jamais la muraille du volcan
+  carve(a, b, ch, noVolcano) {
     let [x, y] = a; const [x1, y1] = b;
     let prev = null;
     const put = () => {
       const c = this.t[y][x], z = this.z[y][x];
-      if (prev && ch && z !== prev.z && ['foret', 'montagne', 'marais', 'volcan'].includes(z) && !this.gates.some(g => g.x === x && g.y === y))
+      if (noVolcano && z === 'volcan') { prev = { x, y, z }; return; }
+      if (prev && ch && z !== prev.z && ['foret', 'montagne', 'marais', 'volcan'].includes(z) && !this.gateAt(x, y))
         this.gates.push({ x, y, z, horiz: prev.y === y });
       prev = { x, y, z };
       if (z === 'bourg' || z === 'havre') { if (!WALKABLE.has(c)) this.t[y][x] = 'g'; return; }
       if (c === '~') this.t[y][x] = '=';
+      else if (c === 'l') this.t[y][x] = 'v';
       else if (c !== '=' && c !== 'p') this.t[y][x] = ch || this.groundOf(z);
     };
     put();
     while (x !== x1 || y !== y1) { if (x !== x1) x += Math.sign(x1 - x); else y += Math.sign(y1 - y); put(); }
   },
+  gateAt(x, y) { this._gk = this._gk || new Set(); const k = y * this.W + x; if (this._gk.has(k)) return true; this._gk.add(k); return false; },
   clearAround(cx, cy, r) {
     for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
-      if (x <= 0 || y <= 0 || x >= this.W - 1 || y >= this.H - 1) continue;
+      if (x <= 1 || y <= 1 || x >= this.W - 2 || y >= this.H - 2) continue;
       if (!WALKABLE.has(this.t[y][x]) || this.t[y][x] === 'w') this.t[y][x] = this.groundOf(this.z[y][x]);
     }
   },
   tile(x, y) { return (x < 0 || y < 0 || x >= this.W || y >= this.H) ? '^' : this.t[y][x]; },
   zoneAt(x, y) { return (this.z[y] && this.z[y][x]) || 'plaines'; },
+  // cases accessibles depuis le départ (la barrière du volcan compte comme ouverte)
+  computeReach() {
+    const W = this.W, H = this.H, R = this.reach = new Uint8Array(W * H), occ = this.occGrid;
+    const [sx, sy] = this.start, q = [sy * W + sx]; R[q[0]] = 1;
+    for (let i = 0; i < q.length; i++) {
+      const x = q[i] % W, y = (q[i] / W) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy, n = ny * W + nx;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || R[n]) continue;
+        if (!WALKABLE.has(this.t[ny][nx]) || (occ && occ[n] === 1)) continue;
+        R[n] = 1; q.push(n);
+      }
+    }
+  },
+  // occupation au sol : 1 bloqué par une entité, 2 abords réservés (portes, alentours)
+  markOcc(e) {
+    if (e.k === 'barrier') return;
+    const W = this.W, o = this.occGrid;
+    for (let y = e.y - 1; y <= e.y + e.h; y++) for (let x = e.x - 1; x <= e.x + e.w; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= this.H) continue;
+      const inside = x >= e.x && x < e.x + e.w && y >= e.y && y < e.y + e.h;
+      if (inside) o[y * W + x] = 1; else if (!o[y * W + x]) o[y * W + x] = 2;
+    }
+  },
+  // case libre, accessible, hors chemin, entourée de cases praticables
+  okSpot(x, y, w = 1, h = 1, ring = true) {
+    const W = this.W, o = this.occGrid;
+    if (x < 3 || y < 3 || x + w >= this.W - 3 || y + h >= this.H - 3) return false;
+    for (let yy = y - (ring ? 1 : 0); yy < y + h + (ring ? 1 : 0); yy++) for (let xx = x - (ring ? 1 : 0); xx < x + w + (ring ? 1 : 0); xx++) {
+      const c = this.t[yy][xx], k = yy * W + xx, inside = xx >= x && xx < x + w && yy >= y && yy < y + h;
+      if (o[k]) return false;
+      if (!WALKABLE.has(c) || c === '=' || c === 'w') return false;
+      if (inside && (c === '_' || c === 'p')) return false;
+      if (!inside && !this.reach[k]) return false;
+    }
+    return true;
+  },
+  // cherche une case convenable dans une région, à une profondeur donnée
+  findSpot(zone, minD, maxD, seed, near) {
+    const tries = 4000;
+    for (let i = 0; i < tries; i++) {
+      let x, y;
+      if (near) { const r = 3 + (i / 40 | 0); x = near[0] + Math.round((U.hash(i, seed, 1) - 0.5) * 2 * r); y = near[1] + Math.round((U.hash(seed, i, 2) - 0.5) * 2 * r); }
+      else { x = 3 + Math.floor(U.hash(i, seed, 3) * (this.W - 6)); y = 3 + Math.floor(U.hash(seed, i, 4) * (this.H - 6)); }
+      if (x < 3 || y < 3 || x >= this.W - 3 || y >= this.H - 3) continue;
+      if (zone && this.z[y][x] !== zone) continue;
+      const d = this.depthAt(x, y); if (d < minD || d > maxD) continue;
+      if (this.okSpot(x, y)) return [x, y];
+    }
+    return null;
+  },
   // ---------------- Entités ----------------
   defineEntities() {
     const S = () => G.S, E = this.E = [];
-    const add = e => { e.w = e.w || 1; e.h = e.h || 1; E.push(e); return e; };
+    this.occGrid = new Uint8Array(this.W * this.H);
+    const add = e => { e.w = e.w || 1; e.h = e.h || 1; E.push(e); this.markOcc(e); return e; };
+    this.add = add;
     const [bx, by] = this.BOURG, [hx, hy] = this.HAVRE;
+    this.start = [bx + 4, by + 6];
     const B = (x, y) => [bx + x, by + y], Hv = (x, y) => [hx + x, hy + y];
     // --- Bourg-Aube ---
     const house = (id, rx, ry, o) => { const [x, y] = B(rx, ry); add(Object.assign({ k: 'house', id, x, y, w: 3, h: 2, door: [x + 1, y + 1] }, o)); };
-    house('inn', 0, 0, { arch: 'timber', aopt: { icon: 'bed', inn: true }, roof: '#a83a2a', wall: '#e8d8b8', label: 'Auberge', act: () => G.UI.inn('bourg'), opts: { sign: true, chimney: true } });
-    house('shop_obj', 6, 0, { arch: 'shop', aopt: { awning: '#3a6aa8' }, roof: '#3a6aa8', wall: '#e8dcc0', label: 'Échoppe', act: () => G.UI.shop(G.SHOPS.bourg_obj), opts: { awning: '#3a6aa8' } });
-    house('shop_mat', 0, 6, { arch: 'barn', aopt: { wall: '#7a5a3a', roof: '#3a5a3a' }, roof: '#3a8a4a', wall: '#d8c8a0', label: 'Comptoir', act: () => G.UI.shop(G.SHOPS.bourg_mat), opts: { awning: '#c87a2a' } });
-    house('elder', 6, 6, { arch: 'manor', aopt: {}, roof: '#7a4aa8', wall: '#e8e0d0', label: 'Maison de l’Ancien', act: () => this.elderTalk(), opts: { banner: '#7a4aa8' } });
+    house('inn', 0, 0, { arch: 'timber', aopt: { icon: 'bed', inn: true }, label: 'Auberge', act: () => G.UI.inn('bourg') });
+    house('shop_obj', 6, 0, { arch: 'shop', aopt: { awning: '#3a6aa8' }, label: 'Échoppe', act: () => G.UI.shop(G.SHOPS.bourg_obj) });
+    house('shop_mat', 0, 6, { arch: 'barn', aopt: { wall: '#7a5a3a', roof: '#3a5a3a' }, label: 'Comptoir', act: () => G.UI.shop(G.SHOPS.bourg_mat) });
+    house('elder', 6, 6, { arch: 'manor', aopt: {}, label: 'Maison de l’Ancien', act: () => this.elderTalk() });
     add({ k: 'fountain', x: bx + 4, y: by + 4 });
     [B(3, 2), B(5, 2), B(3, 6), B(5, 6), Hv(4, 3), Hv(6, 3), Hv(3, 7), Hv(8, 7)].forEach(([x, y], i) => add({ k: 'lamp', x, y, show: i < 4 ? null : () => S().town.founded }));
-    add({ k: 'sign', x: bx - 1, y: by + 3, text: '← Forêt de Sylve (ouest)\n↑ Monts Grisés (nord)\n→ Marais Brumeux (est)\n↓ Site du Havre (sud-est)' });
+    add({ k: 'sign', x: bx - 1, y: by + 3, text: 'Le monde est vaste : consultez la carte (Menu › Carte).\nChaque région possède des camps : découvrez-les pour vous y reposer et voyager rapidement.' });
     add({ k: 'sign', x: hx - 1, y: hy + 3, text: 'Site du Havre — terre d’accueil.\n« Ici renaîtra l’espoir. »' });
-    add({ k: 'sign', x: 147, y: 46, text: 'Au nord : le Volcan Cendreux.\nUne barrière de flammes en garde l’entrée.' });
     const [fx1, fy1] = B(2, 3), [gx1, gy1] = B(5, 7), [dx1, dy1] = B(8, 3);
     add({ k: 'npc', id: 'v_farmer', x: fx1, y: fy1, pal: { H: '#8a6a3a', C: '#6a8a3a', D: '#3a5a24', B: '#4a3a22' }, name: 'Paysan', lines: ['Tu peux arracher du bois aux arbres à mains nues, comme un sauvage !', 'Avec trois bûches, fabrique une pioche en bois (Menu → Artisanat → Outils).', 'Ensuite pierre, fer… chaque outil ouvre de nouveaux filons.'] });
     add({ k: 'npc', id: 'v_girl', x: gx1, y: gy1, pal: { H: '#e8b040', C: '#d85a8a', D: '#8a2a5a', B: '#4a3a22' }, name: 'Fillette', lines: ['Les familiers aiment se battre aux côtés de leur maître.', 'Plus l’affinité grandit, plus ils débloquent de synergies !', 'Et si l’élément du familier correspond à l’arme équipée… ça résonne !'] });
-    add({ k: 'npc', id: 'v_guard', x: dx1, y: dy1, pal: { H: '#5a5a6a', C: '#8a8a9a', D: '#4a4a5a', B: '#2a2a2a', L: '#c8a040' }, name: 'Garde', lines: ['Ici, aucun marchand ne vend d’armes ni d’armures.', 'Tout se forge avec les matériaux arrachés aux monstres.', 'Les lisières de forêt, les falaises et les marais marquent la frontière de chaque région : suis les portiques pour y entrer.'] });
-    // --- PNJ recrutables (position d'origine) ---
-    const home = { dorn: B(6, 3), pell: B(2, 5), lise: B(3, 1), mira: [62, 80], yuna: [64, 96], fen: [122, 76], grom: [110, 20] };
-    const havre = { dorn: Hv(0, 3), mira: Hv(2, 3), pell: Hv(8, 3), lise: Hv(10, 3), yuna: Hv(2, 7), fen: Hv(5, 7), grom: Hv(9, 7) };
-    Object.keys(G.NPCS).forEach(id => {
-      const N = G.NPCS[id];
-      add({ k: 'npc', id: 'r_' + id, npc: id, x: home[id][0], y: home[id][1], pal: N.pal, name: `${N.n} (${N.job})`, show: () => !S().npcs[id], act: () => this.recruitTalk(id) });
-      add({ k: 'npc', id: 'h_' + id, npc: id, x: havre[id][0], y: havre[id][1], pal: N.pal, name: `${N.n} (${N.job})`, show: () => S().npcs[id] && S().town.founded, act: () => this.serviceTalk(id) });
-    });
-    // --- Gardiens ---
-    [['sylvaros', 16, 58], ['wyverne', 68, 10], ['hydre', 164, 68], ['ignar', 154, 12]].forEach(([id, x, y]) =>
-      add({ k: 'boss', id, x, y, show: () => !S().bosses[id], act: () => this.bossTalk(id) }));
-    add({ k: 'barrier', x: 148, y: this.VY, show: () => ['sylvaros', 'wyverne', 'hydre'].some(b => !S().bosses[b]), act: () => this.barrierTalk() });
-    // --- Portiques aux entrées des régions ---
-    this.gates.forEach(g => {
-      if (g.z === 'volcan') return;
-      const posts = g.horiz ? [[g.x, g.y - 1], [g.x, g.y + 1]] : [[g.x - 1, g.y], [g.x + 1, g.y]];
-      posts.forEach(([x, y], i) => { this.t[y][x] = this.groundOf(this.z[y][x]); add({ k: 'gate', x, y, zone: g.z, side: i, horiz: g.horiz }); });
-    });
+    add({ k: 'npc', id: 'v_guard', x: dx1, y: dy1, pal: { H: '#5a5a6a', C: '#8a8a9a', D: '#4a4a5a', B: '#2a2a2a', L: '#c8a040' }, name: 'Garde', lines: ['Ici, aucun marchand ne vend d’armes ni d’armures.', 'Tout se forge avec les matériaux arrachés aux monstres.', 'Les régions s’entremêlent : suis les chemins et les portiques, et repère les camps pour souffler.'] });
     // --- Havre ---
     add({ k: 'stone', x: hx + 5, y: hy + 3, show: () => S().town.founded, act: () => G.UI.havre() });
     const plots = { forge: [0, 0], atelier: [3, 0], marche: [6, 0], taverne: [9, 0], menagerie: [0, 5], herboristerie: [3, 5], mine: [6, 5] };
-    Object.keys(plots).forEach(bid => {
-      const [x, y] = Hv(...plots[bid]);
-      add({ k: 'plot', id: bid, x, y, w: 3, h: 2, door: [x + 1, y + 1], show: () => S().town.founded, act: () => this.plotTalk(bid) });
-    });
+    Object.keys(plots).forEach(bid => { const [x, y] = Hv(...plots[bid]); add({ k: 'plot', id: bid, x, y, w: 3, h: 2, door: [x + 1, y + 1], show: () => S().town.founded, act: () => this.plotTalk(bid) }); });
     const rem = () => (S().town.b.remparts || 0) > 0;
     for (let x = hx - 1; x <= hx + 12; x++) add({ k: 'wall', x, y: hy - 1, show: rem });
     for (let y = hy; y <= hy + 7; y++) { if (y < hy + 3 || y > hy + 5) add({ k: 'wall', x: hx - 1, y, show: rem }); add({ k: 'wall', x: hx + 12, y, show: rem }); }
-    // --- Tableau de chasse ---
     add({ k: 'board', x: bx + 7, y: by + 5, act: () => G.UI.hunts() });
     add({ k: 'board', x: hx + 11, y: hy + 3, show: () => S().town.founded, act: () => G.UI.hunts() });
-    G.HUNTS.concat([G.HUNT_INF]).forEach(h => {
-      this.clearAround(h.at[0], h.at[1], 1);
+    const havreNpc = { dorn: Hv(0, 3), mira: Hv(2, 3), pell: Hv(8, 3), lise: Hv(10, 3), yuna: Hv(2, 7), fen: Hv(5, 7), grom: Hv(9, 7) };
+    // --- portiques aux entrées des régions ---
+    this.gates.forEach(g => {
+      if (g.z === 'volcan') return;
+      const posts = g.horiz ? [[g.x, g.y - 1], [g.x, g.y + 1]] : [[g.x - 1, g.y], [g.x + 1, g.y]];
+      if (posts.some(([x, y]) => this.t[y][x] === '_' || this.t[y][x] === '=' || this.occGrid[y * this.W + x] === 1)) return;
+      posts.forEach(([x, y], i) => { this.t[y][x] = this.groundOf(this.z[y][x]); add({ k: 'gate', x, y, zone: g.z, side: i, horiz: g.horiz }); });
+    });
+    // --- barrière du volcan ---
+    const [vx, vy] = this.VBARRIER;
+    add({ k: 'barrier', x: vx, y: vy, show: () => ['sylvaros', 'wyverne', 'hydre'].some(b => !S().bosses[b]), act: () => this.barrierTalk() });
+    this.computeReach();
+    // --- camps, gardiens ---
+    const CAMP_NAMES = {
+      plaines: ['Halte des Moissons', 'Camp du Vieux Chêne', 'Halte des Coquelicots', 'Bivouac du Gué', 'Camp des Bergers', 'Halte du Moulin Brisé', 'Camp des Lucioles', 'Halte du Pont-de-Pierre', 'Camp des Collines', 'Halte des Vents Doux'],
+      foret: ['Clairière des Lucioles', 'Camp du Bois-Moussu', 'Halte des Fougères', 'Camp de la Souche Creuse', 'Clairière aux Cerfs', 'Camp des Racines', 'Halte du Chêne Millénaire', 'Camp des Chuchotis'],
+      montagne: ['Refuge du Col Gris', 'Camp de l’Aiguille', 'Refuge des Neiges', 'Camp du Belvédère', 'Refuge de la Faille', 'Camp des Éboulis', 'Refuge du Pic Venteux', 'Camp des Mineurs'],
+      marais: ['Ponton des Brumes', 'Camp des Saules', 'Halte des Roseaux', 'Camp de la Tourbière', 'Ponton des Lanternes', 'Camp des Crapauds', 'Halte du Bayou'],
+      volcan: ['Camp des Cendres'],
+    };
+    const byZone = {}; this.camps = [];
+    const bossSite = {}, dist = s => Math.hypot(s.x - bx, s.y - by);
+    const of = z => this.sites.filter(s => s.type === z && this.reach[s.y * this.W + s.x]).sort((a, b) => dist(a) - dist(b));
+    bossSite.sylvaros = of('foret')[0]; const mo = of('montagne'), ma = of('marais');
+    bossSite.wyverne = mo[Math.floor(mo.length / 2)]; bossSite.hydre = ma[Math.floor(ma.length / 2)];
+    bossSite.ignar = this.sites.filter(s => s.type === 'volcan').sort((a, b) => dist(b) - dist(a))[0];
+    const beside = (cx, cy, zone) => { for (let r = 1; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = cx + dx, y = cy + dy; if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; if (this.t[y][x] === '_' || this.occGrid[y * this.W + x] || !WALKABLE.has(this.t[y][x])) continue; if (!this.reach[y * this.W + x]) continue; if (zone && this.z[y][x] !== zone) continue; return [x, y]; } return null; };
+    Object.keys(bossSite).forEach(id => {
+      const s = bossSite[id]; if (!s) return;
+      const p = beside(s.x, s.y - 1, s.type) || [s.x, s.y - 1];
+      this.clearAround(p[0], p[1], 0);
+      add({ k: 'boss', id, x: p[0], y: p[1], show: () => !S().bosses[id], act: () => this.bossTalk(id) });
+    });
+    this.sites.forEach((s, i) => {
+      if (Math.hypot(s.x - bx - 4, s.y - by - 4) < 30) return;
+      if (!this.reach[s.y * this.W + s.x] && s.type !== 'volcan') return;
+      if (this.camps.some(c => Math.hypot(c.x - s.x, c.y - s.y) < 58)) return;
+      const p = beside(s.x + 1, s.y + 1, s.type); if (!p) return;
+      const k = byZone[s.type] = (byZone[s.type] || 0) + 1, names = CAMP_NAMES[s.type];
+      const name = names[(k - 1) % names.length] + (k > names.length ? ' ' + 'II III IV V'.split(' ')[Math.floor((k - 1) / names.length) - 1] : '');
+      const camp = add({ k: 'camp', id: 'camp' + i, zone: s.type, name, x: p[0], y: p[1], act: () => this.campTalk('camp' + i) });
+      this.camps.push(camp);
+    });
+    // --- PNJ recrutables : près des portes des régions qu'ils connaissent ---
+    const nearestGate = z => this.gates.filter(g => g.z === z).sort((a, b) => Math.hypot(a.x - bx, a.y - by) - Math.hypot(b.x - bx, b.y - by))[0];
+    const home = { dorn: B(6, 3), pell: B(2, 5), lise: B(3, 1) };
+    const gF = nearestGate('foret'), gM = nearestGate('montagne'), gS = nearestGate('marais');
+    home.mira = this.findSpot('plaines', 0, 1, 501, gF ? [gF.x, gF.y] : [bx - 20, by]) || [bx - 12, by + 4];
+    home.yuna = this.findSpot('plaines', 0, 1, 502, [bx - 6, by + 14]) || [bx - 4, by + 12];
+    home.fen = this.findSpot('plaines', 0, 1, 503, gS ? [gS.x, gS.y] : [bx + 30, by]) || [bx + 14, by + 4];
+    home.grom = this.findSpot('montagne', 0, 0.5, 504, gM ? [gM.x, gM.y] : [bx, by - 30]) || this.findSpot('plaines', 0, 1, 505, [bx, by - 12]);
+    Object.keys(G.NPCS).forEach(id => {
+      const N = G.NPCS[id];
+      add({ k: 'npc', id: 'r_' + id, npc: id, x: home[id][0], y: home[id][1], pal: N.pal, name: `${N.n} (${N.job})`, show: () => !S().npcs[id], act: () => this.recruitTalk(id) });
+      add({ k: 'npc', id: 'h_' + id, npc: id, x: havreNpc[id][0], y: havreNpc[id][1], pal: N.pal, name: `${N.n} (${N.job})`, show: () => S().npcs[id] && S().town.founded, act: () => this.serviceTalk(id) });
+    });
+    // --- cibles de chasse : dans leur région, assez profond ---
+    G.HUNTS.concat([G.HUNT_INF]).forEach((h, i) => {
+      const lvl = h.id === 'inf' ? 30 : G.ENEMIES[h.t].lvl, minD = h.zone === 'plaines' ? 0.15 : Math.min(0.75, 0.25 + (lvl % 10) * 0.05);
+      h.at = this.findSpot(h.zone, minD, 1, 600 + i) || this.findSpot(h.zone, 0, 1, 700 + i) || [bx + 10, by + 10];
       add({ k: 'hunt', id: 'hunt_' + h.id, hunt: h.id, x: h.at[0], y: h.at[1], show: () => S().hunts[h.id] === 'active', act: () => this.huntTalk(h.id) });
     });
-    // --- Coffres ---
-    const chests = [
-      ['c1', 44, 102, { items: { potion: 3 }, mats: { lingot: 2 } }], ['c2', 10, 96, { g: 200, items: { appat: 1 } }],
-      ['c3', 112, 16, { mats: { minerai: 4, lingot: 2 } }], ['c4', 26, 10, { items: { hipotion: 2, ether: 2 } }],
-      ['c5', 170, 52, { mats: { ecaille: 3 }, items: { phenix: 1 } }], ['c6', 134, 86, { items: { festin: 1, friandise: 3 } }],
-      ['c7', 166, 26, { mats: { mithril: 2, cristal: 2 } }], ['c8', 38, 44, { mats: { boisancien: 2 }, items: { remede: 3 } }],
-      ['c9', 172, 118, { g: 500 }], ['c10', 10, 118, { items: { bombe: 3 } }], ['c11', 52, 22, { mats: { cristal: 1 }, items: { ether: 2 } }],
-      ['c12', 122, 100, { items: { appat: 2, friandise: 2 } }], ['c13', 94, 48, { g: 150, mats: { fibre: 6 } }],
-      ['c14', 8, 68, { mats: { spore: 3, seve: 2 }, items: { ether: 1 } }], ['c15', 92, 8, { mats: { cristal: 2 }, items: { hipotion: 1 } }],
-      ['c16', 176, 80, { mats: { ectoplasme: 2 }, items: { festin: 1 } }],
+    // --- coffres nommés ---
+    const named = [
+      ['c1', 'foret', { items: { potion: 3 }, mats: { lingot: 2 } }], ['c2', 'foret', { g: 200, items: { appat: 1 } }],
+      ['c3', 'montagne', { mats: { minerai: 4, lingot: 2 } }], ['c4', 'montagne', { items: { hipotion: 2, ether: 2 } }],
+      ['c5', 'marais', { mats: { ecaille: 3 }, items: { phenix: 1 } }], ['c6', 'marais', { items: { festin: 1, friandise: 3 } }],
+      ['c7', 'volcan', { mats: { mithril: 2, cristal: 2 } }], ['c8', 'foret', { mats: { boisancien: 2 }, items: { remede: 3 } }],
+      ['c9', 'plaines', { g: 500 }], ['c10', 'plaines', { items: { bombe: 3 } }], ['c11', 'montagne', { mats: { cristal: 1 }, items: { ether: 2 } }],
+      ['c12', 'plaines', { items: { appat: 2, friandise: 2 } }], ['c13', 'plaines', { g: 150, mats: { fibre: 6 } }],
+      ['c14', 'foret', { mats: { spore: 3, seve: 2 }, items: { ether: 1 } }], ['c15', 'montagne', { mats: { cristal: 2 }, items: { hipotion: 1 } }],
+      ['c16', 'marais', { mats: { ectoplasme: 2 }, items: { festin: 1 } }],
     ];
-    chests.forEach(([id, x, y, loot]) => { this.clearAround(x, y, 0); add({ k: 'chest', id, x, y, loot, act: () => this.openChest(id) }); });
-    // coffres générés : répartis dans chaque région, contenu selon la région et la profondeur
+    named.forEach(([id, zone, loot], i) => { const p = this.findSpot(zone, 0.2, 1, 800 + i) || this.findSpot(zone, 0, 1, 850 + i); if (p) add({ k: 'chest', id, x: p[0], y: p[1], loot, act: () => this.openChest(id) }); });
+    // --- coffres générés : contenu selon la région et la profondeur ---
     Object.keys(G.CHEST_LOOT).forEach(zone => {
-      const T = G.CHEST_LOOT[zone], cand = [];
-      for (let y = 2; y < this.H - 2; y++) for (let x = 2; x < this.W - 2; x++) {
-        if (this.z[y][x] !== zone) continue;
-        const c = this.t[y][x];
-        if (!WALKABLE.has(c) || c === '_' || c === '=' || c === 'w') continue;
-        if (![[0, 1], [0, -1], [1, 0], [-1, 0]].every(([dx, dy]) => WALKABLE.has(this.t[y + dy][x + dx]))) continue;
-        cand.push([x, y, U.hash(x, y, 4242)]);
-      }
-      cand.sort((a, b) => a[2] - b[2]);
-      let n = 0;
-      for (const [x, y] of cand) {
-        if (n >= T.n) break;
-        if (E.some(e => e.k === 'chest' && Math.abs(e.x - x) + Math.abs(e.y - y) < 14)) continue;
-        if (E.some(e => Math.abs(e.x - x) <= e.w && Math.abs(e.y - y) <= e.h)) continue;
-        const dep = this.depthAt(x, y), r = (k) => U.hash(x, y, k), pick = (arr, k) => arr[Math.floor(r(k) * arr.length)];
+      const T = G.CHEST_LOOT[zone];
+      for (let n = 0, tries = 0; n < T.n * 4 && tries < T.n * 12; tries++) {
+        const p = this.findSpot(zone, 0, 1, 1000 + zone.length * 97 + tries * 3); if (!p) continue;
+        const [x, y] = p;
+        if (E.some(e => e.k === 'chest' && Math.abs(e.x - x) + Math.abs(e.y - y) < 16)) continue;
+        const dep = this.depthAt(x, y), r = k => U.hash(x, y, k), pick = (arr, k) => arr[Math.floor(r(k) * arr.length)];
         const loot = { g: Math.round(T.g[0] + (T.g[1] - T.g[0]) * r(1) * (0.6 + dep * 0.8)), items: {}, mats: {} };
         const it = pick(T.items, 2); loot.items[it[0]] = it[1];
         const m = pick(T.mats, 3); loot.mats[m[0]] = m[1] + Math.floor(r(4) * (m[2] - m[1] + 1));
-        if (dep > 0.55) { const rr = pick(T.rare, 5); (G.MATS[rr[0]] ? loot.mats : loot.items)[rr[0]] = (G.MATS[rr[0]] ? loot.mats : loot.items)[rr[0]] || 0; (G.MATS[rr[0]] ? loot.mats : loot.items)[rr[0]] += rr[1]; }
+        if (dep > 0.55) { const rr = pick(T.rare, 5), bag = G.MATS[rr[0]] ? loot.mats : loot.items; bag[rr[0]] = (bag[rr[0]] || 0) + rr[1]; }
         const id = `z_${zone}_${n}`;
         add({ k: 'chest', id, x, y, loot, deep: dep > 0.55, act: () => this.openChest(id) });
         n++;
       }
     });
-    Object.values(home).concat(Object.values(havre)).forEach(([x, y]) => this.clearAround(x, y, 0));
-    this.start = B(4, 6);
+    // panneau devant la barrière
+    const sp = beside(this.VBARRIER[0], this.VBARRIER[1]);
+    if (sp && this.z[sp[1]][sp[0]] !== 'volcan') add({ k: 'sign', x: sp[0], y: sp[1], text: 'Le Volcan Cendreux.\nUne barrière de flammes en garde l’unique entrée.' });
   },
-  // maisons d'habitation, moulin et accessoires autour des villes
+  // maisons d'habitation, moulin, accessoires et architecture des régions sauvages
   decorate() {
-    const [bx, by] = this.BOURG, [hx, hy] = this.HAVRE, E = this.E;
-    const occ = () => { const m = new Set(); E.forEach(e => { for (let y = e.y; y < e.y + e.h; y++) for (let x = e.x; x < e.x + e.w; x++) m.add(x + ',' + y); if (e.door) m.add(e.door[0] + ',' + (e.door[1] + 1)); }); return m; };
-    const fronts = () => E.filter(e => ['npc', 'house', 'chest', 'boss', 'sign', 'stone', 'plot', 'board', 'node'].includes(e.k));
-    // ensemble des entités importantes accessibles depuis le départ
-    const reachSet = () => {
-      const blocked = occ(), start = this.start, seen = new Set([start.join(',')]), q = [start];
-      const pass = (x, y) => WALKABLE.has(this.tile(x, y)) && !blocked.has(x + ',' + y);
-      while (q.length) { const [x, y] = q.shift(); for (const [dx, dy] of Object.values(DIRS)) { const k = (x + dx) + ',' + (y + dy); if (!seen.has(k) && pass(x + dx, y + dy)) { seen.add(k); q.push([x + dx, y + dy]); } } }
-      const ok = new Set();
-      fronts().forEach((e, i) => { if ((e.door ? [[e.door[0], e.door[1] + 1]] : Object.values(DIRS).map(([dx, dy]) => [e.x + dx, e.y + dy])).some(([x, y]) => seen.has(x + ',' + y))) ok.add(e); });
-      return ok;
-    };
-    const free = (x, y, w, h, margin) => {
-      const m = occ();
-      for (let yy = y - margin; yy < y + h + margin; yy++) for (let xx = x - margin; xx < x + w + margin; xx++) {
-        if (m.has(xx + ',' + yy)) return false;
-        if (yy >= y && yy < y + h && xx >= x && xx < x + w) { const c = this.tile(xx, yy); if (!WALKABLE.has(c) || c === '_' || c === '=' || c === 'p') return false; }
-      }
-      return true;
-    };
-    const tryAdd = (e, margin = 1) => { if (!free(e.x, e.y, e.w, e.h, margin)) return false; const before = reachSet(); E.push(e); const after = reachSet(); if ([...before].some(b => !after.has(b))) { E.pop(); return false; } return true; };
-    // maisons d'habitation (architectures variées)
+    const [bx, by] = this.BOURG, [hx, hy] = this.HAVRE;
+    const tryAdd = (e, ring = true) => { if (!this.okSpot(e.x, e.y, e.w || 1, e.h || 1, ring)) return false; this.add(e); return true; };
     const homes = [
       [bx - 5, by + 1, 'thatch', { roof: '#c8a050' }], [bx - 5, by + 6, 'stone', { roof: '#4a5a7a' }], [bx + 11, by + 1, 'thatch', { roof: '#b8903a', wall: '#f0e0c0' }],
       [bx + 11, by + 6, 'timber', { roof: '#6a4a8a' }], [bx + 1, by - 5, 'stone', { roof: '#7a4a3a', wall: '#b8a890' }], [bx + 6, by - 5, 'thatch', { roof: '#d8b060' }],
       [bx - 1, by + 11, 'timber', { roof: '#3a6a5a', wall: '#f4ecd8' }], [hx + 13, hy + 1, 'stone', { roof: '#5a6a8a' }], [hx - 6, hy + 5, 'thatch', { roof: '#c8a050' }],
+      [bx - 10, by + 3, 'stone', { roof: '#6a3a3a' }], [bx + 15, by + 3, 'thatch', { roof: '#c09048' }], [bx + 4, by - 10, 'timber', { roof: '#4a6a3a' }],
     ];
     const lines = ['Personne ne répond… On entend un chat ronronner derrière la porte.', 'Une odeur de pain chaud s’échappe de la maison.', '« Bonne route, voyageurs ! » lance une voix à la fenêtre.'];
     homes.forEach(([x, y, arch, aopt], i) => tryAdd({ k: 'house', id: 'home' + i, x, y, w: 3, h: 2, door: [x + 1, y + 1], arch, aopt, label: 'Maison', act: () => G.UI.say([{ who: '', t: lines[i % lines.length] }]) }));
-    // architecture des régions sauvages : cabane, ruines, hutte sur pilotis, autel
-    const wild = { foret: ['cabin', 6], montagne: ['ruin', 6], marais: ['stilt', 5], volcan: ['altar', 4] };
-    Object.keys(wild).forEach(zone => {
-      const [arch, n] = wild[zone]; let placed = 0;
-      const cand = [];
-      for (let y = 2; y < this.H - 4; y++) for (let x = 2; x < this.W - 4; x++) if (this.z[y][x] === zone && this.z[y + 1][x + 2] === zone) cand.push([x, y, U.hash(x, y, 909)]);
-      cand.sort((a, b) => a[2] - b[2]);
-      for (const [x, y] of cand) {
-        if (placed >= n) break;
-        if (!this.isNear(x + 1, y + 2, '_', 3)) continue; // près d'un chemin pour être vue
-        if (tryAdd({ k: 'house', id: `${arch}${placed}`, x, y, w: 3, h: 2, door: [x + 1, y + 1], arch, aopt: {}, label: { cabin: 'Cabane de chasseur', ruin: 'Ruines antiques', stilt: 'Hutte sur pilotis', altar: 'Autel d’obsidienne' }[arch], act: () => G.UI.say([{ who: '', t: { cabin: 'Une cabane de chasseur. Des trophées de cerf ornent la porte.', ruin: 'Les vestiges d’un temple oublié. Des glyphes élémentaires sont gravés dans la pierre.', stilt: 'Une hutte de pêcheur perchée au-dessus des eaux noires.', altar: 'Un autel d’obsidienne où brûlent des flammes éternelles.' }[arch] }]) })) placed++;
-      }
-    });
-    // moulin
     [[bx + 12, by + 11], [bx - 7, by + 11], [bx + 14, by - 4]].some(([x, y]) => tryAdd({ k: 'mill', id: 'mill', x, y, w: 2, h: 2, act: () => G.UI.say([{ who: '', t: 'Les ailes du moulin tournent paresseusement au gré du vent.' }]) }));
-    // accessoires
     const props = [
       ['well', bx - 2, by + 4], ['barrels', bx + 1, by + 2], ['crates', bx + 7, by + 2], ['flowerpot', bx + 3, by + 8], ['bench', bx + 5, by + 8], ['cart', bx - 2, by + 8], ['hay', bx + 10, by + 4],
-      ['barrels', hx + 1, hy + 2], ['crates', hx + 7, hy + 2], ['flowerpot', hx + 4, hy + 4], ['flowerpot', hx + 6, hy + 4], ['well', hx + 13, hy + 4], ['hay', hx - 2, hy + 1], ['cart', hx - 2, hy + 7], ['fence', bx - 3, by - 2], ['fence', bx - 2, by - 2],
+      ['barrels', hx + 1, hy + 2], ['crates', hx + 7, hy + 2], ['well', hx + 13, hy + 4], ['hay', hx - 2, hy + 1], ['cart', hx - 2, hy + 7], ['fence', bx - 3, by - 2], ['fence', bx - 2, by - 2],
     ];
-    props.forEach(([t, x, y], i) => tryAdd({ k: 'prop', id: 'prop' + i, type: t, x, y, w: 1, h: 1, show: (x >= hx - 3 && y >= hy - 3) ? () => G.S.town.founded : null }, 0));
+    const okProp = (x, y) => { const o = this.occGrid, W = this.W; if (o[y * W + x] || !WALKABLE.has(this.t[y][x]) || this.t[y][x] === '_' || this.t[y][x] === 'p') return false; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const c = this.t[y + dy][x + dx]; if (!WALKABLE.has(c) || o[(y + dy) * W + x + dx] === 1) return false; } return true; };
+    this.E.forEach(e => { if (e.door) this.occGrid[(e.door[1] + 1) * this.W + e.door[0]] = 1; });
+    props.forEach(([t, x, y], i) => { if (okProp(x, y)) this.add({ k: 'prop', id: 'prop' + i, type: t, x, y, w: 1, h: 1, show: (x >= hx - 3 && y >= hy - 3) ? () => G.S.town.founded : null }); });
+    this.E.forEach(e => { if (e.door) { const k = (e.door[1] + 1) * this.W + e.door[0]; if (this.occGrid[k] === 1 && !this.E.some(o => o.x === e.door[0] && o.y === e.door[1] + 1)) this.occGrid[k] = 2; } });
+    // architecture sauvage, près des chemins
+    const wild = { foret: ['cabin', 22], montagne: ['ruin', 22], marais: ['stilt', 16], volcan: ['altar', 6] };
+    const label = { cabin: 'Cabane de chasseur', ruin: 'Ruines antiques', stilt: 'Hutte sur pilotis', altar: 'Autel d’obsidienne' };
+    const text = { cabin: 'Une cabane de chasseur. Des trophées de cerf ornent la porte.', ruin: 'Les vestiges d’un temple oublié. Des glyphes élémentaires sont gravés dans la pierre.', stilt: 'Une hutte de pêcheur perchée au-dessus des eaux noires.', altar: 'Un autel d’obsidienne où brûlent des flammes éternelles.' };
+    Object.keys(wild).forEach(zone => {
+      const [arch, n] = wild[zone]; let placed = 0;
+      for (let i = 0; i < 6000 && placed < n; i++) {
+        const x = 3 + Math.floor(U.hash(i, 909, zone.length) * (this.W - 8)), y = 3 + Math.floor(U.hash(909, i, zone.length) * (this.H - 8));
+        if (this.z[y][x] !== zone || this.z[y + 1][x + 2] !== zone || !this.isNear(x + 1, y + 2, '_', 3)) continue;
+        if (this.E.some(e => e.arch === arch && Math.abs(e.x - x) + Math.abs(e.y - y) < 30)) continue;
+        if (tryAdd({ k: 'house', id: `${arch}${placed}`, x, y, w: 3, h: 2, door: [x + 1, y + 1], arch, aopt: {}, label: label[arch], act: () => G.UI.say([{ who: '', t: text[arch] }]) })) placed++;
+      }
+    });
   },
   isNear(cx, cy, ch, r) { for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) if (this.tile(x, y) === ch) return true; return false; },
   placeNodes() {
     const rates = {
-      plaines: [[0.022, 'arbre'], [0.034, 'herbe'], [0.046, 'fibre'], [0.058, 'rocher'], [0.065, 'fer']],
-      foret: [[0.045, 'arbre'], [0.065, 'herbe'], [0.105, 'vieil_arbre'], [0.118, 'fibre'], [0.128, 'rocher']],
-      montagne: [[0.063, 'rocher'], [0.108, 'fer'], [0.130, 'cristal']],
-      marais: [[0.054, 'herbe'], [0.081, 'fibre'], [0.099, 'fer'], [0.112, 'arbre']],
-      volcan: [[0.04, 'fer'], [0.07, 'cristal'], [0.125, 'mithril'], [0.135, 'rocher']],
+      plaines: [[0.013, 'arbre'], [0.02, 'herbe'], [0.027, 'fibre'], [0.034, 'rocher'], [0.038, 'fer']],
+      foret: [[0.027, 'arbre'], [0.039, 'herbe'], [0.063, 'vieil_arbre'], [0.071, 'fibre'], [0.077, 'rocher']],
+      montagne: [[0.038, 'rocher'], [0.065, 'fer'], [0.078, 'cristal']],
+      marais: [[0.032, 'herbe'], [0.049, 'fibre'], [0.059, 'fer'], [0.067, 'arbre']],
+      volcan: [[0.024, 'fer'], [0.042, 'cristal'], [0.075, 'mithril'], [0.081, 'rocher']],
     };
-    const occ = new Set(this.E.flatMap(e => { const r = []; for (let y = e.y - 1; y <= e.y + e.h; y++) for (let x = e.x - 1; x <= e.x + e.w; x++) r.push(x + ',' + y); return r; }));
-    for (let y = 1; y < this.H - 1; y++) for (let x = 1; x < this.W - 1; x++) {
-      const ch = this.t[y][x], zone = this.z[y][x], R = rates[zone];
-      if (!R || ch === '_' || ch === '=' || !WALKABLE.has(ch) || occ.has(x + ',' + y)) continue;
-      if (![[0, 1], [0, -1], [1, 0], [-1, 0]].every(([dx, dy]) => WALKABLE.has(this.t[y + dy][x + dx]) && this.t[y + dy][x + dx] !== '_')) continue;
-      const h = U.hash(x, y, 77), r = R.find(q => h < q[0]);
-      if (!r) continue;
-      this.E.push({ k: 'node', id: `n${x}_${y}`, type: r[1], x, y, w: 1, h: 1, act: () => this.startMining(`n${x}_${y}`) });
-      for (let yy = y - 1; yy <= y + 1; yy++) for (let xx = x - 1; xx <= x + 1; xx++) occ.add(xx + ',' + yy);
+    const W = this.W, o = this.occGrid;
+    for (let y = 3; y < this.H - 3; y++) for (let x = 3; x < W - 3; x++) {
+      const zone = this.z[y][x], R = rates[zone]; if (!R) continue;
+      const h = U.hash(x, y, 77), r = R.find(q => h < q[0]); if (!r) continue;
+      if (!this.okSpot(x, y)) continue;
+      const e = { k: 'node', id: `n${x}_${y}`, type: r[1], x, y, w: 1, h: 1, act: () => this.startMining(`n${x}_${y}`) };
+      this.E.push(e); this.markOcc(e);
+      void o;
     }
   },
-  // garantit que chaque entité importante est accessible depuis le départ
+  // filet de sécurité : rend accessible toute entité importante isolée
   connect() {
-    const blockedByEnt = new Set();
-    this.E.forEach(e => { if (e.k === 'barrier') return; for (let y = e.y; y < e.y + e.h; y++) for (let x = e.x; x < e.x + e.w; x++) blockedByEnt.add(x + ',' + y); });
-    const pass = (x, y) => WALKABLE.has(this.tile(x, y)) && !blockedByEnt.has(x + ',' + y);
-    const bfs = () => {
-      const seen = new Set([this.start.join(',')]), q = [this.start];
-      while (q.length) {
-        const [x, y] = q.shift();
-        for (const [dx, dy] of Object.values(DIRS)) {
-          const nx = x + dx, ny = y + dy, k = nx + ',' + ny;
-          if (!seen.has(k) && pass(nx, ny)) { seen.add(k); q.push([nx, ny]); }
-        }
-      }
-      return seen;
-    };
-    let reach = bfs();
-    const targets = this.E.filter(e => !['node', 'lamp', 'wall', 'gate'].includes(e.k));
+    const W = this.W;
+    this.computeReach();
+    const targets = this.E.filter(e => !['node', 'lamp', 'wall', 'gate', 'prop'].includes(e.k));
     for (const e of targets) {
       const fronts = e.door ? [[e.door[0], e.door[1] + 1]] : Object.values(DIRS).map(([dx, dy]) => [e.x + dx, e.y + dy]);
-      if (fronts.some(([x, y]) => reach.has(x + ',' + y))) continue;
-      const [fx, fy] = fronts.find(([x, y]) => !blockedByEnt.has(x + ',' + y)) || fronts[0];
-      let best = null, bd = 1e9;
-      reach.forEach(k => { const [x, y] = k.split(',').map(Number); const d = Math.abs(x - fx) + Math.abs(y - fy); if (d < bd) { bd = d; best = [x, y]; } });
+      if (fronts.some(([x, y]) => this.reach[y * W + x])) continue;
+      const [fx, fy] = fronts[0];
+      let best = null;
+      for (let r = 1; r < 80 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; const x = fx + dx, y = fy + dy; if (x > 2 && y > 2 && x < W - 3 && y < this.H - 3 && this.reach[y * W + x]) { best = [x, y]; break; } }
       if (!best) continue;
-      this.carve(best, [fx, fy]);
-      // retirer les noeuds sur le passage
-      this.E = this.E.filter(n => n.k !== 'node' || WALKABLE.has(this.tile(n.x, n.y)) && !this.onLine(best, [fx, fy], n.x, n.y));
-      reach = bfs();
+      this.carve(best, [fx, fy], null, this.zoneAt(fx, fy) !== 'volcan');
+      this.E = this.E.filter(n => n.k !== 'node' || !this.onLine(best, [fx, fy], n.x, n.y));
+      this.occGrid.fill(0); this.E.forEach(n => this.markOcc(n));
+      this.computeReach();
     }
   },
   onLine(a, b, px, py) {
@@ -357,6 +506,7 @@ G.World = {
     this.followers = G.S.party.slice(1).map(() => ({ x, y, px: x * 16, py: y * 16, fx: x, fy: y, dir: P.dir }));
     G.S.pos = { x, y, dir: P.dir };
     this.lastZone = this.zoneAt(x, y);
+    this.explore(x, y);
     this.snapCam();
   },
   snapCam() { const c = this.camTarget(); this.cam.x = c.x; this.cam.y = c.y; },
@@ -369,8 +519,8 @@ G.World = {
   warmChunks() {
     const CK = 16, pcx = Math.floor(this.P.x / CK), pcy = Math.floor(this.P.y / CK);
     let best = null, bd = 1e9;
-    for (let gy = 0; gy * CK < this.H; gy++) for (let gx = 0; gx * CK < this.W; gx++) {
-      if (G.SPR.cache[`chunk_${gx}_${gy}`]) continue;
+    for (let gy = Math.max(0, pcy - 2); gy <= pcy + 2 && gy * CK < this.H; gy++) for (let gx = Math.max(0, pcx - 2); gx <= pcx + 2 && gx * CK < this.W; gx++) {
+      if (this._chunks && this._chunks.has(gx + ',' + gy)) continue;
       const d = Math.abs(gx - pcx) + Math.abs(gy - pcy); if (d < bd) { bd = d; best = [gx, gy]; }
     }
     if (best && bd <= 2) this.chunk(best[0], best[1]);
@@ -428,6 +578,8 @@ G.World = {
     const first = !S.flags.visited[zone];
     S.flags.visited[zone] = true;
     if (zone !== this.lastZone) { if (this.lastZone) G.UI.zoneBanner(Z, first && !Z.town); this.lastZone = zone; }
+    this.explore(P.x, P.y);
+    for (const c of this.camps) if (Math.abs(c.x - P.x) <= 4 && Math.abs(c.y - P.y) <= 4) { S.flags.camps = S.flags.camps || {}; if (!S.flags.camps[c.id]) { S.flags.camps[c.id] = true; G.UI.toast(`⛺ Camp découvert : ${c.name} (voyage rapide)`); } }
     if (zone === 'havre' && !S.flags.bran) { this.branEvent(); return; }
     this.sinceBattle++;
     const ch = this.tile(P.x, P.y);
@@ -442,26 +594,53 @@ G.World = {
     if (grp.length < 3 && (Math.random() < dep * 0.8 || (G.maxLevel() > G.ENEMIES[grp[0]].lvl + 4 && Math.random() < 0.6))) grp.push(U.pick(U.pick(Z.groups)));
     G.Battle.start(grp, { bg: Z.bg, zone, depth: dep });
   },
-  TRAVEL: [
-    ['bourg', 'Bourg-Aube', 78, 80], ['havre', 'Le Havre', 137, 100], ['foret', 'Orée de Sylve', 50, 78],
-    ['montagne', 'Pied des Monts Grisés', 78, 30], ['marais', 'Entrée du marais', 132, 78], ['volcan', 'Volcan Cendreux', 148, 38],
-  ],
+  // destinations de voyage rapide : Bourg-Aube, le Havre et les camps découverts
+  travelList() {
+    const [bx, by] = this.BOURG, [hx, hy] = this.HAVRE;
+    return [{ id: 'bourg', name: 'Bourg-Aube', zone: 'bourg', x: bx + 4, y: by + 6 }, { id: 'havre', name: 'Le Havre', zone: 'havre', x: hx + 5, y: hy + 4 }]
+      .concat(this.camps.map(c => ({ id: c.id, name: c.name, zone: c.zone, x: c.x, y: c.y + 1 })));
+  },
   canTravel(id) {
-    const S = G.S, v = S.flags.visited || {};
+    const S = G.S;
     if (id === 'bourg') return true;
     if (id === 'havre') return S.town.founded;
-    return !!v[id];
+    const c = this.camps.find(k => k.id === id); if (!c) return false;
+    return !!(S.flags.camps && S.flags.camps[id]) || !!(S.flags.demo && c.zone !== 'volcan');
   },
   travel(id) {
-    const T = this.TRAVEL.find(t => t[0] === id);
+    const T = this.travelList().find(t => t.id === id);
+    let [x, y] = [T.x, T.y];
+    if (!this.canWalk(x, y)) { const p = [[0, 1], [1, 1], [-1, 1], [1, 0], [-1, 0], [0, 2], [2, 0], [-2, 0]].map(([dx, dy]) => [T.x + dx, T.y + dy]).find(([a, b]) => this.canWalk(a, b)); if (p) [x, y] = p; }
     G.scene = 'trans';
     G.R.transition('fadeout', 0.35, () => {
-      this.placePlayer(T[2], T[3], 'down'); this.sinceBattle = 0; G.R.parts = [];
-      G.UI.zoneBanner(G.ZONES[this.zoneAt(T[2], T[3])]);
+      this.placePlayer(x, y, 'down'); this.sinceBattle = 0; G.R.parts = [];
+      G.UI.zoneBanner(G.ZONES[this.zoneAt(x, y)]);
       G.Audio.music(this.musicFor());
       G.R.transition('fadein', 0.4, () => { G.scene = 'world'; });
     });
   },
+  async campTalk(id) {
+    const c = this.camps.find(k => k.id === id), S = G.S;
+    S.flags.camps = S.flags.camps || {};
+    if (!S.flags.camps[id]) { S.flags.camps[id] = true; G.UI.toast(`⛺ Camp découvert : ${c.name} (voyage rapide)`); }
+    const r = await G.UI.ask(`${c.name} — un feu crépite. Se reposer ? (PV/PM restaurés, point de retour en cas de défaite)`, ['Se reposer', 'Repartir']);
+    if (r !== 0) return;
+    G.healAll(); S.rest = { x: c.x, y: c.y + 1 };
+    G.Audio.sfx('heal'); G.save(); G.UI.toast('Équipe reposée. Partie sauvegardée.');
+  },
+  // brouillard de la carte : cases de 8x8 explorées
+  explore(px, py) {
+    const S = G.S, CW = Math.ceil(this.W / 8), CH = Math.ceil(this.H / 8);
+    if (!S.explored || S.explored.length !== CW * CH) S.explored = '0'.repeat(CW * CH);
+    let arr = null;
+    for (let y = Math.floor(py / 8) - 2; y <= Math.floor(py / 8) + 2; y++) for (let x = Math.floor(px / 8) - 3; x <= Math.floor(px / 8) + 3; x++) {
+      if (x < 0 || y < 0 || x >= CW || y >= CH) continue;
+      const k = y * CW + x; if (S.explored[k] === '1') continue;
+      arr = arr || S.explored.split(''); arr[k] = '1';
+    }
+    if (arr) S.explored = arr.join('');
+  },
+  isExplored(x, y) { const S = G.S, CW = Math.ceil(this.W / 8); if (S.flags.demo && this.zoneAt(x, y) !== 'volcan') return true; return S.explored && S.explored[Math.floor(y / 8) * CW + Math.floor(x / 8)] === '1'; },
   musicFor() { const z = this.zoneAt(this.P.x, this.P.y); return G.ZONES[z].town ? 'town' : 'field'; },
   // ---------------- Interactions ----------------
   facing() { const [dx, dy] = DIRS[this.P.dir]; return [this.P.x + dx, this.P.y + dy]; },
@@ -491,9 +670,9 @@ G.World = {
       S.flags.elder = true;
       await G.UI.say([
         { who, t: 'Kael, Lyra… Vous voilà enfin. Les Échos élémentaires sont corrompus.' },
-        { who, t: 'Ignar, le Dragon des Cendres, a souillé les quatre Gardiens : Sylvaros dans la forêt, la Wyverne sur les cimes, l’Hydre dans le marais.' },
+        { who, t: 'Ignar, le Dragon des Cendres, a souillé les quatre Gardiens : Sylvaros dans la forêt, la Wyverne sur les cimes, l’Hydre dans le marais. La carte (menu) t’aidera à les trouver.' },
         { who, t: 'Purifiez les trois Gardiens et la barrière du Volcan cédera. Alors seulement vous pourrez affronter Ignar.' },
-        { who, t: 'Les réfugiés affluent… Au sud-est s’étend une terre fertile : le site du Havre. Votre ami Bran vous y attend pour bâtir une ville.' },
+        { who, t: 'Les réfugiés affluent… Juste au sud-est s’étend une terre fertile : le site du Havre. Votre ami Bran vous y attend pour bâtir une ville.' },
         { who, t: 'Recrutez des habitants, construisez forge et ateliers. Ici, nulle boutique ne vend d’armes : tout doit se forger !' },
         { who, t: 'Prenez ceci, et que les Échos vous guident.' },
       ]);
@@ -504,8 +683,8 @@ G.World = {
     let tip;
     if (!S.town.founded) tip = 'Rends-toi au sud-est, au site du Havre. Bran t’y attend.';
     else if (S.bosses.ignar) tip = 'Tu as sauvé notre monde. Le Havre grandira grâce à toi.';
-    else if (left.length) tip = `Il reste ${left.length} Gardien(s) corrompu(s). ${left.includes('sylvaros') ? 'Sylvaros, dans la forêt à l’ouest, est le plus faible.' : left.includes('wyverne') ? 'La Wyverne t’attend au sommet des Monts Grisés.' : 'L’Hydre se cache à l’est du Marais Brumeux.'}`;
-    else tip = 'La barrière du Volcan est tombée ! Ignar t’attend au nord-est. Forge tes meilleures armes avant d’y aller.';
+    else if (left.length) tip = `Il reste ${left.length} Gardien(s) corrompu(s). ${left.includes('sylvaros') ? 'Sylvaros, au cœur de la Forêt de Sylve, est le plus faible.' : left.includes('wyverne') ? 'La Wyverne t’attend dans les hauteurs des Monts Grisés.' : 'L’Hydre se cache au fond du Marais Brumeux.'}`;
+    else tip = 'La barrière du Volcan est tombée ! Ignar t’attend au cœur des cendres. Forge tes meilleures armes avant d’y aller.';
     await G.UI.say([{ who, t: tip }, { who, t: 'N’oublie pas : chaque arme change complètement ton style. Expérimente !' }]);
   },
   async recruitTalk(id) {
@@ -763,7 +942,14 @@ G.World = {
     return r ? r[1] : null;
   },
   chunk(gx, gy) {
-    return G.SPR.get(`chunk_${gx}_${gy}`, () => {
+    const key = gx + ',' + gy, C = this._chunks = this._chunks || new Map();
+    if (C.has(key)) { const v = C.get(key); C.delete(key); C.set(key, v); return v; }
+    const v = this.buildChunk(gx, gy); C.set(key, v);
+    if (C.size > 56) C.delete(C.keys().next().value);
+    return v;
+  },
+  buildChunk(gx, gy) {
+    return (() => {
       const CK = 16, c = U.canvas(CK * 32, CK * 32), x = c.getContext('2d');
       x.imageSmoothingEnabled = false; x.scale(2, 2);
       const tiles = [];
@@ -809,7 +995,7 @@ G.World = {
         x.drawImage(G.SPR.decal(d, Math.floor(U.hash(tx, ty, 335) * 6)), sx, sy, 16, 16);
       });
       return c;
-    });
+    })();
   },
   baseCh(x, y) { if (x < 0 || y < 0 || x >= this.W || y >= this.H) return null; const c = this.t[y][x]; return c === 'T' || c === '^' ? this.groundOf(this.z[y][x]) : c === '=' ? null : c; },
   shadow(x, y, r) { const c = G.R.lx; c.fillStyle = 'rgba(10,10,30,0.28)'; c.beginPath(); c.ellipse(Math.round(x), Math.round(y), r, r * 0.45, 0, 0, Math.PI * 2); c.fill(); },
@@ -890,6 +1076,12 @@ G.World = {
         break;
       }
       case 'prop': G.SPR.draw(x, G.SPR.prop(e.type), sx, sy); break;
+      case 'camp': {
+        G.SPR.draw(x, G.SPR.camp(Math.floor(t * 8) % 4), sx - 8, sy - 12);
+        lights.push({ x: sx + 8, y: sy + 10, r: day.night ? 70 : 32, c: '#ff9a3a', a: 0.9 });
+        if (Math.random() < 0.2) G.R.parts.push({ x: sx + 8 + U.rand(-2, 2), y: sy + 8, vx: U.rand(-3, 3), vy: -18, life: 0.9, max: 0.9, size: 0.8, c: U.pick(['#ffcf40', '#ff6a2a']), glow: true, grav: 0, drag: 1, type: 'dot', rot: 0, layer: 1 });
+        break;
+      }
       case 'lamp': G.SPR.draw(x, G.SPR.lamp(), sx + 3, sy - 10); if (day.night || this.zoneAt(e.x, e.y) === 'havre') lights.push({ x: sx + 8, y: sy - 5, r: day.night ? 55 : 20, c: '#ffd070', a: 1 }); break;
       case 'sign': G.SPR.draw(x, G.SPR.sign(), sx, sy); break;
       case 'fountain': {

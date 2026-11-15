@@ -48,7 +48,9 @@ La partie est sauvegardée dans le navigateur : automatiquement, à l’auberge 
   - 8 bâtiments améliorables : forge, atelier, marché, ménagerie, herboristerie, mine, taverne, remparts.
   - Chaque bâtiment exige de recruter un habitant (7 PNJ, chacun avec sa quête).
   - La ville produit des ressources après chaque victoire.
-- **Monde ouvert de 180 × 134 cases** en 5 régions bien délimitées (lisières de forêt, falaises, haies du marais, murailles du volcan), avec lacs, chemins secondaires vers les profondeurs de chaque région, portiques aux entrées et bannière à chaque changement de région.
+- **Monde ouvert de 624 × 464 cases** (près de 290 000 cases) : régions organiques et imbriquées (langues de forêt, enclaves, lobes de marais, chaînes de montagnes) organisées en anneaux de difficulté autour de Bourg-Aube. Les frontières restent visibles et infranchissables hors des chemins : lisières de forêt, falaises, haies du marais et muraille du volcan, avec un portique à chaque passage. Le volcan n’a qu’une entrée, gardée par la barrière.
+- **Camps** ⛺ dans chaque région : repos, point de retour et voyage rapide une fois découverts.
+- **Carte du monde** avec brouillard : seules les zones explorées sont révélées.
 - **Profondeur des régions** (indicateur ▮▮▯) : plus on s’éloigne de l’entrée, plus les monstres sont nombreux et coriaces, mais l’EXP, l’or et le butin augmentent.
 - **Butin et farm équilibrés** : chaque région donne ses matériaux typiques en combat et possède ses coffres (12 à 7 par région, objets rares dans les profondeurs). Il faut environ 6 combats par niveau au niveau conseillé, dans chaque région.
 - **Auberges** signalées par une enseigne « INN » au-dessus de la porte.

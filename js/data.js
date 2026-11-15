@@ -596,11 +596,11 @@ G.NPCS = {
 
 // ---------------- Quêtes ----------------
 G.QUESTS = {
-  q_sylve: { n: 'Le cœur de Sylve', type: 'main', d: 'Purifier Sylvaros, l’Ent corrompu, au fond de la Forêt de Sylve (ouest).', cond: S => [S.bosses.sylvaros ? 1 : 0, 1] },
-  q_wyverne: { n: 'La tempête des cimes', type: 'main', d: 'Abattre la Wyverne Tempête au sommet des Monts Grisés (nord).', cond: S => [S.bosses.wyverne ? 1 : 0, 1] },
-  q_hydre: { n: 'Les brumes du marais', type: 'main', d: 'Vaincre l’Hydre des Brumes dans le Marais Brumeux (est).', cond: S => [S.bosses.hydre ? 1 : 0, 1] },
-  q_ignar: { n: 'Les cendres d’Ignar', type: 'main', d: 'Une fois les trois Gardiens purifiés, franchir la barrière du Volcan (nord-est) et terrasser Ignar.', cond: S => [S.bosses.ignar ? 1 : 0, 1] },
-  q_havre: { n: 'Un refuge pour tous', type: 'main', d: 'Rejoindre le site du Havre au sud-est pour y fonder une ville.', cond: S => [S.town.founded ? 1 : 0, 1] },
+  q_sylve: { n: 'Le cœur de Sylve', type: 'main', d: 'Purifier Sylvaros, l’Ent corrompu, au cœur de la Forêt de Sylve.', cond: S => [S.bosses.sylvaros ? 1 : 0, 1] },
+  q_wyverne: { n: 'La tempête des cimes', type: 'main', d: 'Abattre la Wyverne Tempête dans les hauteurs des Monts Grisés.', cond: S => [S.bosses.wyverne ? 1 : 0, 1] },
+  q_hydre: { n: 'Les brumes du marais', type: 'main', d: 'Vaincre l’Hydre des Brumes au fond du Marais Brumeux.', cond: S => [S.bosses.hydre ? 1 : 0, 1] },
+  q_ignar: { n: 'Les cendres d’Ignar', type: 'main', d: 'Une fois les trois Gardiens purifiés, franchir la barrière du Volcan Cendreux et terrasser Ignar.', cond: S => [S.bosses.ignar ? 1 : 0, 1] },
+  q_havre: { n: 'Un refuge pour tous', type: 'main', d: 'Rejoindre le site du Havre, au sud-est de Bourg-Aube, pour y fonder une ville.', cond: S => [S.town.founded ? 1 : 0, 1] },
 };
 Object.keys(G.NPCS).forEach(id => {
   const n = G.NPCS[id];
