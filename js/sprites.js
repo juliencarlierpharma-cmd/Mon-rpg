@@ -1152,21 +1152,31 @@ const tn = (x, y, cell, seed) => {
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 };
 const tfbm = (x, y, seed) => tn(x, y, 8, seed) * 0.55 + tn(x, y, 4, seed + 3) * 0.3 + tn(x, y, 2, seed + 7) * 0.15;
-// petit peintre de pixels
+// petit peintre de pixels : coordonnées logiques 0..32 par case, rendu réel en 64 px (EQ = 2 pixels réels par pixel logique)
+const EQ = 2, RS = TS * EQ, ENV_K = 4;
+// grain à pleine résolution (un tirage par pixel réel)
+const gr = (x, y, s) => U.hash(Math.floor(x * EQ), Math.floor(y * EQ), s);
 function Painter() {
-  const c = U.canvas(TS, TS), x = c.getContext('2d'), img = x.createImageData(TS, TS), D = img.data;
+  const c = U.canvas(RS, RS), x = c.getContext('2d'), img = x.createImageData(RS, RS), D = img.data;
+  const put = (X, Y, rgb, a) => { if (X < 0 || Y < 0 || X >= RS || Y >= RS) return; const i = (Y * RS + X) * 4; D[i] = D[i] * (1 - a) + rgb[0] * a; D[i + 1] = D[i + 1] * (1 - a) + rgb[1] * a; D[i + 2] = D[i + 2] * (1 - a) + rgb[2] * a; D[i + 3] = 255; };
+  const rgbOf = col => typeof col === 'string' ? U.hex2rgb(col) : col;
   const P = {
-    c, set(px, py, col, a = 1) {
-      px = Math.floor(px); py = Math.floor(py);
-      if (px < 0 || py < 0 || px >= TS || py >= TS) return;
-      const i = (py * TS + px) * 4, rgb = typeof col === 'string' ? U.hex2rgb(col) : col;
-      D[i] = D[i] * (1 - a) + rgb[0] * a; D[i + 1] = D[i + 1] * (1 - a) + rgb[1] * a; D[i + 2] = D[i + 2] * (1 - a) + rgb[2] * a; D[i + 3] = 255;
+    c,
+    // bloc logique (2 x 2 pixels réels) avec micro-modelé : coin haut-gauche éclairci, bas-droit assombri
+    set(px, py, col, a = 1) {
+      const X = Math.floor(px) * EQ, Y = Math.floor(py) * EQ, rgb = rgbOf(col);
+      put(X, Y, rgb, a); put(X + 1, Y, rgb, a); put(X, Y + 1, rgb, a); put(X + 1, Y + 1, rgb, a);
     },
-    // set avec raccord (enroule les bords)
-    wset(px, py, col, a) { P.set(((Math.floor(px) % TS) + TS) % TS, ((Math.floor(py) % TS) + TS) % TS, col, a); },
-    get(px, py) { const i = (py * TS + px) * 4; return [D[i], D[i + 1], D[i + 2]]; },
-    fill(fn) { for (let py = 0; py < TS; py++) for (let px = 0; px < TS; px++) P.set(px, py, fn(px, py)); },
-    done() { x.putImageData(img, 0, 0); c._d = 2; return c; },
+    wset(px, py, col, a = 1) {
+      const X = ((Math.floor(px) % TS) + TS) % TS, Y = ((Math.floor(py) % TS) + TS) % TS, rgb = rgbOf(col);
+      P.set(X, Y, rgb, a);
+      if (a >= 0.6) { put(X * EQ, Y * EQ, rgb.map(v => Math.min(255, v * 1.12 + 6)), 0.6 * a); put(X * EQ + 1, Y * EQ + 1, rgb.map(v => v * 0.86), 0.6 * a); }
+    },
+    // pixel réel unique (détail fin), coordonnées logiques fractionnaires
+    dot(px, py, col, a = 1) { put(((Math.floor(px * EQ) % RS) + RS) % RS, ((Math.floor(py * EQ) % RS) + RS) % RS, rgbOf(col), a); },
+    fill(fn) { for (let Y = 0; Y < RS; Y++) for (let X = 0; X < RS; X++) put(X, Y, rgbOf(fn((X + 0.25) / EQ, (Y + 0.25) / EQ)), 1); },
+    each(fn) { for (let Y = 0; Y < RS; Y++) for (let X = 0; X < RS; X++) fn((X + 0.25) / EQ, (Y + 0.25) / EQ); },
+    done() { x.putImageData(img, 0, 0); c._d = 4; return c; },
   };
   return P;
 }
@@ -1183,17 +1193,20 @@ const GRASS = {
 };
 // brins d'herbe
 function blades(P, v, pal, n, seed) {
-  for (let k = 0; k < n; k++) {
-    const bx = U.hash(k, v, seed) * TS, by = U.hash(v, k, seed + 1) * TS, h = 3 + Math.floor(U.hash(k, k + v, seed + 2) * 4), lean = U.hash(k, 3, seed + 3) < 0.5 ? -1 : 1;
-    for (let i = 0; i < h; i++) { const t = i / h; P.wset(bx + (i > h / 2 ? lean * 0.6 : 0) * (i - h / 2) / 2, by - i, ramp([pal[1], pal[3], pal[4]], t), 0.9); }
-    P.wset(bx, by + 1, pal[0], 0.5);
+  for (let k = 0; k < n * 2; k++) {
+    const bx = U.hash(k, v, seed) * TS, by = U.hash(v, k, seed + 1) * TS, h = 3 + U.hash(k, k + v, seed + 2) * 4, lean = (U.hash(k, 3, seed + 3) - 0.5) * 1.6;
+    for (let i = 0; i <= h * EQ; i++) { const t = i / (h * EQ); P.dot(bx + lean * t * t * 1.5, by - i / EQ, ramp([pal[1], pal[3], pal[4]], t), 0.95); if (t < 0.75) P.dot(bx + lean * t * t * 1.5 + 0.5, by - i / EQ, ramp([pal[0], pal[2], pal[3]], t), 0.7); }
+    P.dot(bx, by + 0.5, pal[0], 0.5); P.dot(bx + 0.5, by + 0.5, pal[0], 0.35);
   }
 }
+// grain fin supplémentaire (détails à pleine résolution)
+function fineGrain(P, v, light, dark, n, seed) { for (let k = 0; k < n; k++) { const x = U.hash(k, v, seed) * TS, y = U.hash(v, k, seed + 1) * TS; P.dot(x, y, light, 0.55); P.dot(x + 0.5, y + 0.5, dark, 0.45); } }
 const TILE_PAINT = {
   grass(P, v, ch, style) {
     const pal = GRASS[ch];
-    P.fill((x, y) => { const n = tfbm(x, y, 11 + (ch === 'f' ? 5 : 0)) + (U.hash(x, y, v + 40) - 0.5) * 0.12; return rampQ(pal.slice(0, 4), n * 1.05); });
+    P.fill((x, y) => { const n = tfbm(x, y, 11 + (ch === 'f' ? 5 : 0)) + (gr(x, y, v + 40) - 0.5) * 0.22; return rampQ(pal.slice(0, 4), n * 1.05); });
     blades(P, v, pal, style === 'dry' ? 9 : style === 'moss' ? 4 : ch === 'f' ? 10 : 16, 20);
+    fineGrain(P, v, pal[4], pal[0], 40, 21);
     if (style === 'clover') for (let k = 0; k < 6; k++) { const cx = U.hash(k, v, 77) * TS, cy = U.hash(v, k, 77) * TS; [[0, -1], [-1, 0], [1, 0]].forEach(([dx, dy]) => { P.wset(cx + dx, cy + dy, pal[3]); P.wset(cx + dx * 2, cy + dy * 2, pal[2], 0.7); }); P.wset(cx, cy + 1, pal[0]); }
     if (style === 'dry') for (let k = 0; k < 10; k++) P.wset(U.hash(k, v, 78) * TS, U.hash(v, k, 78) * TS, '#d8c870', 0.8);
     if (style === 'moss') for (let k = 0; k < 9; k++) { const cx = U.hash(k, v, 79) * TS, cy = U.hash(v, k, 79) * TS; P.wset(cx, cy, '#7ab04a'); P.wset(cx + 1, cy, '#5a9038'); P.wset(cx, cy + 1, '#4a7a30'); }
@@ -1214,30 +1227,33 @@ const TILE_PAINT = {
   },
   path(P, v) {
     const pal = ['#9a7a4a', '#b08e58', '#c4a266', '#d4b478', '#e2c690'];
-    P.fill((x, y) => rampQ(pal, tfbm(x, y, 13) * 0.9 + 0.08 + (U.hash(x, y, v + 50) - 0.5) * 0.15));
+    P.fill((x, y) => rampQ(pal, tfbm(x, y, 13) * 0.9 + 0.08 + (gr(x, y, v + 50) - 0.5) * 0.15));
     for (let k = 0; k < 7; k++) {
       const px = U.hash(k, v, 61) * TS, py = U.hash(v, k, 61) * TS, sz = U.hash(k, 9, 62) < 0.3 ? 2 : 1;
       for (let j = 0; j <= sz; j++) for (let i = 0; i <= sz; i++) P.wset(px + i, py + j, i + j === 0 ? '#ece0c0' : i + j >= sz * 2 ? '#6a5434' : '#a89474');
       P.wset(px + sz + 1, py + sz + 1, '#5a4428', 0.4);
     }
+    fineGrain(P, v, '#f0dcb0', '#7a5e36', 70, 72);
     if (v % 2 === 0) { let cx = U.hash(v, 1, 70) * TS, cy = 4 + U.hash(v, 2, 70) * 24; for (let i = 0; i < 7; i++) { P.wset(cx, cy, '#7a5e36', 0.7); cx += 1; cy += U.hash(i, v, 71) < 0.5 ? 1 : -1; } }
   },
   rock(P, v) {
     const pal = ['#5c554a', '#6a6256', '#786f62', '#867d6e', '#958b7c'];
-    P.fill((x, y) => rampQ(pal, tfbm(x, y, 17) + (U.hash(x, y, v + 60) - 0.5) * 0.18));
+    P.fill((x, y) => rampQ(pal, tfbm(x, y, 17) + (gr(x, y, v + 60) - 0.5) * 0.18));
     for (let c = 0; c < 1; c++) { let cx = U.hash(c, v, 80) * TS, cy = U.hash(v, c, 80) * TS; for (let i = 0; i < 8; i++) { P.wset(cx, cy, '#4e483f', 0.85); P.wset(cx + 1, cy, '#c8c0b0', 0.3); cx += U.hash(i, c + v, 81) < 0.5 ? 1 : 0; cy += U.hash(i + 1, c + v, 82) < 0.6 ? 1 : 0; } }
     for (let k = 0; k < 4; k++) { const px = U.hash(k, v, 90) * TS, py = U.hash(v, k, 90) * TS; P.wset(px, py, '#c8c0b2'); P.wset(px + 1, py, '#a8a092'); P.wset(px, py + 1, '#6a645a'); P.wset(px + 1, py + 1, '#5a544a'); }
     if (v % 3 === 1) for (let k = 0; k < 5; k++) P.wset(U.hash(k, v, 95) * TS, U.hash(v, k, 95) * TS, '#8aa860', 0.8);
+    fineGrain(P, v, '#b8b0a2', '#3e3830', 60, 96);
   },
   mud(P, v) {
     const pal = ['#323a24', '#3e4a2c', '#4a5634', '#56623c', '#647046'];
-    P.fill((x, y) => rampQ(pal, tfbm(x, y, 23) + (U.hash(x, y, v + 70) - 0.5) * 0.14));
+    P.fill((x, y) => rampQ(pal, tfbm(x, y, 23) + (gr(x, y, v + 70) - 0.5) * 0.14));
     if (v === 4) { const cx = 10 + U.hash(v, 3, 3) * 12, cy = 10 + U.hash(v, 4, 3) * 12; for (let y = -5; y <= 5; y++) for (let x = -9; x <= 9; x++) { const r = (x * x) / 81 + (y * y) / 25; if (r < 1) P.wset(cx + x, cy + y, r > 0.75 ? '#2a3a32' : U.mix('#2e4a44', '#3a5a52', (y + 5) / 10)); } for (let x = -5; x < 4; x++) P.wset(cx + x, cy - 3, '#6a8a80', 0.7); }
+    fineGrain(P, v, '#6a7a4a', '#22281a', 50, 7);
     for (let k = 0; k < 2; k++) { const rx = U.hash(k, v, 6) * TS, ry = U.hash(v, k, 6) * TS; for (let i = 0; i < 4; i++) P.wset(rx + (k % 2 ? i * 0.3 : -i * 0.3), ry - i, i > 2 ? '#a8a060' : '#5a6a34'); }
   },
   volc(P, v, f = 0) {
     const pal = ['#1e1514', '#2a1e1c', '#3a2a28', '#4a3632', '#5a4440'];
-    P.fill((x, y) => rampQ(pal, tfbm(x, y, 29) + (U.hash(x, y, v + 80) - 0.5) * 0.15));
+    P.fill((x, y) => rampQ(pal, tfbm(x, y, 29) + (gr(x, y, v + 80) - 0.5) * 0.15));
     for (let c = 0; c < (v % 2 ? 1 : 0); c++) {
       let cx = U.hash(c, v, 100) * TS, cy = U.hash(v, c, 100) * TS;
       for (let i = 0; i < 20; i++) {
@@ -1249,7 +1265,8 @@ const TILE_PAINT = {
   },
   sand(P, v) {
     const pal = ['#c8b07a', '#d6c088', '#e2cd96', '#ecd9a6', '#f6e8bc'];
-    P.fill((x, y) => { const rip = Math.sin((y + Math.sin(x * 0.4) * 1.5) * 0.9) > 0.85 ? -0.18 : 0; return rampQ(pal, tfbm(x, y, 37) * 0.8 + 0.2 + rip + (U.hash(x, y, v + 90) - 0.5) * 0.1); });
+    P.fill((x, y) => { const rip = Math.sin((y + Math.sin(x * 0.4) * 1.5) * 0.9) > 0.85 ? -0.18 : 0; return rampQ(pal, tfbm(x, y, 37) * 0.8 + 0.2 + rip + (gr(x, y, v + 90) - 0.5) * 0.1); });
+    fineGrain(P, v, '#fff4d0', '#b89a68', 60, 91);
     if (v % 3 === 0) { const sx = 8 + v * 2, sy = 18; P.set(sx, sy, '#ffffff'); P.set(sx + 1, sy, '#ffd0c0'); P.set(sx, sy + 1, '#e0a090'); }
   },
   paved(P, v) {
@@ -1265,11 +1282,12 @@ const TILE_PAINT = {
           if (y === 1 || x === 1) c = U.mix(base, '#ece6da', 0.45);
           else if (y === 6 || x === w - 2) c = U.mix(base, '#3a342c', 0.4);
           else if (U.hash(x0 + x, y0 + y, 3) < 0.12) c = U.mix(base, '#7a7266', 0.4);
-          P.wset(x0 + x, y0 + y, c);
+          P.set(((x0 + x) % TS + TS) % TS, y0 + y, c);
         }
         x0 += w;
       }
     }
+    fineGrain(P, v, '#d8d0c4', '#5a544a', 50, 8);
     if (v % 3 === 2) for (let k = 0; k < 3; k++) P.wset(5 + k * 9, 7 + (k % 2) * 8, '#5a8a3a', 0.9);
   },
 };
@@ -1284,16 +1302,16 @@ SPR.animTile = (ch, v, f) => SPR.get(`a_${ch}_${v}_${f}`, () => {
   const P = Painter(), t = f / 8 * Math.PI * 2;
   if (ch === '~') {
     P.fill((x, y) => { const n = tfbm(x + f * 4, y + f * 2, 41) * 0.65 + tfbm(x - f * 4, y + f * 4, 43) * 0.35; return ramp(['#1d4a8e', '#2a64b4', '#3474c4', '#4286d0'], 0.15 + n * 0.75); });
-    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    P.each((x, y) => {
       const w = tn(x + f * 4, y * 2 + f * 4, 8, 47 + v % 2);
-      if (w > 0.8) P.set(x, y, '#bfe0ff', 0.8); else if (w > 0.72) P.set(x, y, '#7ab4ec', 0.6);
-    }
+      if (w > 0.8) P.dot(x, y, '#bfe0ff', 0.8); else if (w > 0.72) P.dot(x, y, '#7ab4ec', 0.6);
+    });
     if ((f + v) % 3 === 0) { const sx = (v * 7 + f * 3) % TS, sy = (v * 11) % TS; P.wset(sx, sy, '#ffffff'); P.wset(sx + 1, sy, '#cfe8ff', 0.6); P.wset(sx - 1, sy, '#cfe8ff', 0.6); }
   } else if (ch === 'l') {
     P.fill((x, y) => { const n = tfbm(x + f * 2, y - f * 3, 51) * 0.75 + tfbm(x - f, y + f, 53) * 0.25; return ramp(['#6a1408', '#b8300e', '#e8501a', '#ff8a2a', '#ffd060', '#fff4b0'], U.clamp((n - 0.2) * 1.5, 0, 1)); });
   } else if (ch === 'w') {
     P.fill((x, y) => ramp(['#26443c', '#30544a', '#3a5e54', '#46685c'], tfbm(x + f * 4, y, 61)));
-    for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const w = tn(x + f * 4, y * 2, 4, 63 + v); if (w > 0.88) P.set(x, y, '#7a9a88', 0.5); }
+    P.each((x, y) => { const w = tn(x + f * 4, y * 2, 4, 63 + v); if (w > 0.88) P.dot(x, y, '#7a9a88', 0.5); });
     if (v % 3 === 0) {
       const cx = 10, cy = 10;
       for (let y = -4; y <= 4; y++) for (let x = -5; x <= 5; x++) { const r = x * x / 25 + y * y / 16; if (r < 1 && !(x > 0 && Math.abs(y) < 1)) P.set(cx + x, cy + y, r > 0.7 ? '#2e6a2a' : y < 0 ? '#5aa04a' : '#4a8a3a'); }
@@ -1307,6 +1325,7 @@ SPR.bridge = () => SPR.get('bridge', () => {
   P.fill((x, y) => { if (y < 3 || y > 28) return U.hex2rgb(y === 0 || y === 31 ? '#2a1a0c' : '#4a2e16'); const plank = Math.floor(x / 6), edge = x % 6 === 0; if (edge) return U.hex2rgb('#3a2412'); const base = U.mix('#7a4e2a', '#9a6838', U.hash(plank, 0, 3)); return U.hex2rgb(U.mix(base, '#5a3a1e', Math.sin(y * 0.8 + plank * 2) > 0.85 ? 0.5 : 0)); });
   for (let p = 0; p < 6; p++) { P.set(p * 6 + 2, 5, '#c8c0b0'); P.set(p * 6 + 2, 26, '#c8c0b0'); }
   for (let x = 0; x < TS; x++) { P.set(x, 3, '#a8784a', 0.8); P.set(x, 29, '#1a1008', 0.6); }
+  P.each((x, y) => { if (y > 3 && y < 28 && Math.floor(x) % 6 !== 0 && gr(x, y, 9) < 0.08) P.dot(x, y, '#3a2412', 0.35); });
   return P.done();
 });
 // ---------------- Petits décors de sol (dessinés dans le sol, sans collision) ----------------
@@ -1328,29 +1347,31 @@ SPR.DECAL = {
   gravel(g, v) { for (let i = 0; i < 10; i++) g.dot(2 + U.hash(i, v, 4) * 12, 6 + U.hash(v, i, 4) * 8, ['#a8a090', '#6a645a', '#c8c0b0'][i % 3]); },
   crack(g, v) { let x = 4, y = 8; for (let i = 0; i < 8; i++) { g.hline(x, y, x + 1, y + 0.5, '#3a3530'); x += 1; y += U.hash(i, v, 5) < 0.5 ? 0.5 : -0.5; } },
 };
-SPR.decal = (type, v) => SPR.get(`dc_${type}_${v}`, () => { const g = new G.Pix(16, 16, 2); SPR.DECAL[type](g, v); g.outline('#10180c').polish(0.02, v + 31); return g.toCanvas(); });
+SPR.decal = (type, v) => SPR.get(`dc_${type}_${v}`, () => { const g = new G.Pix(16, 16, ENV_K); SPR.DECAL[type](g, v); g.outline('#10180c').outline('#10180c').polish(0.02, v + 31); return g.toCanvas(); });
 // bordure douce d'un sol sur son voisin (transition)
 const TILE_PRIO = { '~': 0, 'l': 0, 'w': 1, 's': 2, '_': 3, 'p': 4, 'm': 5, 'v': 5, 'r': 6, '.': 7, ',': 7, 'g': 7, 'f': 8 };
 SPR.prio = ch => TILE_PRIO[ch] ?? -1;
 // side : 0 haut, 1 droite, 2 bas, 3 gauche (côté d'où vient le voisin)
 SPR.fringe = (ch, side, v) => SPR.get(`fr_${ch}_${side}_${v}`, () => {
-  const src = SPR.tile(ch, v), c = U.canvas(TS, TS), x = c.getContext('2d');
+  const src = SPR.tile(ch, v), c = U.canvas(RS, RS), x = c.getContext('2d');
   x.drawImage(src, 0, 0);
-  const img = x.getImageData(0, 0, TS, TS), D = img.data, grassy = TILE_KIND[ch] === 'grass';
-  for (let py = 0; py < TS; py++) for (let px = 0; px < TS; px++) {
-    const along = side === 0 || side === 2 ? px : py, depth = side === 0 ? py : side === 2 ? TS - 1 - py : side === 1 ? TS - 1 - px : px;
-    const lim = 2.5 + tn(along, side * 7, 4, 200 + v) * 4 + (grassy && U.hash(along, side, v + 300) < 0.3 ? 3 : 0);
-    const i = (py * TS + px) * 4;
+  const img = x.getImageData(0, 0, RS, RS), D = img.data, grassy = TILE_KIND[ch] === 'grass';
+  for (let Y = 0; Y < RS; Y++) for (let X = 0; X < RS; X++) {
+    const px = (X + 0.5) / EQ, py = (Y + 0.5) / EQ, TL = TS - 0.5;
+    const along = side === 0 || side === 2 ? px : py, depth = side === 0 ? py : side === 2 ? TL - py : side === 1 ? TL - px : px;
+    const lim = 2.5 + tn(along, side * 7, 4, 200 + v) * 4 + (grassy && U.hash(Math.floor(along), side, v + 300) < 0.3 ? 3 : 0) + (gr(along, side, v + 310) - 0.5) * 0.8;
+    const i = (Y * RS + X) * 4;
     if (depth > lim) D[i + 3] = 0;
-    else if (depth > lim - 1) { D[i] *= 0.7; D[i + 1] *= 0.7; D[i + 2] *= 0.7; }
+    else if (depth > lim - 0.6) { D[i] *= 0.68; D[i + 1] *= 0.68; D[i + 2] *= 0.68; }
+    else if (depth > lim - 1.1) { D[i] *= 0.84; D[i + 1] *= 0.84; D[i + 2] *= 0.84; }
   }
-  x.putImageData(img, 0, 0); c._d = 2;
+  x.putImageData(img, 0, 0); c._d = 4;
   return c;
 });
 // Falaises : face supérieure et paroi
 SPR.cliffTop = (volc, v, snow) => SPR.get(`ct_${volc ? 1 : 0}_${v}_${snow ? 1 : 0}`, () => {
   const P = Painter(), pal = volc ? ['#241c1a', '#342826', '#463632', '#5a4642', '#6e5650'] : ['#6e7076', '#868890', '#9ea0a4', '#b6b7b6', '#d0d0ca'];
-  P.fill((x, y) => rampQ(pal, tfbm(x, y, volc ? 111 : 113) * 0.9 + 0.05 + (U.hash(x, y, v + 120) - 0.5) * 0.16));
+  P.fill((x, y) => rampQ(pal, tfbm(x, y, volc ? 111 : 113) * 0.9 + 0.05 + (gr(x, y, v + 120) - 0.5) * 0.16));
   for (let c = 0; c < 3; c++) { let cx = U.hash(c, v, 130) * TS, cy = U.hash(v, c, 130) * TS; for (let i = 0; i < 8; i++) { P.wset(cx, cy, pal[0]); P.wset(cx + 1, cy + 1, pal[4], 0.4); cx += U.hash(i, c, 131) < 0.5 ? 1 : -1; cy += 1; } }
   for (let k = 0; k < 3; k++) {
     const rx = 3 + U.hash(k, v, 145) * 26, ry = 3 + U.hash(v, k, 145) * 26, rr = 1.5 + U.hash(k, k, 146) * 1.5;
@@ -1358,23 +1379,24 @@ SPR.cliffTop = (volc, v, snow) => SPR.get(`ct_${volc ? 1 : 0}_${v}_${snow ? 1 : 
   }
   if (!volc && v % 2 === 0) for (let k = 0; k < 8; k++) { const mx = U.hash(k, v, 140) * TS, my = U.hash(v, k, 140) * TS; P.wset(mx, my, '#6a8a42', 0.9); P.wset(mx + 1, my, '#8aaa5a', 0.7); }
   if (volc && v % 3 === 0) for (let k = 0; k < 5; k++) P.wset(U.hash(k, v, 141) * TS, U.hash(v, k, 141) * TS, '#ff6a2a', 0.8);
-  if (snow) for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const n = tfbm(x, y, 150 + v); if (n > 0.48) P.set(x, y, n > 0.62 ? '#ffffff' : n > 0.54 ? '#eef4ff' : '#c8d4e8'); }
+  if (snow) P.each((x, y) => { const n = tfbm(x, y, 150 + v); if (n > 0.48) P.dot(x, y, n > 0.62 ? '#ffffff' : n > 0.54 ? '#eef4ff' : '#c8d4e8'); });
   return P.done();
 });
 SPR.cliffFront = (volc, v) => SPR.get(`cf_${volc ? 1 : 0}_${v}`, () => {
-  const c = U.canvas(TS, 16), x = c.getContext('2d'), img = x.createImageData(TS, 16), D = img.data;
+  const c = U.canvas(RS, 32), x = c.getContext('2d'), img = x.createImageData(RS, 32), D = img.data;
   const pal = volc ? ['#120c0c', '#1e1614', '#2a1e1c', '#382826'] : ['#3a3530', '#4a453e', '#5a554c', '#6a645a'];
-  for (let y = 0; y < 16; y++) for (let px = 0; px < TS; px++) {
+  for (let Y = 0; Y < 32; Y++) for (let PX = 0; PX < RS; PX++) {
+    const y = Y / 2, px = PX / 2;
     const strata = Math.sin(y * 1.1 + tn(px, 0, 8, 160 + v) * 4) * 0.5 + 0.5, crack = tn(px, y * 3, 4, 170 + v) > 0.78;
-    let t = 1 - y / 18 + (strata - 0.5) * 0.35 + (U.hash(px, y, v + 180) - 0.5) * 0.12;
+    let t = 1 - y / 18 + (strata - 0.5) * 0.35 + (U.hash(PX, Y, v + 180) - 0.5) * 0.12;
     if (crack) t -= 0.35;
     let col = U.hex2rgb(pal[Math.max(0, Math.min(3, Math.floor(t * 4)))]);
-    if (y === 0) col = U.hex2rgb(volc ? '#5c4844' : '#b5ae9f');
-    if (y === 1) col = U.hex2rgb(volc ? '#4a3a36' : '#8f877a');
-    if (volc && crack && U.hash(px, y, 3) < 0.3) col = [255, 106, 42];
-    const i = (y * TS + px) * 4; D[i] = col[0]; D[i + 1] = col[1]; D[i + 2] = col[2]; D[i + 3] = 255;
+    if (Y === 0) col = U.hex2rgb(volc ? '#5c4844' : '#b5ae9f');
+    if (Y === 1 || Y === 2) col = U.hex2rgb(volc ? '#4a3a36' : '#8f877a');
+    if (volc && crack && U.hash(Math.floor(px), Math.floor(y), 3) < 0.3) col = [255, 106, 42];
+    const i = (Y * RS + PX) * 4; D[i] = col[0]; D[i + 1] = col[1]; D[i + 2] = col[2]; D[i + 3] = 255;
   }
-  x.putImageData(img, 0, 0); c._d = 2;
+  x.putImageData(img, 0, 0); c._d = 4;
   return c;
 });
 
@@ -1392,7 +1414,7 @@ function foliage(g, cx, cy, rx, ry, base, seed, n) {
 }
 SPR.TREE_SIZE = { pine: [20, 34], snowpine: [20, 34], giant: [28, 40], willow: [26, 30] };
 SPR.tree = kind => SPR.get('tree_' + kind, () => {
-  const [w, h] = SPR.TREE_SIZE[kind] || [20, 30], g = new G.Pix(w, h, 2), cx = w / 2;
+  const [w, h] = SPR.TREE_SIZE[kind] || [20, 30], g = new G.Pix(w, h, ENV_K), cx = w / 2;
   const bark = c => U.shades(c);
   const trunkPoly = (tw, top, col) => { const T = bark(col); g.poly([[cx - tw / 2 - 0.4, h - 1], [cx - tw / 2 + 0.3, top], [cx + tw / 2 - 0.3, top], [cx + tw / 2 + 0.4, h - 1]], T); g.poly([[cx - tw / 2 - 1.6, h - 0.5], [cx - tw / 2, h - 3], [cx - tw / 2 + 0.6, h - 0.5]], T[0]); g.poly([[cx + tw / 2 + 1.6, h - 0.5], [cx + tw / 2, h - 3], [cx + tw / 2 - 0.6, h - 0.5]], T[0]); for (let y = top + 2; y < h - 1; y += 2) g.hline(cx - 0.6 + (y % 4 ? 0.6 : 0), y, cx - 0.4 + (y % 4 ? 0.6 : 0), y + 1.2, T[0]); };
   switch (kind) {
@@ -1457,17 +1479,17 @@ SPR.tree = kind => SPR.get('tree_' + kind, () => {
       }
     }
   }
-  g.outline('#10180c').polish(0.03, 11);
+  g.outline('#10180c').outline('#10180c').polish(0.03, 11);
   return g.toCanvas();
 });
 SPR.node = (type, depleted) => SPR.get(`n_${type}_${depleted ? 1 : 0}`, () => {
-  const g = new G.Pix(20, 24, 2);
+  const g = new G.Pix(20, 24, ENV_K);
   const rock = U.shades('#8a8478'), rockD = U.shades('#6a645a');
   if (depleted) {
     if (type === 'arbre' || type === 'vieil_arbre') { g.ell(10, 20.5, 3, 1.6, U.shades('#6a4626')); g.ell(10, 20, 2.2, 0.9, U.shades('#d8b888')); g.hline(9, 20, 11, 20, '#a8805a'); }
     else if (type === 'herbe' || type === 'fibre') { [8, 9.5, 11, 12].forEach((x, i) => g.line(x, 22, x + (i % 2 ? 0.5 : -0.5), 19.5 + (i % 2), '#4a7a30', 0.5)); }
     else { g.ell(8, 20.5, 2.2, 1.4, rockD); g.ell(12, 21.2, 1.7, 1.1, rock); g.ell(10.5, 22, 1, 0.7, rock); }
-    g.outline('#10180c').polish(0.03, 13); return g.toCanvas();
+    g.outline('#10180c').outline('#10180c').polish(0.03, 13); return g.toCanvas();
   }
   const boulder = (cols) => { g.ell(10, 18.4, 7.2, 5, cols); g.ell(6.6, 15.8, 3.8, 3.2, cols); g.ell(13, 15.4, 3, 2.6, cols); g.hline(9, 14.5, 10.5, 18, U.mix(cols[0], '#000', 0.2)); g.hline(13, 19, 15, 21, U.mix(cols[0], '#000', 0.2)); };
   switch (type) {
@@ -1507,50 +1529,50 @@ SPR.node = (type, depleted) => SPR.get(`n_${type}_${depleted ? 1 : 0}`, () => {
     }
     case 'fibre': { for (let i = 0; i < 11; i++) { const x0 = 4.5 + i * 1.1; g.line(x0, 22.5, x0 + (i % 2 ? 1.2 : -1), 9 + (i % 4) * 1.6, i % 3 ? '#e8c860' : '#b8902a', 0.5); g.ell(x0 + (i % 2 ? 1.2 : -1), 9 + (i % 4) * 1.6, 0.6, 1.2, U.shades('#f0d878')); } break; }
   }
-  g.outline('#10180c').polish(0.03, 15);
+  g.outline('#10180c').outline('#10180c').polish(0.03, 15);
   return g.toCanvas();
 });
 SPR.chest = open => SPR.get('chest' + (open ? 1 : 0), () => {
-  const g = new G.Pix(16, 16, 2), W = U.shades('#8a5a2a'), Gd = U.shades('#e8b840');
+  const g = new G.Pix(16, 16, ENV_K), W = U.shades('#8a5a2a'), Gd = U.shades('#e8b840');
   if (open) { g.rect(2, 3.5, 12, 4.5, ['#3a2410', '#5a3a1e', '#7a5230']); g.ell(8, 8, 4, 1.2, U.shades('#ffd860')); }
   else g.poly([[2, 9], [2, 6.5], [4, 4.6], [12, 4.6], [14, 6.5], [14, 9]], W);
   g.rect(2, 8.5, 12, 6.5, W);
   for (let x = 4.5; x < 13; x += 2.5) g.hline(x, 9.5, x, 14.5, W[0]);
   g.rect(2, 8.3, 12, 0.9, Gd); g.rect(2, 5, 1, 10, Gd); g.rect(13, 5, 1, 10, Gd);
   g.rect(7, 7.6, 2, 2.8, Gd); g.dot(7.8, 8.8, '#3a2410');
-  g.outline('#140c1c').polish(0.02, 17); return g.toCanvas();
+  g.outline('#140c1c').outline('#140c1c').polish(0.02, 17); return g.toCanvas();
 });
 SPR.sign = () => SPR.get('sign', () => {
-  const g = new G.Pix(16, 16, 2), W = U.shades('#9a6a3a');
+  const g = new G.Pix(16, 16, ENV_K), W = U.shades('#9a6a3a');
   g.rect(7, 9, 2, 7, W); g.rect(2, 3, 12, 7, W);
   [4.5, 6.5].forEach(y => g.hline(4, y, 11, y, '#5a3a1e')); g.hline(4, 8, 9, 8, '#5a3a1e');
   g.hline(2.5, 3.5, 13.5, 3.5, '#c8945a'); g.dot(3, 4, '#3a2412'); g.dot(12.6, 4, '#3a2412');
-  g.outline('#140c1c').polish(0.02, 19); return g.toCanvas();
+  g.outline('#140c1c').outline('#140c1c').polish(0.02, 19); return g.toCanvas();
 });
 SPR.lamp = () => SPR.get('lamp', () => {
-  const g = new G.Pix(10, 26, 2), M = U.shades('#3a3440');
+  const g = new G.Pix(10, 26, ENV_K), M = U.shades('#3a3440');
   g.rect(4.2, 8, 1.6, 17, M); g.rect(2.5, 23.5, 5, 2.5, M); g.rect(3.5, 22, 3, 1.6, M);
   g.poly([[1.5, 2.5], [5, 0.5], [8.5, 2.5]], U.shades('#2a2430'));
   g.rect(2, 2.4, 6, 5.6, U.shades('#2a2430')); g.rect(2.8, 3, 4.4, 4.4, ['#ffc860', '#ffe08a', '#fff8d0']); g.dot(3.5, 3.5, '#ffffff');
   g.hline(5, 3, 5, 7.4, '#2a2430'); g.rect(1.5, 7.8, 7, 0.8, M);
-  g.outline('#140c1c').polish(0.02, 21); return g.toCanvas();
+  g.outline('#140c1c').outline('#140c1c').polish(0.02, 21); return g.toCanvas();
 });
 SPR.stone = () => SPR.get('stone', () => {
-  const g = new G.Pix(16, 30, 2), S = U.shades('#7a7a8a'), C = U.shades('#7affd8');
+  const g = new G.Pix(16, 30, ENV_K), S = U.shades('#7a7a8a'), C = U.shades('#7affd8');
   g.poly([[3, 29], [5, 8], [8, 2], [11, 8], [13, 29]], S);
   [[5, 14, 11, 13], [4.5, 20, 11.5, 21], [4, 25, 12, 24.5]].forEach(([a, b, c, d]) => g.hline(a, b, c, d, S[0]));
   g.poly([[6, 22], [8, 7.5], [10, 22]], C); g.hline(8, 8.5, 8, 21, '#e8fff8'); g.dot(7.5, 12, '#ffffff');
   g.rect(1, 27, 14, 3, U.shades('#5a5a66')); g.hline(1, 27.2, 15, 27.2, '#8a8a9a');
-  g.outline('#140c1c').polish(0.02, 23); return g.toCanvas();
+  g.outline('#140c1c').outline('#140c1c').polish(0.02, 23); return g.toCanvas();
 });
 SPR.plot = () => SPR.get('plot', () => {
-  const c = U.canvas(96, 64), x = c.getContext('2d'); x.scale(2, 2);
+  const c = U.canvas(192, 128), x = c.getContext('2d'); x.scale(4, 4);
   x.fillStyle = '#8a6a3a'; x.fillRect(3, 3, 42, 26);
   for (let i = 5; i < 28; i += 5) { x.fillStyle = '#7a5a30'; x.fillRect(3, i, 42, 1.5); x.fillStyle = '#9a7a48'; x.fillRect(3, i + 1.5, 42, 0.5); }
   for (let k = 0; k < 30; k++) { x.fillStyle = k % 2 ? '#6a4a24' : '#a8885a'; x.fillRect(4 + U.hash(k, 1, 3) * 40, 4 + U.hash(k, 2, 3) * 24, 0.5, 0.5); }
   x.fillStyle = '#c8a86a'; [[3, 3], [43, 3], [3, 27], [43, 27]].forEach(p => { x.fillRect(p[0], p[1] - 4, 2, 6); x.fillStyle = '#8a6a3a'; x.fillRect(p[0] + 1.5, p[1] - 4, 0.5, 6); x.fillStyle = '#c8a86a'; });
   x.fillStyle = '#e8d8a8'; x.fillRect(3, 2, 42, 0.5); x.fillRect(3, 1, 42, 0.5);
-  c._d = 2;
+  c._d = 4;
   return c;
 });
 
@@ -1651,7 +1673,7 @@ const AR = {
 };
 SPR.ARCH_H = { cabin: 44, stilt: 50, ruin: 40, altar: 44, timber: 60, tavern: 60, stone: 46, thatch: 44, manor: 64, barn: 50, shop: 50, forge: 54, market: 40, greenhouse: 44, mine: 46, atelier: 56, menagerie: 50 };
 SPR.arch = (style, lvl = 1, opt = {}) => SPR.get(`arch_${style}_${lvl}_${JSON.stringify(opt)}`, () => {
-  const W = 48, H = SPR.ARCH_H[style] || 50, g = new G.Pix(W, H, 2), B = H - 1; // B : ligne du sol
+  const W = 48, H = SPR.ARCH_H[style] || 50, g = new G.Pix(W, H, ENV_K), B = H - 1; // B : ligne du sol
   const roofC = opt.roof, wallC = opt.wall;
   const foundation = () => g.rect(0.5, B - 1.5, W - 1, 1.8, U.shades('#6a6458'));
   switch (style) {
@@ -1745,7 +1767,7 @@ SPR.arch = (style, lvl = 1, opt = {}) => SPR.get(`arch_${style}_${lvl}_${JSON.st
       // toit à la Mansart (grange)
       const R = U.shades(roofC || '#4a3a30');
       g.poly([[1, 22], [6, 9], [24, 2], [42, 9], [47, 22]], R);
-      for (let y = 4; y < 22; y += 2) for (let x = 1; x < 47; x += 0.5) if (g.get(Math.floor(x * 2), Math.floor(y * 2))) g.dot(x, y, U.mix(R[1], R[0], 0.5));
+      for (let y = 4; y < 22; y += 2) for (let x = 1; x < 47; x += 0.5) if (g.get(Math.floor(x * g.k), Math.floor(y * g.k))) g.dot(x, y, U.mix(R[1], R[0], 0.5));
       AR.planks(g, 3, 22, 42, B - 22, wall, true);
       g.rect(3, 22, 42, 1.2, U.shades('#e8e0d0')); g.rect(3, 22, 1.2, B - 22, U.shades('#e8e0d0')); g.rect(43.8, 22, 1.2, B - 22, U.shades('#e8e0d0'));
       AR.door(g, 17, B - 15, 14, 15, U.mix(wall, '#000', 0.15), { double: true });
@@ -1838,7 +1860,7 @@ SPR.arch = (style, lvl = 1, opt = {}) => SPR.get(`arch_${style}_${lvl}_${JSON.st
       foundation(); break;
     }
   }
-  g.outline('#140c1c').polish(0.012, 25);
+  g.outline('#140c1c').outline('#140c1c').polish(0.012, 25);
   return g.toCanvas();
 });
 // Style des bâtiments du Havre en fonction du niveau
@@ -1857,25 +1879,25 @@ SPR.building = (bid, lvl) => {
 };
 // ---------------- Moulin & accessoires de village ----------------
 SPR.windmill = () => SPR.get('windmill', () => {
-  const g = new G.Pix(32, 52, 2), B = 51;
+  const g = new G.Pix(32, 52, ENV_K), B = 51;
   g.poly([[6, B], [10, 18], [22, 18], [26, B]], U.shades('#e8dcc0'));
   AR.stone(g, 6, B - 8, 20, 8, '#a89e8e', 23);
   for (let y = 22; y < B - 8; y += 3) g.hline(8 + (B - y) * 0.05, y, 24 - (B - y) * 0.05, y, '#c8bca0');
   g.poly([[7, 19], [16, 6], [25, 19]], U.shades('#8a3a2a')); for (let y = 9; y < 19; y += 2) { const h = (y - 6) / 13 * 9; g.hline(16 - h, y, 16 + h, y, '#6a2a1a'); }
   AR.window(g, 14, 24, 4, 4, '#5a3a22'); AR.door(g, 13.5, B - 8, 5, 8, '#6a4424');
   g.ell(16, 16, 1.4, 1.4, U.shades('#4a3a2a'));
-  g.outline('#140c1c').polish(0.012, 27);
+  g.outline('#140c1c').outline('#140c1c').polish(0.012, 27);
   return g.toCanvas();
 });
 SPR.millBlades = a => SPR.get('blades_' + a, () => {
-  const g = new G.Pix(36, 36, 2), c = 18;
+  const g = new G.Pix(36, 36, ENV_K), c = 18;
   for (let i = 0; i < 4; i++) {
     const ang = a / 8 * Math.PI / 2 + i * Math.PI / 2, ca = Math.cos(ang), sa = Math.sin(ang), px = -sa, py = ca;
     g.line(c, c, c + ca * 16, c + sa * 16, '#5a3a22', 0.8);
     for (let t = 4; t < 16; t += 0.5) for (let k = 0.6; k < 4; k += 0.5) g.dot(c + ca * t + px * k, c + sa * t + py * k, (Math.floor(t) + Math.floor(k)) % 3 === 0 ? '#8a6a40' : '#f0e8d8');
   }
   g.ell(c, c, 1.5, 1.5, U.shades('#3a2a1a'));
-  g.outline('#140c1c');
+  g.outline('#140c1c').outline('#140c1c');
   return g.toCanvas();
 });
 SPR.PROPS = {
@@ -1889,32 +1911,32 @@ SPR.PROPS = {
   flowerpot(g) { g.poly([[5, 9], [11, 9], [10, 14], [6, 14]], U.shades('#b8603a')); g.ell(8, 8, 3.6, 2.4, U.shades('#4a9a3a')); [[6.5, 7], [9, 6.5], [8, 8]].forEach(([x, y], i) => { g.ell(x, y, 0.9, 0.9, U.shades(['#ff6a8a', '#ffe060', '#d08aff'][i])); }); },
   fence(g) { [2, 7.5, 13].forEach(x => g.rect(x, 6, 1.2, 8, U.shades('#a8784a'))); g.rect(1, 7.5, 14, 1, U.shades('#a8784a')); g.rect(1, 10.5, 14, 1, U.shades('#a8784a')); },
 };
-SPR.prop = type => SPR.get('prop_' + type, () => { const g = new G.Pix(16, 16, 2); SPR.PROPS[type](g); g.outline('#140c1c').polish(0.02, 33); return g.toCanvas(); });
+SPR.prop = type => SPR.get('prop_' + type, () => { const g = new G.Pix(16, 16, ENV_K); SPR.PROPS[type](g); g.outline('#140c1c').outline('#140c1c').polish(0.02, 33); return g.toCanvas(); });
 
 // ---------------- Fontaine, remparts, portiques ----------------
 SPR.fountain = f => SPR.get('fountain_' + f, () => {
-  const g = new G.Pix(24, 26, 2), S = ['#6a6a76', '#9a9aa8', '#c8c8d4'];
+  const g = new G.Pix(24, 26, ENV_K), S = ['#6a6a76', '#9a9aa8', '#c8c8d4'];
   g.ell(12, 20, 11, 5, S); g.ell(12, 19.5, 9.5, 3.8, U.shades('#2a6ab8'));
   for (let k = 0; k < 6; k++) { const a = (k + f * 0.5) * 1.05; g.ell(12 + Math.cos(a) * 6, 19.5 + Math.sin(a) * 2.4, 1.2, 0.4, '#a8d8ff'); }
   AR.stone(g, 1, 20, 22, 5, '#9a9aa8', 3);
   g.rect(10.6, 9, 2.8, 11, S); g.ell(12, 9.5, 4.2, 1.6, S); g.ell(12, 9.3, 3.2, 1, U.shades('#3a7ac8'));
   g.ell(12, 5, 1.2, 3, ['#7ab8ec', '#bfe0ff', '#ffffff']);
   for (let k = 0; k < 4; k++) { const t = ((f + k * 2) % 8) / 8; g.dot(12 - 3.5 * t - 0.5, 9 + t * t * 10, '#cfe8ff'); g.dot(12 + 3.5 * t, 9 + t * t * 10, '#cfe8ff'); }
-  g.outline('#140c1c').polish(0.015, 41);
+  g.outline('#140c1c').outline('#140c1c').polish(0.015, 41);
   return g.toCanvas();
 });
 SPR.wallSeg = (v, top) => SPR.get(`wall_${v}_${top ? 1 : 0}`, () => {
-  const g = new G.Pix(16, 24, 2);
+  const g = new G.Pix(16, 24, ENV_K);
   AR.stone(g, 0, 8, 16, 15, '#9a9286', 43 + v);
   g.rect(0, 6.5, 16, 1.8, U.shades('#b8b0a2'));
   if (v % 2 === 0) { AR.stone(g, 1, 1, 5.5, 6, '#a8a092', 47); AR.stone(g, 9.5, 1, 5.5, 6, '#a8a092', 48); }
   if (v % 3 === 0) AR.ivy(g, 3 + v % 5, 9, 6, v);
   g.rect(0, 22, 16, 2, U.shades('#6a6458'));
-  g.outline('#140c1c').polish(0.015, 49);
+  g.outline('#140c1c').outline('#140c1c').polish(0.015, 49);
   return g.toCanvas();
 });
 SPR.gatePost = (zone, side, horiz) => SPR.get(`gate_${zone}_${side}_${horiz ? 1 : 0}`, () => {
-  const g = new G.Pix(16, 36, 2), col = { foret: '#3e9a4a', montagne: '#8aa0c8', marais: '#9a6ad8' }[zone] || '#c8a040';
+  const g = new G.Pix(16, 36, ENV_K), col = { foret: '#3e9a4a', montagne: '#8aa0c8', marais: '#9a6ad8' }[zone] || '#c8a040';
   const st = { foret: '#8a7650', montagne: '#a8a294', marais: '#74745e' }[zone] || '#a8a294';
   g.rect(3, 31, 10, 4, U.shades(U.mix(st, '#000', 0.25)));
   AR.stone(g, 4, 9, 8, 22, st, 51 + side);
@@ -1923,13 +1945,13 @@ SPR.gatePost = (zone, side, horiz) => SPR.get(`gate_${zone}_${side}_${horiz ? 1 
   const bx = horiz ? 6.3 : side === 0 ? 10.5 : 2;
   g.rect(bx, 11, 3.4, 11, U.shades(col)); g.poly([[bx, 22], [bx + 1.7, 20.4], [bx + 3.4, 22]], U.mix(col, '#000', 0.4));
   g.ell(bx + 1.7, 14.5, 1, 1, ['#c8a040', '#ffe080', '#fff8d0']); g.hline(bx - 0.4, 11, bx + 3.8, 11, '#3a2a1a');
-  g.outline('#140c1c').polish(0.015, 53);
+  g.outline('#140c1c').outline('#140c1c').polish(0.015, 53);
   return g.toCanvas();
 });
 
 // ---------------- Camp (tente et feu) ----------------
 SPR.camp = f => SPR.get('camp_' + f, () => {
-  const g = new G.Pix(32, 32, 2);
+  const g = new G.Pix(32, 32, ENV_K);
   g.poly([[2, 24], [11, 8], [20, 24]], ['#8a5a30', '#c88a4a', '#e8b878']); g.poly([[11, 8], [20, 24], [24, 22], [15, 7]], U.shades('#9a6a3a'));
   g.poly([[8.5, 24], [11, 15], [13.5, 24]], '#2a1a10'); g.hline(11, 7, 11, 24, '#5a3a20');
   g.rect(14.5, 6, 0.6, 2, '#3a2a1a'); g.poly([[15, 6], [18, 6.8], [15, 7.6]], U.shades('#c83a3a'));
@@ -1938,6 +1960,6 @@ SPR.camp = f => SPR.get('camp_' + f, () => {
   const fl = [[25, 24, 2.2, 3.4], [24, 23.5 - (f % 2) * 0.6, 1.2, 2.4], [26.2, 24 - ((f + 1) % 2) * 0.5, 1, 2]];
   fl.forEach(([x, y, rx, ry], i) => g.ell(x, y, rx, ry, i === 0 ? ['#c83a10', '#ff8a2a', '#ffe080'] : ['#ff8a2a', '#ffd040', '#fff8c0']));
   g.ell(30, 24, 1.6, 2.4, U.shades('#6a4626')); g.ell(30, 22, 1.8, 0.6, U.shades('#a8784a'));
-  g.outline('#140c1c').polish(0.015, 61);
+  g.outline('#140c1c').outline('#140c1c').polish(0.015, 61);
   return g.toCanvas();
 });

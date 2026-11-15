@@ -145,7 +145,7 @@ G.Pix = class Pix {
     }
   }
   // ligne fine (un pixel réel)
-  hline(x0, y0, x1, y1, c) { this.line(x0, y0, x1, y1, c, Math.max(1 / this.k, 0.32)); }
+  hline(x0, y0, x1, y1, c) { this.line(x0, y0, x1, y1, c, this.k === 4 ? 0.5 : Math.max(1 / this.k, 0.32)); }
   thick(pts, r0, r1, c) {
     const steps = [];
     for (let i = 0; i < pts.length - 1; i++) {

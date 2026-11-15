@@ -1030,13 +1030,13 @@ G.World = {
     const key = gx + ',' + gy, C = this._chunks = this._chunks || new Map();
     if (C.has(key)) { const v = C.get(key); C.delete(key); C.set(key, v); return v; }
     const v = this.buildChunk(gx, gy); C.set(key, v);
-    if (C.size > 56) C.delete(C.keys().next().value);
+    if (C.size > 24) C.delete(C.keys().next().value);
     return v;
   },
   buildChunk(gx, gy) {
     return (() => {
-      const CK = 16, c = U.canvas(CK * 32, CK * 32), x = c.getContext('2d');
-      x.imageSmoothingEnabled = false; x.scale(2, 2);
+      const CK = 16, c = U.canvas(CK * 64, CK * 64), x = c.getContext('2d');
+      x.imageSmoothingEnabled = false; x.scale(4, 4);
       const tiles = [];
       for (let ty = gy * CK; ty < Math.min(this.H, gy * CK + CK); ty++) for (let tx = gx * CK; tx < Math.min(this.W, gx * CK + CK); tx++) tiles.push([tx, ty]);
       // textures
@@ -1046,26 +1046,29 @@ G.World = {
         const base = this.baseCh(tx, ty), v = Math.floor(U.hash(tx, ty, 5) * 8);
         x.drawImage(G.SPR.tile(base, v, this.groundStyle(base, tx, ty)), sx, sy, 16, 16);
       });
-      // teinte continue à grande échelle (sur l'herbe et la roche)
-      const img = x.getImageData(0, 0, c.width, c.height), D = img.data, W = c.width;
-      for (let BY = 0; BY < c.height; BY += 4) for (let BX = 0; BX < W; BX += 4) {
-        const tx = gx * CK + (BX >> 5), ty = gy * CK + (BY >> 5), ch = this.baseCh(tx, ty);
-        if (!ch || ch === '_' || ch === 'p' || ch === 's') continue;
-        const wx = (gx * CK * 32 + BX + 2) / 32, wy = (gy * CK * 32 + BY + 2) / 32;
-        const n = U.noise(wx / 5, wy / 5, 61), b = (U.noise(wx / 2, wy / 2, 62) - 0.5) * 0.12;
-        let tr = 0, tg = 0, tb = 0, a = 0;
-        if (ch === '.' || ch === ',' || ch === 'g') { if (n < 0.42) { tr = 196; tg = 176; tb = 80; a = (0.42 - n) * 0.9; } else if (n > 0.6) { tr = 30; tg = 110; tb = 80; a = (n - 0.6) * 0.8; } }
-        else if (ch === 'f') { if (n > 0.55) { tr = 20; tg = 70; tb = 60; a = (n - 0.55) * 0.8; } else { tr = 90; tg = 110; tb = 40; a = (0.55 - n) * 0.4; } }
-        else if (ch === 'r') { if (n < 0.45) { tr = 120; tg = 96; tb = 70; a = (0.45 - n) * 0.8; } else { tr = 100; tg = 110; tb = 130; a = (n - 0.45) * 0.5; } }
-        a = Math.min(0.32, a);
-        const SZ = this.subInfo(tx, ty), st = SZ ? SZ.tint : null;
-        for (let Y = BY; Y < BY + 4; Y++) for (let X = BX; X < BX + 4; X++) {
-          const i = (Y * W + X) * 4; if (D[i + 3] === 0) continue;
-          D[i] = Math.min(255, (D[i] * (1 - a) + tr * a) * (1 + b)); D[i + 1] = Math.min(255, (D[i + 1] * (1 - a) + tg * a) * (1 + b)); D[i + 2] = Math.min(255, (D[i + 2] * (1 - a) + tb * a) * (1 + b));
-          if (st) { D[i] += (st[0] - D[i]) * st[3]; D[i + 1] += (st[1] - D[i + 1]) * st[3]; D[i + 2] += (st[2] - D[i + 2]) * st[3]; }
+      // teinte continue à grande échelle (sur l'herbe et la roche) : calques basse définition agrandis en douceur
+      {
+        const N = CK * 8, mk = () => { const t = U.canvas(N, N); return [t, t.getContext('2d'), t.getContext('2d').createImageData(N, N)]; };
+        const [tc, tcx, tI] = mk(), [lc, lcx, lI] = mk(), [dc, dcx, dI] = mk(), [zc, zcx, zI] = mk();
+        for (let BY = 0; BY < N; BY++) for (let BX = 0; BX < N; BX++) {
+          const tx = gx * CK + (BX >> 3), ty = gy * CK + (BY >> 3), ch = this.baseCh(tx, ty);
+          if (!ch || ch === '_' || ch === 'p' || ch === 's') continue;
+          const wx = gx * CK + (BX + 0.5) / 8, wy = gy * CK + (BY + 0.5) / 8;
+          const n = U.noise(wx / 5, wy / 5, 61), bb = (U.noise(wx / 2, wy / 2, 62) - 0.5) * 0.12;
+          let tr = 0, tg = 0, tb = 0, al = 0;
+          if (ch === '.' || ch === ',' || ch === 'g') { if (n < 0.42) { tr = 196; tg = 176; tb = 80; al = (0.42 - n) * 0.9; } else if (n > 0.6) { tr = 30; tg = 110; tb = 80; al = (n - 0.6) * 0.8; } }
+          else if (ch === 'f') { if (n > 0.55) { tr = 20; tg = 70; tb = 60; al = (n - 0.55) * 0.8; } else { tr = 90; tg = 110; tb = 40; al = (0.55 - n) * 0.4; } }
+          else if (ch === 'r') { if (n < 0.45) { tr = 120; tg = 96; tb = 70; al = (0.45 - n) * 0.8; } else { tr = 100; tg = 110; tb = 130; al = (n - 0.45) * 0.5; } }
+          const i = (BY * N + BX) * 4;
+          tI.data[i] = tr; tI.data[i + 1] = tg; tI.data[i + 2] = tb; tI.data[i + 3] = Math.min(0.32, al) * 255;
+          if (bb > 0) { lI.data[i] = lI.data[i + 1] = lI.data[i + 2] = 255; lI.data[i + 3] = bb * 255; } else { dI.data[i + 3] = -bb * 255; }
+          const SZ = this.subInfo(tx, ty), st = SZ ? SZ.tint : null;
+          if (st) { zI.data[i] = st[0]; zI.data[i + 1] = st[1]; zI.data[i + 2] = st[2]; zI.data[i + 3] = st[3] * 255; }
         }
+        x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-atop'; x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+        [[tc, tcx, tI], [lc, lcx, lI], [dc, dcx, dI], [zc, zcx, zI]].forEach(([cv, cx2, I]) => { cx2.putImageData(I, 0, 0); x.drawImage(cv, 0, 0, c.width, c.height); });
+        x.restore();
       }
-      x.putImageData(img, 0, 0);
       // transitions douces : le sol « dominant » déborde sur son voisin
       tiles.forEach(([tx, ty]) => {
         const ch = this.t[ty][tx]; if (ch === '=') return;
